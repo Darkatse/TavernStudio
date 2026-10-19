@@ -52,6 +52,12 @@ export async function publishSession(
   worker.postMessage({ type: 'session-changed' });
 }
 
+/** What the last Session published, from any earlier visit. */
+export async function readSessionState(): Promise<SessionState | null> {
+  const stored = await (await caches.open(SESSION_CACHE)).match(SESSION_STATE_URL);
+  return stored ? ((await stored.json()) as SessionState) : null;
+}
+
 /** Republishes one file after a session write or deletion. */
 export async function publishChange(data: DataDirectory, path: string): Promise<void> {
   const cache = await caches.open(SESSION_CACHE);

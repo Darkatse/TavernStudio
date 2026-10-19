@@ -28,7 +28,7 @@ export function StartupOverlay({ session, booted }: { session: SessionStatus; bo
       ) : (
         <ol className="flex flex-col gap-2.5" aria-label="预览启动进度">
           <Step state={stepState(session, booted, 0)}>准备预览服务</Step>
-          <Step state={stepState(session, booted, 1)}>载入样板数据</Step>
+          <Step state={stepState(session, booted, 1)}>载入样板与扩展</Step>
           <Step state={stepState(session, booted, 2)}>
             启动 {session.phase === 'open' ? session.vendor.label : 'vendor'}
           </Step>

@@ -12,7 +12,9 @@ import {
   type PreviewHost,
   type ViewConnection,
 } from '@tavern-studio/preview';
-import { publishChange, publishSession } from './publish';
+import { clearBrowserState } from './browser-state';
+import { EXTENSIONS, installExtension } from './extensions';
+import { publishChange, publishSession, readSessionState } from './publish';
 import { loadFixture, loadVendorImages, loadVendorInfo, type VendorImage } from './sources';
 
 export type OpeningStep = 'worker' | 'data';
@@ -42,6 +44,8 @@ export class PreviewSession implements PreviewHost {
   #status: SessionStatus = { phase: 'opening', step: 'worker' };
   #opened: Opened | undefined;
   #opening: Promise<void> | undefined;
+  /** Publishing of session writes, in write order. */
+  #published: Promise<void> = Promise.resolve();
   readonly #views = new Map<Element, View>();
   readonly #listeners = new Set<() => void>();
   readonly #diagnostics: DiagnosticEntry[] = [];
@@ -99,6 +103,16 @@ export class PreviewSession implements PreviewHost {
     return () => this.#views.delete(frame);
   }
 
+  /**
+   * Writes a file of the Session's data, for example when a mounted project
+   * file changes. Resolves once the Preview SW serves the new content.
+   */
+  updateData(path: string, content: Uint8Array | string): Promise<void> {
+    if (!this.#opened) throw new Error('The preview Session is not open');
+    this.#opened.data.write(path, content);
+    return this.#published;
+  }
+
   connect(page: Window): ViewConnection {
     const view = page.frameElement && this.#views.get(page.frameElement);
     const opened = this.#opened;
@@ -135,10 +149,28 @@ export class PreviewSession implements PreviewHost {
     this.#setStatus({ phase: 'opening', step: 'data' });
     const [vendor] = await loadVendorImages();
     if (!vendor) throw new Error('No vendor image is built (run `pnpm vendor:st 1.19.0`)');
-    const [info, files] = await Promise.all([loadVendorInfo(vendor.id), loadFixture(fixture)]);
-    const data = new DataDirectory(files.files);
-    await publishSession(data, files.hashes, { vendor: vendor.id }, worker);
-    data.onChange((path) => void publishChange(data, path));
+    const [info, files, extensions, previous] = await Promise.all([
+      loadVendorInfo(vendor.id),
+      loadFixture(fixture),
+      Promise.all(EXTENSIONS.map(installExtension)).then((installed) => installed.flat()),
+      readSessionState(),
+    ]);
+    // Browser-side state follows the vendor image that wrote it (docs/Architecture.md §7).
+    if (previous && previous.vendor !== vendor.id) await clearBrowserState();
+    const data = new DataDirectory([
+      ...files.files,
+      ...extensions.map((file): [string, Uint8Array] => [file.path, file.bytes]),
+    ]);
+    const hashes = new Map([
+      ...files.hashes,
+      ...extensions.map((file): [string, string] => [file.path, file.sha256]),
+    ]);
+    await publishSession(data, hashes, { vendor: vendor.id }, worker);
+    data.onChange((path) => {
+      this.#published = this.#published
+        .then(() => publishChange(data, path))
+        .catch((error: unknown) => this.#reportFailure(`Publishing ${path}`, error));
+    });
 
     this.#opened = { vendor, data, backend: createSessionBackend(data, info) };
     (window as Window & { [HOST_KEY]?: PreviewHost })[HOST_KEY] = this;
@@ -153,14 +185,7 @@ export class PreviewSession implements PreviewHost {
     request: BackendRequest,
   ): BackendResponse | Promise<BackendResponse> {
     const failed = (error: unknown): BackendResponse => {
-      this.#report({
-        level: 'error',
-        kind: 'request',
-        message: `${request.method} ${request.url} failed: ${error instanceof Error ? error.message : String(error)}`,
-        ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
-        frame: 'backend',
-        time: Date.now(),
-      });
+      this.#reportFailure(`${request.method} ${request.url}`, error);
       return {
         status: 500,
         headers: { 'content-type': 'application/json' },
@@ -192,19 +217,36 @@ export class PreviewSession implements PreviewHost {
     for (const listener of this.#diagnosticListeners) listener();
   }
 
+  #reportFailure(what: string, error: unknown): void {
+    this.#report({
+      level: 'error',
+      kind: 'request',
+      message: `${what} failed: ${error instanceof Error ? error.message : String(error)}`,
+      ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
+      frame: 'backend',
+      time: Date.now(),
+    });
+  }
+
   #setStatus(status: SessionStatus): void {
     this.#status = status;
     for (const listener of this.#listeners) listener();
   }
 }
 
+const WORKER = '/_studio/preview-sw.js';
+
+/**
+ * Registers the Preview SW unless it already is. Registering again would wait
+ * behind the update checks every navigation starts (1.6 s after a few preview
+ * reloads); those checks keep an existing registration current by themselves.
+ */
 async function registerWorker(): Promise<ServiceWorker> {
-  const registration = await navigator.serviceWorker.register('/_studio/preview-sw.js', {
-    scope: '/',
-    updateViaCache: 'none',
-  });
-  await navigator.serviceWorker.ready;
-  const worker = registration.active;
+  const existing = await navigator.serviceWorker.getRegistration('/');
+  if (!existing?.active?.scriptURL.endsWith(WORKER)) {
+    await navigator.serviceWorker.register(WORKER, { scope: '/', updateViaCache: 'none' });
+  }
+  const worker = (await navigator.serviceWorker.ready).active;
   if (!worker) throw new Error('The Preview SW did not activate');
   return worker;
 }
