@@ -1,7 +1,7 @@
 # P0 报告：运行时验证
 
-> 日期：2026-10-18。验证对象：ST 1.19.0 镜像、JS-Slash-Runner 4.11.3、`@tauritavern/app-use` 0.1.0、snapdom 3.3.5。
-> 环境：Windows 11；Studio 由 `pnpm dev` 提供（未压缩、未缩小）；浏览器为系统 Chrome 155 与 Edge 155，经 `playwright-core` 驱动。每项实验都有可重跑的脚本，见各节。
+> 日期：2026-10-18。验证对象：ST 1.19.0 镜像、TauriTavern `f1c50c42`（T4 W1）镜像、JS-Slash-Runner 4.11.3、`@tauritavern/app-use` 0.1.0、snapdom 3.3.5。
+> 环境：Windows 11；Studio 由 `pnpm dev` 提供（未压缩、未缩小）；浏览器为系统 Chrome 155 与 Edge 155，以及 Playwright 1.64 自带的 Firefox 与 WebKit 构建，经 `playwright-core` 驱动。每项实验都有可重跑的脚本，见各节。
 
 ## 结论
 
@@ -10,8 +10,8 @@
 | V1 | 通过 | ST 镜像可复现，`lib.js` 与上游构建逐字节一致 |
 | V2 | 通过 | 冷启动、热启动和重载时页面都由 SW 控制 |
 | V3 | 通过 | ST 启动并渲染 showcase，没有请求漏到网络，没有错误 |
-| V4 | 待 T4 W1 | TT 镜像经 Web Host 启动，等 TauriTavern 的 W1 分支 |
-| V5 | Chromium 通过；Firefox、Safari 待测 | JSR 从上游安装，前端卡在 srcdoc 中渲染，iframe 内请求由 SW 和页内接入应答 |
+| V4 | 部分通过，阻塞于 W1 的一处缺陷 | `f1c50c42` 在扩展发现处失败：Web Host 用 POST 请求 ST 的 GET 端点。改正这一行后，桌面与移动身份都渲染出聊天和 JSR 卡片；APP_READY 之后另有 7 个范围外命令报错 |
+| V5 | Chrome、Edge、Firefox 通过；WebKit 有两处限制 | JSR 从上游安装，前端卡在 srcdoc 中渲染，iframe 内请求由 SW 和页内接入应答。WebKit 中接入晚于卡片的启动代码，媒体元素绕过 SW |
 | V6 | 部分通过，阻塞于 app-use 缺陷 | `app.snapshot` 能进入 JSR iframe；`app.interact` 在 ST 上无法点击任何 iframe 内的元素，原因已定位，修复属于 app-use |
 | V7 | 通过，默认方式改为 Element Capture | Element Capture 与浏览器截图一致；snapdom 在 ST 上有系统性失真 |
 | V8 | 通过 | 两条主题热应用路径都在 3 ms 内生效，与重载结果一致 |
@@ -19,7 +19,7 @@
 | V10 | ST 部分通过；TT 部分待 V4 | 换镜像时清理干净，Studio 自有存储与 Agent 计数键保留；数据子资源带内容哈希 ETag |
 | V11 | 通过 | 三类来源的语法错误与运行时错误全部捕获；文件的行列号准确，srcdoc 内联脚本按固定偏移可映射 |
 
-退出条件尚未全部满足：V4、V6、V5 的 Firefox / Safari 与 V10 的 TT 部分仍未完成，见末节。
+退出条件尚未全部满足：V4 与 V6 各自等一处上游修复，V10 的 TT 部分随 V4 完成，见末节。
 
 ## V1 ST 镜像
 
@@ -41,17 +41,63 @@
 - 注册 SW 前先 `getRegistration('/')`。直接 `register()` 要排在导航触发的更新检查之后，几次重载后热启动多等 1.6 s。
 - Chromium 中 blob: iframe 不受 SW 控制。JSR 可选的 blob 模式因此不受支持，它的默认 srcdoc 模式不受影响。
 
+## V4 TauriTavern 与 Web Host
+
+`pnpm vendor:tt <TauriTavern 检出目录> f1c50c42`，然后 `node scripts/p0/v4-tt.mjs`
+
+**镜像**：在 TauriTavern 发布 web 发行物（它的计划 T5）之前，从某个提交构建。构建只读取检出目录：
+- `git archive` 导出构建所需的文件；
+- 用该提交的锁文件安装依赖，再运行它自己的 `pnpm web:build`；
+- 镜像是导出的 `src/`，`<base href="/">` 之后注入两个脚本：Attach，和 `/_studio/web-host.js`。
+
+结果：`tt@2.3.0+f1c50c42`，1127 个文件，20 个内置扩展，31.5 MB。
+
+**装配**：
+- `/_studio/web-host.js` 是一个 0.23 kB 的 ES module，静态导入镜像自带的 `/tauri/web-host/install.js`，所以它在 `init.js` 之前完成安装。
+- Attach 按 vendor 选择 API 路径：TT 页面不装 ST 接入，由 TT 自己的 host kernel 经 Web Host 调用 Session Backend；诊断仍覆盖所有 realm。
+- Web Host 得到同步的后端和 Session 持有的 `store`。跨 realm 的值在接收方的 realm 里克隆，Studio 不持有可能已经卸载的页面里的对象。
+- Device 同时带两种身份。桌面取浏览器自己的 UA，TT 平台按浏览器所在系统映射；移动对两种 vendor 都是 iPhone，即 iPhone UA 与 `{ platform: 'ios', kind: 'mobile' }`。iOS 走与桌面相同的原始字节传输，W1 已经覆盖。
+- 工作台可以在 ST 与 TT 之间切换：关闭 View，清理上一个镜像的浏览器端状态，打开新的 Session。
+
+**结果**（Chrome 155）：
+
+| 身份 | 聊天 | 背景 | JSR 卡片 |
+|---|---|---|---|
+| `{ windows, desktop }` | 5 条消息 | 有 | APP_READY 后 942 ms |
+| `{ ios, mobile }`，移动布局 | 5 条消息 | 有 | APP_READY 后 984 ms |
+
+上表是改正了下面第 1 项之后的结果。改正只在镜像副本里临时做过，镜像已按原样重建。
+
+**W1（`f1c50c42`）的问题**，属于 TauriTavern：
+1. **阻塞启动**：`get_extensions` 以 POST 请求 `/api/extensions/discover`，而 ST 的这个端点是 GET（`src/endpoints/extensions.js` 中的 `router.get('/discover')`）。`backend.js` 的 `json()` 默认用 POST，这个调用没有指定方法。TT 自己的测试后端只按路径匹配，原生路由用的是 `router.all`，所以都没有发现。
+2. **APP_READY 之后的启动路径没有覆盖**：TT 在 APP_READY 之后才激活第三方扩展和部分内置扩展。W1 的启动测试停在 APP_READY，这些调用不在测试里：
+   - agent-system：`open_extension_store_entry`、`register_agent_extension_tool`，在页面上弹出红色错误提示；
+   - mcp-manager：`list_mcp_servers`；
+   - expressions：`list_sprites`；
+   - Stable Diffusion：`sd_handle`（读取 ComfyUI 工作流）；
+   - Quick Reply：`save_quick_reply_set`（启动时保存）。
+
+   其中前三项在范围外（agent、MCP、extension store），需要决定它们在 Web Host 下的表现：以空结果应答，或者让这些内置扩展在能力缺失时安静地不启用。
+3. **View 卸载时的生命周期刷新失败**：重载或切换设备会移除 iframe，TT 在 `pagehide` 时刷新设置。这时 realm 已脱离文档，`new Headers()` 抛出 "Headers is not a constructor"；同时 `database_handle` 不受支持。页面存活时 `saveSettings()` 正常。这一项也牵涉 Studio：卸载 View 的方式需要让 vendor 的卸载处理在仍然附着的 realm 中运行，见末节。
+
+TT 的 `get_character_chats_by_id` 仍对结果做 `Object.values`，属于 W1 已知的审阅待修项；Session Backend 返回数组，所以这次没有暴露。
+
 ## V5 酒馆助手
 
 `node scripts/p0/v5-jsr.mjs [--browser msedge]`
 
 - 安装：按固定版本从 jsDelivr 获取 `N0VI028/JS-Slash-Runner@4.11.3` 的全部 266 个文件，共 9.4 MB。逐个用 jsDelivr 公布的 SHA-256 校验，缓存在 `studio-extensions`，放到 `default-user/extensions/JS-Slash-Runner/`。
-- Chrome 155 与 Edge 155 结果相同：
+- Chrome 155、Edge 155、Firefox 与 WebKit 结果相同：
   - `TavernHelper` 已定义；
   - 卡片在 srcdoc 的 `TH-message--4--0` 中渲染，受 SW 控制；
-  - Tailwind 运行时经 SW 返回 200；
+  - Tailwind 运行时经 SW 返回 200（Firefox 的资源计时不填 `workerStart`，但该路径在网络上是 404，200 只能来自 SW）；
   - 卡片 realm 中的 `fetch` 已被接管，`fetch('/api/ping')` 返回 204，同步 XHR `/version` 返回 1.19.0。
-- Firefox 与 Safari 需要下载 Playwright 的浏览器构建，尚未测试。
+- 在 WebKit 中跑通之前修了两处：
+  - SW 重新包装 304 响应时必须不带 body。WebKit 给 304 一个空的 body 流，Response 构造器会拒绝它，结果 vendor 文件一个都没加载。
+  - 已装入的标记改放在 window 的全局对象上。frame 导航后 WindowProxy 不变，而 WebKit 会为 srcdoc 文档换一个新的全局对象，之前按 WindowProxy 记录，导致卡片 realm 被当成已装入而跳过。
+- WebKit 的两处限制，均为 Playwright 的 Windows 版 WebKit 上的实测，真实 Safari 仍需在 macOS / iOS 上确认：
+  - 卡片的启动代码先于 ST 接入运行。WebKit 换上新全局对象后，接入要到 frame 的 load 才能装上：卡片自己的 load 监听器都已执行过，之后的代码才有接入。这之前的 API 调用到达 SW，返回 501 并记入诊断。在其他引擎中，脚本首次运行时接入已在。卡片通常经 `parent` 调用 API，所以接受这一限制；要提前，只能改写 JSR 生成的 srcdoc，而那会改变作者看到的文档。
+  - `<audio>` 的加载不经过 SW，直接到网络上返回 404。`fetch()` 同一个文件则经过 SW。ST 的提示音因此加载失败。
 - 限制：jsDelivr 拒绝超过 50 MB 的仓库，LittleWhiteBox 就是一例。安装器需要第二个来源，例如 GitHub 归档，P1 处理。
 
 ## V6 app-use
@@ -164,7 +210,19 @@ StageDog 的 tavern_helper_template 与另外十余个本地缓存的扩展、�
 | `app.snapshot` 概览 | 首次 158 ms，之后 14 ms |
 | Attach | 43.8 kB，gzip 15.2 kB |
 
-首屏的网络传输量没有单独测到：vendor 文件由 SW 获取，不出现在页面的资源计时里。部署后的传输量取决于压缩，需要在 Workers 上重测。TT 的各项测量随 V4 补上。
+首屏的网络传输量没有单独测到：vendor 文件由 SW 获取，不出现在页面的资源计时里。部署后的传输量取决于压缩，需要在 Workers 上重测。
+
+**各引擎**（`--browser`，ST 1.19.0，桌面 View）：
+
+| 引擎 | 冷启动 | 热启动 | 重载 View |
+|---|---|---|---|
+| Chrome 155 | 2344 ms | 1460 ms | 1.0–1.05 s |
+| Firefox（Playwright） | 6044 ms：数据 1551、vendor 2173 | 2463 ms | 1.6–2.2 s |
+| WebKit（Playwright，Windows） | 5196 ms：数据 1946、vendor 3102 | 3436 ms | 2.8–3.1 s |
+
+Firefox 与 WebKit 用的是 Playwright 的构建，在 Windows 上未必代表正式版的性能；它们只用于确认功能，不用来定预算。
+
+**TauriTavern**（`--vendor tt`，Chrome 155，含 V4 第 1 项的改正）：Studio 总从 ST 启动，所以只看切换后 TT 自己的部分。新 Session 的数据 168–208 ms；View 到 APP_READY 0.95–1.2 s；重载 1.28 s；JSR 卡片在 APP_READY 之后约 0.95 s 出现，因为 TT 延后激活第三方扩展。首屏解码 3.0 MB，ST 为 8.98 MB。
 
 **P1 性能预算（建议）**
 
@@ -191,8 +249,11 @@ StageDog 的 tavern_helper_template 与另外十余个本地缓存的扩展、�
 
 | 项 | 前置条件 |
 |---|---|
-| V4，以及 V10 的 TT 部分 | TauriTavern T4 W1 |
+| V4 | TauriTavern 改正 W1 第 1 项后重跑 `scripts/p0/v4-tt.mjs`；第 2 项决定范围外命令在 Web Host 下的表现 |
+| V10 的 TT 部分：替换同名背景后 TT 缩略图随之更新 | V4 |
 | V6 的 `app.interact` | `@tauritavern/app-use@0.1.1`：去掉 `perspective` 拒绝。之后 Studio 升级依赖并重跑 V6 |
-| V5 的 Firefox / Safari | 下载 Playwright 的 Firefox 与 WebKit 构建，需要维护者同意 |
+| WebKit 的两处限制在真实 Safari 上的表现 | 在 macOS / iOS 上实测 |
+| View 的卸载方式：让 vendor 的 `pagehide` 在仍附着的 realm 中运行 | P1，与 V4 第 3 项一起处理 |
+| 设备的安全区：iframe 中 `env(safe-area-inset-*)` 为 0，移动 View 的顶栏被圆角遮住 | P1，Device 预设 |
 | 体积超过 50 MB 的扩展的安装来源 | P1 |
-| 第二个标签页接管 Session | P1，清理浏览器端状态的前置 |
+| 第二个标签页接管 Session | P1，清理浏览器端状态的前置。V4 中已见到后果：同时开着的第二个 Studio 标签页发布了另一个 vendor 的 Session，第一个标签页的页面随即从错误的镜像加载文件 |
