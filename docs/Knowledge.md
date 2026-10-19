@@ -23,7 +23,8 @@ Agent 依据的知识按可靠性排序：与 vendor 版本对应的生成物 > 
 **Skill**：
 - 格式与 TauriTavern Skill、Claude Code、StageDog 模板相同，都是 `SKILL.md`。
 - 首批：`st-theme`、`st-extension`、`jsr-frontend-card`、`jsr-script`、`mvu-statusbar`、`tt-compat`。
-- 同一份 Skill 也能装进作者本地的编码 Agent，或 TauriTavern 的应用内助手。
+- 同一份 Skill 也能装进作者本地的编码 Agent，或 TauriTavern 的应用内助手。所以 Skill 里不写工具名，只写要做什么、读哪个路径，例如"读取 `vendor/anatomy/` 中的 CSS 变量表"：在这几个地方，工具的名字各不相同。
+- Skill 由 Studio 自己编写。StageDog 模板的 Skill 只作为知识包收录，不改写进 Studio 的 Skill。
 
 **知识包**收录以下内容：
 - ST 文档（`llms.txt` 与各页 `.md`）；
@@ -50,7 +51,7 @@ Agent 依据的知识按可靠性排序：与 vendor 版本对应的生成物 > 
 | 许可 | 来源 | 策略 |
 |---|---|---|
 | AGPL-3.0 | ST、ST 文档、TauriTavern、ST-Prompt-Template | 原文收录，附出处与许可 |
-| PolyForm Noncommercial 1.0.0 | JSR 代码、类型与文档；StageDog 模板与 Skill | Studio 永久非商业，保留 Required Notice 后收录，并告知作者 |
+| PolyForm Noncommercial 1.0.0 | JSR 代码、类型与文档；StageDog 模板与 Skill | Studio 永久非商业，可以收录：原文放进 `knowledge/`，附许可原文与出处（有 Required Notice 的一并保留），并告知作者。不改写进 Studio 的 Skill 或代码 |
 | MIT | MVU、角色卡 V3 规范 | 收录 |
 | 无许可 | 角色卡 V2 规范、部分教程站 | 只放链接与摘要 |
 

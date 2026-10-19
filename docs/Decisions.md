@@ -9,6 +9,9 @@
 | API 在页内接入，SW 只负责子资源 | Chromium 和 WebKit 的 SW 不拦截同步 XHR。这种划分也与 TauriTavern"拦截器 + 协议层"的结构一致 | `/api/*` 全部交给 SW |
 | 热应用只走宿主的公开入口，重载结果为准 | 保证预览走的路径就是发布后的路径 | 注入 Studio 私有的 `<style>`：层叠位置与真实环境不同，而且事实来源变成了被注入的样式 |
 | Mount 是唯一的放置机制，项目类型只是模板 | 一个机制同时负责预览放置、导出组装和会话写入的采纳 | 按项目类型分别实现预览和导出 |
+| Mount 指向 vendor 启动时读取的生效态；JSON 按 Merge Patch 合并；项目只拥有它写出的键 | ST 启动时只从 `settings.json` 读取外观，主题文件只在下拉框选中时由 `applyTheme` 复制进 `power_user`。挂到主题文件，重载就看不到主题。Merge Patch 是标准语义。所有权让采纳只比较项目写出的键，ST 每次启动整份重写 `settings.json` 产生的回声也就不会显示为差异 | 挂到 `themes/<名>.json`，启动后再驱动下拉框选中：重载结果要依赖一段界面操作。在 Snapshot 里重做 `applyTheme`：Studio 复刻 vendor 逻辑。为每个字段写一条 Mount：要写几十条声明 |
+| Mount 的 `fence` 把文本包成 Markdown 代码块 | 酒馆助手只把含 HTML 的代码块渲染成前端卡，生态里的前端代码都以代码块的形式出现在消息文本里。这样预览与发布形态一致，无构建和本地文件夹两档也走同一条路 | tavern_helper_template"实时修改"的 `$('body').load(url)` 加载器：预览与发布形态不同，脚本的执行方式也变了。把 HTML 写成 `.md` 文件：编辑器失去 HTML 语言支持，构建产物也没法这样写 |
+| Session 以内存为准，写入覆盖层在后台存进 IndexedDB，失败可见；第二个标签页经 BroadcastChannel 请求，由 Web Lock 交接 | 卡片作者用 Replay 推进到深处的状态，不应因刷新而丢失。PureTavern 写入失败后仍回报成功，属于静默降级，Studio 不这样做。标签页崩溃时 Web Lock 会自动释放；正常交接前，旧标签页要卸载 View、写完持久化，所以还需要一个请求通道 | 不持久化：刷新即丢失状态。只用 Web Lock 的 `steal`：旧标签页来不及保存 TT 退出时的写入和持久化队列。PureTavern 的做法：不处理多标签页，后写的覆盖先写的 |
 | TT vendor 经 TauriTavern 自己的 Web Host 运行 | Rust 命令名属于 TT 的 Internal 契约，对它的模拟只能由 TT 维护 | 由 Studio 模拟 TT 命令；或者只加载 TT 的 CSS 再注入平台身份 |
 | Web Host 只覆盖 Studio 的三条路径：启动到聊天、会话写入、Replay 生成 | Studio 不做真实聊天，也不需要同步、agent、MCP、导出等能力。命令清单按这三条路径实测得出，范围外的命令以 `Unsupported` 拒绝，维护面最小 | 在浏览器里完整模拟 TT 的 IPC：大部分命令没有消费者，却要随 TT 的每次改动同步维护 |
 | Web Host 的 ST 数据走 ST HTTP API | 这是现成的公开契约。Session Backend 只需实现一次，两种 vendor 共用 | 为 ST 数据另定一套端口 |
@@ -19,6 +22,8 @@
 | app-use 引擎随 Attach 打包 | 页面一连接，引擎就在它的 realm 里可用，重载后自然重建，不需要另外管理注入的时机。代价是 Attach 增加约 12 kB（gzip），启动时间不变（P0 V6） | 首次使用时再注入单独的包：要处理注入时机、加载失败和每次重载后的重新注入，换来的只是少加载这 12 kB |
 | Agent 截图默认用 Element Capture，snapdom 只作退回 | P0 V7 实测：Element Capture 与浏览器截图一致，含模糊面板与 JSR 卡片，授权后每帧约 1 ms。snapdom 在 ST 上会丢失或压暗背景层、重复 `<q>` 的引号、让文本重新折行，换选项也不变，每次 0.6–1.1 s。主题是 Studio 的主要产物，背景与排版失真会直接误导 Agent | snapdom 作默认、Element Capture 作像素级选项：省去一次授权，代价是默认截图在最常见的场景里失真 |
 | Agent 循环自己写，模型接入用 AI SDK Core | 自己掌握 Run / Round / Journal 的语义，并与 TT 保持一致 | libfx：需要 JSPI，BYOK 只支持 OpenAI 兼容格式，WASM 下工具串行执行，版本仍是 0.0.x。AI SDK 的 agent 抽象：大版本之间频繁改名 |
+| 工具的稳定 ID 用点分组，发给模型时把点换成下划线；编辑工具叫 `edit_file` | OpenAI 与 Anthropic 的工具名都不允许点号，TT 也是这样换算的。`apply_patch` 是 GPT 系模型在 Codex 中训练的 V4A 补丁格式的名字，拿它命名精确替换工具会误导模型。各家 harness 的工具名本来就不统一，真正一致的是参数形状 | 不加前缀的 `ls`、`grep`、`read`：会唤起 shell 参数和正则方言的先验，实际参数却是 JSON；纯文本搜索收到 `a\|b` 这类正则时会静默返回空结果。沿用 TT 的 `apply_patch` |
+| Checkpoint 在 Run 首次写某个文件之前保存它原来的内容；内容去重、压缩，总量有上限 | 回滚只需要 Run 实际改动过的文件，保存时复用 CAS 已经读到的内容。TT 没有文件快照可以借用 | Run 开始前给整个项目做快照：本地文件夹里有 `node_modules` 等大量无关文件 |
 | 知识以文件为主，配合 agentic 检索 | 精确、可离线、可审计，并与 vendor 版本对应 | 浏览器内的 embedding 模型；Vectorize / AI Search |
 | 不做跨源隔离 | COOP/COEP 会阻止前端卡加载第三方资源 | WebContainers、@rolldown/browser |
 | 外壳用 React 19；进入 vendor 页面的代码与 `packages/*` 不用框架 | 界面是 IDE 级，需要成熟的组件与无障碍原语。热路径（编辑器、预览、截图）都不经过 React，框架成本落不到性能上。框架与编译方式和 TT 自有界面相同，Transcript 等将来可以共享。shadcn（Base UI）在 React 上最成熟，Agent 写 React 的质量也最稳定 | 手搓：自有代码成倍增加，最容易出错的无障碍原语也要自己写。Vue 3：生态作者常用，但那是预览里的事，而且外壳会与 TT 不一致。Solid / Svelte 5：细粒度更新的优势落不到热路径上。Preact：只省几十 KB，React 19 特性与 Base UI 都要走兼容层 |

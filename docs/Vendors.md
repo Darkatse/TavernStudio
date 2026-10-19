@@ -22,7 +22,7 @@ Session Backend 在 Session 数据上实现 ST HTTP API，是两种 vendor 共�
 | 用途 | 端点 |
 |---|---|
 | 启动 | `/csrf-token`、`/version`、`/api/settings/get`、`/api/secrets/read`、`/api/extensions/discover`、`/api/avatars/get`、`/api/characters/all`、`get` 与 `chats`、`/api/groups/all`、`/api/backgrounds/all` 与 `folders`、`/api/image-metadata/all`、`/api/chats/get` 与 `recent` |
-| 写入 | `/api/settings/save`、`/api/chats/save`（含 integrity 校验）、`/api/characters/edit` 与 `merge-attributes`、`/api/themes/save`、`/api/quick-replies/save`、`/api/worldinfo/get` 与 `edit` |
+| 写入 | `/api/settings/save`、`/api/chats/save`（含 integrity 校验）、`/api/characters/edit` 与 `merge-attributes`、`/api/themes/save`、`/api/presets/save`、`/api/quick-replies/save`、`/api/worldinfo/get` 与 `edit` |
 | 生成 | `/api/backends/chat-completions/status`（连接与模型列表）、`generate`（流式与非流式），由 Replay 应答 |
 
 样板 settings 固定以下取值：
@@ -30,6 +30,10 @@ Session Backend 在 Session 数据上实现 ST HTTP API，是两种 vendor 共�
 - `enable_accounts: false`：跳过账户逻辑；
 - `auto_load_chat: true`：启动后自动打开聊天。
 - `auto_connect: true`，Chat Completion 来源为 `custom`，`custom_url` 为从不被请求的 `http://replay.invalid/v1`：启动即连接 Replay，状态与生成都由 Session Backend 应答。
+
+样板中的角色或预设带有酒馆助手脚本时，还要满足两点，否则一启动就会弹窗、产生写入，或与热应用同时重载：
+- 预先在 `extension_settings.tavern_helper.script.enabled` 中启用它们；
+- 酒馆助手的实时监听保持关闭（默认就是关闭的）。
 
 未实现的端点返回 501。
 
@@ -69,7 +73,8 @@ const host = installWebHost({         // 返回 { emit, exit }
 ## 4. 酒馆助手
 
 - JSR 不打包进 vendor 镜像，而是按固定版本从上游安装到 Snapshot 的 `extensions/JS-Slash-Runner/`，与在 ST 里安装扩展的方式一致。安装后离线缓存。
-- 文件取自 jsDelivr 的 GitHub 镜像，逐个按 jsDelivr 公布的 SHA-256 校验。jsDelivr 拒绝超过 50 MB 的仓库，这类扩展（如 LittleWhiteBox）需要另一个来源。
+- 文件取自 jsDelivr 的 GitHub 镜像，逐个按 jsDelivr 公布的 SHA-256 校验。
+- jsDelivr 拒绝超过 50 MB 的仓库，这类扩展（如 LittleWhiteBox）改从本地文件夹安装，与本地文件夹模式用同一套机制（[Architecture §6](Architecture.md#6-项目)）。
 - JSR 的 blob URL 模式不受支持：Chromium 中 blob: iframe 不受 Preview SW 控制。默认的 srcdoc 模式不受影响。
 - JSR 使用 PolyForm Noncommercial 许可，Studio 保留其许可声明，不把它的代码并入 Studio。
 

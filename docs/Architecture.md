@@ -28,9 +28,11 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Fixture（样板） | 一段 ST 数据目录：settings、角色、聊天、主题、世界书、扩展设置。可以附带 Replay |
 | Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条 |
 | Project | 作者的源文件，加上 `studio.json` |
-| Mount | `studio.json` 里的一条声明：把项目文件映射到数据路径。路径后可以用 `#` 接 JSON Pointer，指向文件里的某个字段 |
+| Mount | `studio.json` 里的一条声明：把项目文件或目录放到一个挂载点上。挂载点是数据路径，可以用 `#` 接 JSON Pointer，指向文件里的某个值，见 [§6](#6-项目) |
 | Snapshot | Fixture 与挂载后的 Project 合成的数据目录，内容寻址，不可变 |
 | Session | Vendor + Snapshot + 会话写入，以及 Web Host 的持久状态。一个浏览器里同时只有一个 Session |
+| 会话写入 | vendor 在预览中经 ST HTTP API 写入 Session 的数据，例如 ST 保存设置、脚本写变量 |
+| 回声写入 | 在项目拥有的键上与 Snapshot 语义相等的会话写入，例如热应用之后 vendor 的回写。不显示为差异 |
 | 浏览器端状态 | vendor 及其中运行的代码写入源存储（localStorage、sessionStorage、IndexedDB）的状态。与真实部署一样属于浏览器，不属于 Session |
 | View | Session 在某个 Device 上的一个 iframe。一个 Session 可以有多个 View |
 | Session Backend | 在 Session 数据上实现 ST HTTP API 的 Studio 模块，两种 vendor 共用 |
@@ -89,7 +91,12 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 **静态托管**：只有 `/` 返回 Studio 外壳。vendor 路径和数据路径未命中时返回真正的 404，不做 SPA 回退。
 
-**Session 归属**：同一浏览器里打开第二个 Studio 标签页时，新标签页接管 Session，旧标签页会收到通知。
+**Session 归属**：同一浏览器里打开第二个 Studio 标签页时，由新标签页接管 Session。接管过程如下：
+1. Session 由一个 Web Lock 持有。新标签页经 BroadcastChannel 请求接管。
+2. 旧标签页卸载 View，等持久化写完，然后释放锁，并显示"已在另一个标签页打开"。
+3. 如果 5 s 内锁没有释放，新标签页直接抢占锁，并在诊断中报告可能丢失的写入。
+
+这与下面 View 的卸载是同一个模式。
 
 **View 的卸载**：重载、切换设备或 vendor 之前，先让 vendor 页面在 iframe 仍在文档中时卸载，再移除 View，与真实页面重载的顺序一致。TT 页面先经 Web Host 的 `exit()` 走原生的关闭流程保存设置与聊天，Studio 等它完成；5 s 内没有完成时照常卸载，并在诊断中报告可能丢失的写入。随后 iframe 导航到 `about:blank`，vendor 的 `pagehide` 处理在仍附着的 realm 中运行。ST 没有卸载时的保存，防抖中尚未保存的写入与真实 ST 一样会丢失。
 
@@ -99,16 +106,38 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 数据单向流动：项目文件 → Snapshot → Session → View。
 
-| 产物 | 热应用路径 |
-|---|---|
-| 主题 | 驱动 ST 自己的主题控件：写入 `#customCSS` 并派发 `input`，设置取色器并派发 `change`。控件 id 取自 Vendor 解剖图 |
-| 扩展 CSS | 更新 Cache Storage，重新挂载 `<link id="<name>-css">` |
-| 扩展 JS | 重载 View（ESM 无法卸载） |
-| 前端卡 / 正则美化 | 更新 Session 数据，调用 `getCharacters()` 和 `reloadCurrentChat()` |
-| 酒馆助手脚本 | TavernHelper 的公开 API，如 `replaceScriptTrees` |
+项目文件变化后，Studio 依次做三件事：
+1. 重新计算受影响的 Mount。
+2. 按挂载点写入 Session 当前的数据。只替换挂载点上的内容，Session 的其他写入保留，例如聊天、变量、设置。
+3. 按数据路径（包括 Pointer）分派热应用。没有热应用入口的路径，就重载 View。
 
-- **重载是权威。** 热应用只是优化，结果必须与重载一致。
-- **会话写入**进入 Session，例如 ST 保存设置、作者在 ST 界面里保存主题、脚本写变量。落在 Mount 覆盖路径上的写入以差异形式呈现给用户；用户采纳后，沿 Mount 反向写回项目文件。
+热应用不按产物类型分派，因为运行时不认项目类型（[§6](#6-项目)）。
+
+| 数据路径 | 热应用入口 |
+|---|---|
+| `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• 其余字段用各自的控件 |
+| 扩展的 CSS 文件 | 原位替换 `<link id="third-party_<name>-css">` 的 href。不重新插入，以保持层叠顺序 |
+| 扩展的 JS 文件 | 重载 View（ESM 无法卸载） |
+| 酒馆助手脚本：`settings.json` 与角色卡中的 `tavern_helper` 脚本 | TavernHelper 的公开 API `replaceScriptTrees`，只作用于当前角色或预设 |
+| 角色卡的其他字段，例如前端卡、角色正则 | 调用 `getCharacters()` 和 `reloadCurrentChat()` |
+
+表中只列已经确定的路径。全局正则、世界书、Quick Reply 等其余路径，在 P1 中逐项实测、与重载结果对照后再加入。
+
+- **vendor 在内存里持有的数据。** 如果 vendor 在内存里持有一份数据、保存时整体写回，那么只改 Session 不会生效，vendor 之后保存时还会用旧值把它覆盖。
+  - 这类路径只能走 vendor 的公开入口，做不到就重载。
+  - 目前已知的有：`settings.json` 的全部字段、酒馆助手脚本、世界书、Quick Reply。
+- **重载是权威。** 热应用只是优化，结果必须与重载一致。重载也改变不了的内容如实呈现，与真实 ST 一致：
+  - 已有聊天里的开场白：`first_mes` 只在新建聊天时复制；
+  - 已被输出正则改写过的消息。
+- **会话写入**进入 Session，例如 ST 保存设置、作者在 ST 界面里调整主题、脚本写变量。落在挂载点上的会话写入以差异形式呈现给用户，用户采纳后，沿 Mount 反向写回项目文件。
+  - **比较**按挂载的语义进行：
+    - JSON 解析后，比较项目拥有的键；
+    - 文本逐字比较；
+    - 角色卡比较里面嵌的 JSON；
+    - 带 `fence` 的先去掉包装。
+  - **回声写入**不显示为差异。vendor 的规范化会如实显示，例如把颜色统一写成 `rgba(r, g, b, a)`；作者采纳一次后，项目就与之一致。
+  - **采纳粒度**以挂载点为单位，不提供按代码块采纳：只采纳一部分可能写出无效的 JSON。
+  - **冲突**：项目改动会覆盖同一挂载点上尚未采纳的会话写入。被覆盖的内容显式提示，不静默丢弃。
 - **变量面板**通过页内真实的 TavernHelper / MVU API 修改变量，卡片收到的事件与生产环境相同。
 - **Replay 推动叙事状态**：用户发送消息后，生成端点回放下一条预设回复。用于测试流式楼层、MVU 变量更新和 `AI_OUTPUT` 正则。
 - **诊断来自运行时。** Attach 在预览页和子 iframe 中收集 `error`、`unhandledrejection` 与 `console.error`，经 Mount 映射回项目文件和行号。编辑器的 lint 标记与 Agent 的 `app.read_logs` 读取同一份记录。独立文件的行列号准确。JSR 脚本和前端卡的内联脚本报告的是 srcdoc 文档内的行号，与作者源码之间差一个固定偏移，即 JSR 拼接在前面的内容；Studio 从 iframe 的 srcdoc 中找到作者代码的起点，换算回源码行号。
@@ -119,21 +148,56 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 {
   "fixture": "showcase",
   "mounts": [
-    { "from": "theme.json", "to": "themes/Bamboo.json" },
-    { "from": "theme.css",  "to": "themes/Bamboo.json#/custom_css" }
+    { "from": "theme.json", "to": "default-user/settings.json#/power_user" },
+    { "from": "theme.css",  "to": "default-user/settings.json#/power_user/custom_css" }
   ]
 }
 ```
 
 - **Mount 是唯一的放置机制。** 主题、前端卡等只是起始模板，由初始文件、Mount、推荐样板和对应 Skill 组成。运行时不认项目类型。
-- **导出**沿 Mount 组装产物：主题 JSON、`user.css`、角色卡 PNG、扩展 zip、酒馆助手 Script.json、正则 JSON、世界书 JSON。
-- **内容逐字挂载**，所以检查器命中的规则能映射回 `theme.css` 的行号。
+- **数据路径。** 挂载点、Session、Preview SW 和样板都用同一种路径，即相对数据根的路径，例如 `default-user/settings.json`、`_css/user.css`。
+- **指向生效态。** Mount 挂到 vendor 启动时读取的那份数据。
+  - ST 启动时只从 `settings.json` 读取外观。主题文件只在下拉框里被选中时，才由 `applyTheme` 把字段逐个复制进 `power_user`。
+  - 因此主题挂到 `power_user`，不挂到 `themes/<名>.json`，否则重载后看不到主题。
+  - 预设作用域的正则与脚本同理，挂到 `settings.json` 里当前预设的副本。
+- **合并。**
+  - JSON 挂到 Pointer 时，按 JSON Merge Patch（RFC 7386）合并：对象按键覆盖，其余值整体替换。
+  - 文本挂到 Pointer 时，成为该位置的字符串值。
+  - 不带 Pointer 时，整个文件替换。
+  - 两条 Mount 写到同一个位置时报错，不按先后顺序覆盖。
+- **所有权。** 项目只拥有它写出的键，采纳和导出都只看这些键。示例中的 `theme.json` 是 `power_user` 里属于主题的字段，主题名写在 `theme` 键里，即 `power_user.theme`。
+- **结构化文档。** Pointer 可以指向 JSON 文件，也可以指向角色卡 PNG 里嵌的卡片 JSON，读写规则与 ST 相同。
+- **目录。** `from` 可以是目录，整棵子树原样挂到 `to` 下。
+  - 扩展通常写两条 Mount：一条挂 `manifest.json`，一条挂 `dist/`。
+  - 这样保留了扩展根的布局，manifest 里的路径和相对 import 都依赖这个布局。
+- **`fence`。** `"fence": "html"` 表示先把文本包成 Markdown 代码块再挂载。
+  - 生态里的前端代码都以代码块的形式出现在消息文本里，例如正则的 `replaceString`、`first_mes`、世界书。
+  - 酒馆助手也只把含 HTML 的代码块渲染成前端卡。
+- **内容逐字挂载**，所以检查器命中的规则能映射回 `theme.css` 的行号。`fence` 只多出固定的一行。
+- **反向写回。** 采纳时沿同一条 Mount 反向写回：
+  - JSON 写回项目文件里对应的键；
+  - 文本写回整个文件；
+  - 带 `fence` 的先去掉包装。
+  
+  Pointer 里带数组下标时，作者在 ST 界面里调整顺序后会错位，这时以整体差异呈现。
+- **导出**沿 Mount 读取合成后的数据，组装为 ST 能导入的格式：
+  - 主题 JSON：照 ST 的 `getThemeObject` 组装，`name` 取 `power_user.theme`；
+  - `user.css`；
+  - 角色卡 PNG；
+  - 扩展 zip；
+  - 酒馆助手 Script.json；
+  - 正则 JSON；
+  - 世界书 JSON；
+  - Quick Reply JSON。
 - **构建分三档：**
   - 无构建：主题、单文件前端卡、纯 JS 脚本。
-  - 本地文件夹模式：用 File System Access 打开作者的模板仓库，由作者自己的 webpack watch 负责构建，Studio 挂载 `dist/`。
+  - 本地文件夹模式：用 File System Access 打开作者的模板仓库，由作者自己运行 watch 负责构建，Studio 挂载构建产物。导出的是现有产物，发布构建由作者负责。
   - 浏览器内构建（P2）：esbuild-wasm 加 Vue SFC / Tailwind 插件。
 
   不做跨源隔离。遇到不支持的构建特性时明确报错。
+- **项目存储。**
+  - 项目放在 OPFS 里；本地文件夹经 File System Access 打开。两者都是 `FileSystemDirectoryHandle`，所以工作区只需要一种实现。
+  - 本地文件夹会被外部构建改写：按一次构建去抖，读到不完整的产物时报错并重读，不沿用旧值。
 
 ## 7. 存储
 
@@ -141,8 +205,9 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 | 数据 | 位置 |
 |---|---|
-| 项目文件 | OPFS |
-| 项目元数据、Journal、Checkpoint、偏好 | IndexedDB（Dexie，一个库） |
+| 项目文件 | OPFS；本地文件夹项目留在作者的文件系统里 |
+| 项目元数据、本地文件夹的目录句柄、History、Journal、Checkpoint、偏好 | IndexedDB（Dexie，一个库） |
+| Session 的写入覆盖层与 Web Host 文档 | IndexedDB |
 | Session 子资源 | Cache Storage |
 | vendor 镜像与知识包缓存 | Cache Storage |
 | 密钥 | 默认只在内存中；用户勾选后持久化到 IndexedDB |
@@ -150,6 +215,12 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - Cache 名统一带 Studio 前缀。
 - Studio 不使用 localStorage 和 sessionStorage：vendor 与项目代码同源，随时可能调用 `localStorage.clear()`。
 - 启动时调用 `navigator.storage.persist()`，并提供项目导出作为备份手段。
+- **Session 的持久化**：
+  - 以内存为准。持久化在后台按写入顺序进行，不挡住同步应答。
+  - 持久化失败时报诊断，界面标明 Session 未持久化。不能降级为只存内存、却照常回报成功。
+  - 重新打开 Studio 时，由样板和项目合成 Snapshot，再叠加覆盖层。如果期间项目改过某些挂载点，按 §5 用项目的内容覆盖。
+  - "重置 Session"丢弃覆盖层。
+- **Agent 的存储有上限**，见 [Agent §1](Agent.md#1-运行模型)。
 
 **浏览器端状态**
 
