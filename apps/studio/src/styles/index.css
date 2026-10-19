@@ -2,6 +2,22 @@
 @import '@fontsource-variable/inter/opsz.css';
 
 /*
+ * Dark follows the system unless the author picks a scheme: `data-theme` on
+ * <html> overrides it (lib/color-scheme.ts). Tokens below switch through this
+ * variant, and so does any `dark:` utility.
+ */
+@custom-variant dark {
+  &:where([data-theme='dark'], [data-theme='dark'] *) {
+    @slot;
+  }
+  @media (prefers-color-scheme: dark) {
+    &:where(:not([data-theme='light'], [data-theme='light'] *)) {
+      @slot;
+    }
+  }
+}
+
+/*
  * Design tokens. Rules and rationale: docs/UI.md §3–4.
  * Tailwind's default palettes and scales are removed so components can only
  * use these tokens.
@@ -35,7 +51,11 @@
   --color-accent: oklch(0.67 0.155 60);
   --color-primary: oklch(0.215 0.006 70);
   --color-primary-fg: oklch(0.985 0.002 84);
-  --color-danger: oklch(0.575 0.2 27);
+  /* At least 4.5:1 on every surface, sunken and the diff tints included. */
+  --color-danger: oklch(0.55 0.2 27);
+
+  /* Dims what sits behind a modal dialog. */
+  --color-backdrop: oklch(0.2 0.01 70 / 0.24);
 
   --font-sans:
     'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
@@ -163,8 +183,48 @@
   }
 }
 
+/*
+ * Code colors. CodeMirror reads them through `var()`, out of Tailwind's sight,
+ * so they are always emitted (`static`). Every text color here stays ≥ 4.5:1
+ * on surface, sunken and both diff rows, in both schemes.
+ */
+@theme static {
+  /*
+   * Diff rows: low chroma, and apart from danger. The +/− signs and the
+   * strike-through carry the meaning too.
+   */
+  --color-diff-add: oklch(0.962 0.024 150);
+  --color-diff-add-fg: oklch(0.47 0.09 150);
+  --color-diff-del: oklch(0.958 0.02 15);
+  --color-diff-del-fg: oklch(0.48 0.1 15);
+
+  /* Syntax highlighting. Each token lists the Lezer tags it covers. */
+  /* keyword, operatorKeyword, modifier; CSS at-rules and !important */
+  --color-syntax-keyword: oklch(0.48 0.13 335);
+  /* string, special(string), regexp, attributeValue */
+  --color-syntax-string: oklch(0.5 0.1 145);
+  /* number, bool, null, atom, unit, color: literals and CSS keyword values */
+  --color-syntax-number: oklch(0.52 0.12 50);
+  /* comment and its kinds, meta */
+  --color-syntax-comment: oklch(0.53 0.012 75);
+  /* propertyName: CSS properties, object keys, JSON keys */
+  --color-syntax-property: oklch(0.48 0.1 245);
+  /* tagName, className, labelName, typeName: HTML tags and CSS selectors */
+  --color-syntax-tag: oklch(0.49 0.08 195);
+  /* attributeName */
+  --color-syntax-attribute: oklch(0.51 0.1 75);
+  /* variableName (definitions, CSS custom properties), function(…) */
+  --color-syntax-variable: oklch(0.47 0.11 290);
+  /* punctuation, bracket, separator, operator */
+  --color-syntax-punctuation: oklch(0.5 0.008 70);
+  /* invalid: the one red in code, since red means an error */
+  --color-syntax-invalid: oklch(0.54 0.19 27);
+}
+
 @layer theme {
   :root {
+    color-scheme: light;
+
     /* Motion tiers: enter / exit. The bigger the thing, the slower it moves. */
     --motion-fast: 80ms;
     --motion-fast-exit: 60ms;
@@ -173,9 +233,60 @@
     --motion-slow: 240ms;
     --motion-slow-exit: 160ms;
     --motion-popup-scale: 0.96;
+    --motion-fold-offset: -4px;
+    /* How far a toast travels: in from below, out past the edge it is swiped to. */
+    --motion-toast-distance: 100%;
 
     --size-control: 36px;
     --size-icon: 16px;
+
+    @variant dark {
+      color-scheme: dark;
+
+      --color-floor: oklch(0.155 0.003 70);
+      --color-sunken: oklch(0.172 0.003 70);
+      --color-surface: oklch(0.198 0.003 70);
+      --color-raised: oklch(0.238 0.004 70);
+
+      --color-fg: oklch(0.955 0.003 84);
+      --color-muted: oklch(0.715 0.007 80);
+
+      --color-line: oklch(1 0 0 / 0.085);
+      --color-line-strong: oklch(1 0 0 / 0.14);
+      --color-hover: oklch(1 0 0 / 0.06);
+      --color-selected: oklch(1 0 0 / 0.1);
+
+      --color-accent: oklch(0.79 0.14 70);
+      --color-primary: oklch(0.955 0.003 84);
+      --color-primary-fg: oklch(0.18 0.004 70);
+      --color-danger: oklch(0.68 0.19 25);
+
+      --color-backdrop: oklch(0 0 0 / 0.5);
+
+      --color-diff-add: oklch(0.262 0.024 150);
+      --color-diff-add-fg: oklch(0.8 0.09 150);
+      --color-diff-del: oklch(0.262 0.024 15);
+      --color-diff-del-fg: oklch(0.8 0.075 15);
+
+      --color-syntax-keyword: oklch(0.76 0.09 335);
+      --color-syntax-string: oklch(0.78 0.09 145);
+      --color-syntax-number: oklch(0.78 0.09 45);
+      --color-syntax-comment: oklch(0.68 0.012 75);
+      --color-syntax-property: oklch(0.77 0.08 245);
+      --color-syntax-tag: oklch(0.78 0.07 195);
+      --color-syntax-attribute: oklch(0.8 0.08 80);
+      --color-syntax-variable: oklch(0.76 0.09 290);
+      --color-syntax-punctuation: oklch(0.7 0.008 70);
+      --color-syntax-invalid: oklch(0.7 0.17 27);
+
+      --shadow-panel: 0 0 0 1px var(--color-line), 0 1px 2px 0 oklch(0 0 0 / 0.3);
+      --shadow-control: 0 0 0 1px var(--color-line-strong), 0 1px 1px 0 oklch(0 0 0 / 0.3);
+      --shadow-thumb: 0 0 0 1px var(--color-line-strong), 0 1px 3px 0 oklch(0 0 0 / 0.4);
+      --shadow-popover:
+        0 0 0 1px var(--color-line-strong), 0 8px 24px -6px oklch(0 0 0 / 0.5),
+        0 2px 6px -2px oklch(0 0 0 / 0.4);
+      --shadow-frame: 0 0 0 1px var(--color-line-strong), 0 16px 48px -16px oklch(0 0 0 / 0.6);
+    }
   }
 
   [data-density='compact'] {
@@ -196,40 +307,12 @@
     --size-icon: 14px;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --color-floor: oklch(0.155 0.003 70);
-      --color-sunken: oklch(0.172 0.003 70);
-      --color-surface: oklch(0.198 0.003 70);
-      --color-raised: oklch(0.238 0.004 70);
-
-      --color-fg: oklch(0.955 0.003 84);
-      --color-muted: oklch(0.715 0.007 80);
-
-      --color-line: oklch(1 0 0 / 0.085);
-      --color-line-strong: oklch(1 0 0 / 0.14);
-      --color-hover: oklch(1 0 0 / 0.06);
-      --color-selected: oklch(1 0 0 / 0.1);
-
-      --color-accent: oklch(0.79 0.14 70);
-      --color-primary: oklch(0.955 0.003 84);
-      --color-primary-fg: oklch(0.18 0.004 70);
-      --color-danger: oklch(0.68 0.19 25);
-
-      --shadow-panel: 0 0 0 1px var(--color-line), 0 1px 2px 0 oklch(0 0 0 / 0.3);
-      --shadow-control: 0 0 0 1px var(--color-line-strong), 0 1px 1px 0 oklch(0 0 0 / 0.3);
-      --shadow-thumb: 0 0 0 1px var(--color-line-strong), 0 1px 3px 0 oklch(0 0 0 / 0.4);
-      --shadow-popover:
-        0 0 0 1px var(--color-line-strong), 0 8px 24px -6px oklch(0 0 0 / 0.5),
-        0 2px 6px -2px oklch(0 0 0 / 0.4);
-      --shadow-frame: 0 0 0 1px var(--color-line-strong), 0 16px 48px -16px oklch(0 0 0 / 0.6);
-    }
-  }
-
   /* Fewer and gentler, not none: drop movement and scale, keep fades. */
   @media (prefers-reduced-motion: reduce) {
     :root {
       --motion-popup-scale: 1;
+      --motion-fold-offset: 0px;
+      --motion-toast-distance: 0px;
       --animate-spin: spin 2.4s linear infinite;
       --animate-indeterminate: none;
     }
@@ -237,10 +320,6 @@
 }
 
 @layer base {
-  html {
-    color-scheme: light dark;
-  }
-
   body {
     background: var(--color-floor);
     color: var(--color-fg);
@@ -249,6 +328,15 @@
     line-height: var(--text-body--line-height);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+
+  /*
+   * The app's z-indexes stay inside its own stacking context, so popups
+   * portaled to <body> (dialogs, toasts, tooltips) always sit above it, as
+   * Base UI's quick start sets up.
+   */
+  #root {
+    isolation: isolate;
   }
 
   :focus-visible {
@@ -314,5 +402,69 @@
   &[data-ending-style] {
     opacity: 0;
     transform: scale(var(--motion-popup-scale));
+  }
+}
+
+/*
+ * Folded content (docs/UI.md §4). The height changes at once; the content
+ * fades in from just above on the moderate tier and out on the fast one, so
+ * the space it leaves closes right after.
+ */
+@utility motion-fold {
+  transition-property: opacity, translate;
+  transition-duration: var(--motion-moderate);
+  transition-timing-function: var(--ease-spring);
+  &[data-starting-style],
+  &[data-ending-style] {
+    opacity: 0;
+    translate: 0 var(--motion-fold-offset);
+  }
+  &[data-ending-style] {
+    transition-duration: var(--motion-fast-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+}
+
+/*
+ * Toasts stack up from the bottom of their viewport, newest at the bottom.
+ * Base UI gives each toast the height of those in front of it, its index and
+ * the swipe movement, so the stack moves by transform alone. A toast arrives
+ * from below on the moderate tier and leaves on the fast one: it fades where it
+ * is, or carries on in the direction it was swiped.
+ */
+@utility motion-toast {
+  --toast-gap: --spacing(2);
+  --toast-y: calc(-1 * (var(--toast-offset-y) + var(--toast-index) * var(--toast-gap)));
+  transform: translateX(var(--toast-swipe-movement-x))
+    translateY(calc(var(--toast-y) + var(--toast-swipe-movement-y)));
+  transition-property: opacity, transform;
+  transition-duration: var(--motion-moderate);
+  transition-timing-function: var(--ease-spring);
+
+  &[data-starting-style] {
+    opacity: 0;
+    transform: translateY(var(--motion-toast-distance));
+  }
+  /* Over the limit: kept, inert and hidden until newer toasts leave. */
+  &[data-limited] {
+    opacity: 0;
+  }
+  &[data-ending-style] {
+    opacity: 0;
+    transition-duration: var(--motion-fast-exit);
+    transition-timing-function: var(--ease-exit);
+  }
+  &[data-ending-style][data-swipe-direction='right'] {
+    transform: translateX(calc(var(--toast-swipe-movement-x) + var(--motion-toast-distance)))
+      translateY(var(--toast-y));
+  }
+  &[data-ending-style][data-swipe-direction='down'] {
+    transform: translateY(
+      calc(var(--toast-y) + var(--toast-swipe-movement-y) + var(--motion-toast-distance))
+    );
+  }
+  /* Without movement the stack settles at once and only the fades remain. */
+  @media (prefers-reduced-motion: reduce) {
+    transition-property: opacity;
   }
 }

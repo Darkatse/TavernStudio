@@ -211,6 +211,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | Session 子资源 | Cache Storage |
 | vendor 镜像与知识包缓存 | Cache Storage |
 | 密钥 | 默认只在内存中；用户勾选后持久化到 IndexedDB |
+| 手动深浅色设置 | cookie，首帧之前读取（[UI §3](UI.md#3-视觉-token)） |
 
 - Cache 名统一带 Studio 前缀。
 - Studio 不使用 localStorage 和 sessionStorage：vendor 与项目代码同源，随时可能调用 `localStorage.clear()`。

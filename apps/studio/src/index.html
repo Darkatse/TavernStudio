@@ -1,6 +1,14 @@
 <!doctype html>
 <html lang="zh-CN">
-  <head></head>
+  <head>
+    <script>
+      // The manual color scheme, applied before the first frame (src/lib/color-scheme.ts).
+      (function () {
+        var scheme = /(?:^|; )studio-scheme=(light|dark)(?:;|$)/.exec(document.cookie);
+        if (scheme) document.documentElement.dataset.theme = scheme[1];
+      })();
+    </script>
+  </head>
   <body>
     <div id="root"></div>
   </body>

@@ -41,13 +41,17 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 | 表面 | 由后到前：底色、凹陷、面板、浮层。浅色模式靠阴影区分层级，深色模式靠逐级变亮 |
 | 圆角 | 同心：内圆角 = 外圆角 − 内边距 − 边框 |
 | 流式文本 | 不用 `text-wrap: balance` 或 `pretty`，避免已输出的行重新折行。静态的说明文字可以用 `pretty` 避免孤字 |
-| diff | `--color-diff-add`、`--color-diff-del` 两组底色与前景色，低彩度，与 danger 区分开。+/− 符号与删除线同时出现，不只靠颜色 |
-| 语法高亮 | 高亮 token 定义在 `@theme` 中，深浅色各一套。CodeMirror 主题直接引用 CSS 变量 |
+| diff | `--color-diff-add`、`--color-diff-del` 两组底色，配 `-fg` 前景色。低彩度，与 danger 区分开。+/− 符号与删除线同时出现，不只靠颜色 |
+| 语法高亮 | 十个 `--color-syntax-*`，深浅色各一套，每个对应哪些 Lezer tag 写在样式表注释里。CodeMirror 主题直接引用这些 CSS 变量 |
+| 遮罩 | `--color-backdrop` 压暗对话框背后的内容。不加模糊，因为背后常是预览 iframe |
+| 对比度 | 文字与它可能落在的每一种底色之间，对比度不低于 4.5:1，凹陷色与 diff 底色也算在内 |
+
+只经 `var()` 读取的 token，例如 diff 和语法高亮，放在 `@theme static` 中：Tailwind 只输出被工具类用到的变量。
 | 状态 | 运行中、已取消、失败、interrupted 四种状态只用 foreground、muted、danger 三种颜色，并配上图标和文字 |
 | 预览上的标记 | Studio 画在预览上的标记用强调色，例如 Agent 光标、检查器的选框。作者的主题可能正被改坏，标记不能依赖它 |
 
 深浅色跟随系统，也可以手动切换：
-- 手动设置存在 IndexedDB 里，外壳读到设置后才首次渲染。
+- 手动设置存在 cookie `studio-scheme` 里，由 `index.html` 的内联脚本在首帧之前读出。它是唯一需要在首帧之前读到的偏好，IndexedDB 来不及应答；cookie 丢失时回到跟随系统。
 - 切换的瞬间冻结所有过渡，避免逐个元素出现颜色渐变。
 
 ## 4. 动效
@@ -65,12 +69,17 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 - 只动 `transform` 与 `opacity`，不动 `top`、`left`、`width`、`height`。
   - 原因：前两者由合成线程完成，不触发重新布局和绘制。
   - 这在 Studio 里尤其要紧：预览与 Studio 同源，共用一个主线程，vendor 繁忙时，这类动画仍然流畅。
+  - 例外：选择类控件的滑块同时过渡 `width`，因为圆角和阴影没法用缩放表达。
+    - 它是绝对定位的小元素，实测每帧的 Layout 不到 0.1 ms。
+    - 已知的失效方式：主线程被 vendor 占住时，宽度会落后于位移，等主线程空出来才跳到终值。
+    - 选项宽度不等、又会在 vendor 繁忙时切换的地方，用 `fill` 让各项等宽。
 - 折叠：
   - 高度瞬间变化；
   - 内容用透明度动画（可以加 −4px 的位移），moderate 档进入、fast 档退出；
   - Transcript 和文件树里不对高度做动画。
 - 循环动画只有 spin 与 indeterminate 两种。不用 shimmer，因为它动的是 `background-position`。
 - 图标交换：两个图标放在同一格，进入用完整档，离开用退出档。
+- 折叠触发器的箭头用 transform 旋转，moderate 档；减少动态效果时直接切换。
 - 动画可以中途打断，并从当前状态平滑返回。
 - 键盘导航不加动画。
 - 用户开启"减少动态效果"时：
@@ -82,7 +91,13 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 - 动效不触及预览 iframe。iframe 里是 vendor 的完整布局，对它做尺寸动画会让 vendor 逐帧重排。切换 Device 本来就会重载 View。
 
 **实现**：默认用 CSS。
-- 每个档位是一个工具类（`motion-fast`、`motion-moderate`、`motion-slow`），提供时长与缓动，并让退出自动快一档；组件只声明要过渡的属性。浮层的出现与消失用 `motion-popup`，从锚点缩放淡入。
+- 每个档位是一个工具类（`motion-fast`、`motion-moderate`、`motion-slow`），提供时长与缓动，并让退出自动快一档；组件只声明要过渡的属性。
+- 几种固定的配方也是工具类：
+  - `motion-popup`：浮层的出现与消失，从锚点缩放淡入；
+  - `motion-fold`：折叠内容；
+  - `motion-toast`：Toast 的进入与离开。
+  
+  后两者都是 moderate 进入、fast 退出，即 160 ms 弹簧进入、60 ms ease-out 退出。位移距离取自 `--motion-fold-offset`、`--motion-toast-distance`，减少动态效果时归零。
 - Base UI 用 `data-starting-style` / `data-ending-style` 驱动 CSS 过渡，进入、退出和中途取消都由它处理。
 - 弹簧曲线用 CSS `linear()` 表达，由 `apps/studio/scripts/springs.mjs` 生成。
 - 参考库大多基于 Motion，复制它们的组件时，把动效改写为 CSS 档位。
@@ -106,6 +121,11 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 - **错误**：
   - 在原处显示原文，并提供重试；
   - 需要用户处理的错误，不用会自动消失的 toast。
+- **Toast**：
+  - 宽屏在右下角，窄屏在底部面板切换器之上；
+  - 最多同时显示三条，始终展开成列表，不叠成一摞，因为叠放需要对高度做动画；
+  - 需要处理的错误立即播报，并一直留到用户关闭；
+  - F6 进入通知区，Esc 关闭当前那一条。
 - **编辑器的文件标签**：
   - 标签可关闭、会溢出，所以不用凹陷轨道加滑块的样式；
   - 当前标签与内容区使用同一种表面色，连成一体；

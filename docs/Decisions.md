@@ -34,4 +34,5 @@
 | 浏览器里不运行 TypeScript | 代码主要由 Agent 编写；作者代码几乎都是 JS，运行时注入的全局类型不全，静态检查误报多。事实来源是真实 vendor 的运行结果：诊断取自运行时，补全读取生成的 API 索引 | TS 6 LanguageService worker；TS 7 的浏览器构建（官方尚未发布，Go 的 wasm 只能单线程）。P2 浏览器内构建出现确需类型检查的 TS 项目时，重新评估 |
 | 浏览器端状态不进入 Session，换用 vendor 镜像时清理 | 以 vendor 后端契约为界，与真实部署和 PureTavern 一致。同源先后运行不同镜像是 Studio 带来的情况，而状态格式由镜像代码定义：ST 1.19.0 的缩略图缓存是裸 Blob，TT 是对象 | 归 Session 所有、随重置清理，并让 Fixture 携带 storage：要求比真实部署更强的确定性，多出一套机制。在预览 realm 中包装 Storage 与 `indexedDB`、按 vendor 加前缀：改写浏览器 API，偏离生产路径 |
 | Studio 不使用 localStorage 和 sessionStorage | 同源代码随时可能清空它们 | 把密钥放在 sessionStorage |
+| 手动深浅色设置存在 cookie 里，`index.html` 的内联脚本在首帧之前读出 | 它是唯一需要在首帧之前读到的偏好，而 IndexedDB 是异步的，读到之前页面已经按系统配色画了一帧。cookie 是它唯一的存储位置，丢失时只会回到跟随系统 | 存在 IndexedDB，接受首帧闪一下。同时存在 IndexedDB 与 cookie：同一个设置有两份 |
 | 部署用 Workers Static Assets | Cloudflare 对新项目的推荐方案 | Pages |

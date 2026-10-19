@@ -2,6 +2,7 @@ import './styles/index.css';
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Shell } from './shell/shell';
+import { Toaster } from './ui/toast';
 import { TooltipProvider } from './ui/tooltip';
 
 const root = document.getElementById('root');
@@ -11,6 +12,7 @@ createRoot(root).render(
   <StrictMode>
     <TooltipProvider>
       <Shell />
+      <Toaster />
     </TooltipProvider>
   </StrictMode>,
 );
