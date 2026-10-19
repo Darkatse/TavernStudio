@@ -20,7 +20,14 @@ const FOLLOW_SLACK = 40;
  */
 export function Transcript({ conversation }: { conversation: Conversation }) {
   const state = useConversationState(conversation);
-  const blocks = transcriptBlocks(state);
+  // Blocks stay the same objects while a reply streams, so only the Run that streams renders again.
+  const blocks = transcriptBlocks({
+    entries: state.entries,
+    events: state.events,
+    files: state.files,
+    activeId: state.active?.id,
+    rollingBack: state.rollingBack,
+  });
   const scroller = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const [away, setAway] = useState(false);
@@ -82,14 +89,14 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
                     ? streamingReply(block.work, state.active.partial)
                     : undefined
                 }
-                onRollback={() => rollBackTo(block)}
+                onRollback={rollBackTo}
               />
             ) : (
               <RollbackView
                 key={block.id}
                 block={block}
                 latest={block === last}
-                onUndo={() => rollBackTo(block)}
+                onUndo={rollBackTo}
               />
             ),
           )}

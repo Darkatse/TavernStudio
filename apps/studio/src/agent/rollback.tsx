@@ -94,7 +94,7 @@ export function RollbackView({
 }: {
   block: RollbackBlock;
   latest: boolean;
-  onUndo: () => void;
+  onUndo: (block: RollbackBlock) => void;
 }) {
   const target = block.target;
   return (
@@ -122,7 +122,7 @@ export function RollbackView({
       </span>
       <span className="h-px min-w-4 flex-1 bg-line" />
       {latest && block.restorable && (
-        <Button variant="ghost" className="h-7 px-2 text-caption" onClick={onUndo}>
+        <Button variant="ghost" className="h-7 px-2 text-caption" onClick={() => onUndo(block)}>
           <Undo2 />
           撤销
         </Button>

@@ -15,7 +15,7 @@ import {
   Unplug,
   type LucideIcon,
 } from 'lucide-react';
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { formatDuration, useNow } from '../lib/use-now';
 import { previewCapture, useCaptureShared } from '../preview/capture';
 import { Button } from '../ui/button';
@@ -31,7 +31,7 @@ import { callDetail, callLabel, type CallState } from './tool-labels';
  * the final answer, which stays visible when the work is folded. Only the
  * latest Run starts unfolded (docs/Agent.md §7).
  */
-export function RunView({
+export const RunView = memo(function RunView({
   block,
   latest,
   partial,
@@ -41,7 +41,7 @@ export function RunView({
   latest: boolean;
   /** The reply still streaming in this Run. */
   partial: AssistantMessage | undefined;
-  onRollback: () => void;
+  onRollback: (block: RunBlock) => void;
 }) {
   const [open, setOpen] = useState<boolean>();
   const running = block.status === 'running';
@@ -67,7 +67,7 @@ export function RunView({
                 icon
                 aria-label="回滚到这次运行之前"
                 className="opacity-0 transition-opacity motion-fast group-hover/run:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
-                onClick={onRollback}
+                onClick={() => onRollback(block)}
               >
                 <RotateCcw />
               </Button>
@@ -117,7 +117,7 @@ export function RunView({
       )}
     </section>
   );
-}
+});
 
 const STATUS_ICONS: Partial<Record<RunStatus, { icon: LucideIcon; className: string }>> = {
   running: { icon: LoaderCircle, className: 'animate-spin' },

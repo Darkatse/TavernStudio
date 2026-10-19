@@ -54,8 +54,16 @@ export type TranscriptBlock = RunBlock | RollbackBlock;
  * Journal event that is not the active one was interrupted: Studio closed
  * while it ran, and its tools are not replayed (docs/Agent.md §1).
  */
-export function transcriptBlocks(state: ConversationState): TranscriptBlock[] {
-  const { entries, events, files, active, rollingBack } = state;
+export function transcriptBlocks({
+  entries,
+  events,
+  files,
+  activeId,
+  rollingBack,
+}: Pick<ConversationState, 'entries' | 'events' | 'files' | 'rollingBack'> & {
+  /** Only which Run is active: its streaming reply changes every frame and is no part of the blocks. */
+  activeId: string | undefined;
+}): TranscriptBlock[] {
   const runs = new Map<string, RunBlock>();
   for (const entry of entries) {
     let block = runs.get(entry.run);
@@ -115,10 +123,10 @@ export function transcriptBlocks(state: ConversationState): TranscriptBlock[] {
   // History reaches here before the Journal's first event only for a Run just starting.
   for (const block of runs.values()) if (!blocks.has(block.id)) blocks.set(block.id, block);
 
-  const running = active && runs.get(active.id);
+  const running = activeId === undefined ? undefined : runs.get(activeId);
   if (running) running.status = 'running';
   const undone = undoneOperations(events);
-  const busy = active !== undefined || rollingBack;
+  const busy = activeId !== undefined || rollingBack;
   for (const block of blocks.values()) {
     block.undone = undone.has(block.id);
     block.restorable = !busy && !pruned.has(block.id) && canRestore(events, files, block.id);
