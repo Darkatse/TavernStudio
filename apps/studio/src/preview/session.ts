@@ -260,10 +260,13 @@ export class PreviewSession implements PreviewHost {
     if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
       // A running page is the only writer of its data: its own controls take
       // the values, and it saves them itself, through its own checks.
-      const missed = pages.flatMap((page) =>
-        page ? hotApply(page, opened.anatomy, applied.changes) : [],
+      const results = pages.flatMap((page) =>
+        page ? [hotApply(page, opened.anatomy, applied.changes)] : [],
       );
-      const unsaved = missed.length > 0 ? [] : await this.#savedBy(opened.data, applied.changes);
+      const missed = results.flatMap((result) => result.missed);
+      // The vendor saves the value as it holds it, a colour in its own form for instance.
+      const held = results.flatMap((result) => result.held);
+      const unsaved = missed.length > 0 ? [] : await this.#savedBy(opened.data, held);
       if (missed.length === 0 && unsaved.length === 0) {
         this.#setPlacements(placements);
         return;
