@@ -38,6 +38,7 @@ export default defineConfig({
         pluginReact({ reactCompiler: true }),
         pluginPublished(path.join(repo, 'fixtures'), 'fixtures'),
         pluginPublished(path.join(repo, 'templates'), 'templates'),
+        pluginPublished(path.join(repo, 'skills'), 'skills'),
       ],
       source: { entry: { index: './src/main.tsx' } },
       // Dev tooling lives under `/__` and hot updates under `/_studio/`, the

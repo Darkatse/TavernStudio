@@ -2,23 +2,30 @@ import { modelToolName } from '@tavern-studio/agent';
 import { MANIFEST } from '@tavern-studio/workspace';
 import type { Project } from '../project/project';
 import { previewControl } from './preview-surface';
+import { loadSkills } from './skills';
 
 const decoder = new TextDecoder();
 const PROJECT_NOTES = 'AGENTS.md';
 
 /**
- * The system prompt (docs/Agent.md §6): what the preview runs, the project's
- * studio.json and its own notes. Everything else the Agent reads when it
- * needs it, through the workspace tools.
+ * The system prompt (docs/Agent.md §6): what the preview runs, the Skills,
+ * the project's studio.json and its own notes. Everything else the Agent
+ * reads when it needs it, through the workspace tools.
  */
 export async function systemPrompt(project: Project): Promise<string> {
-  const [manifest, notes] = await Promise.all([
+  const [manifest, notes, skills] = await Promise.all([
     readText(project, MANIFEST),
     readText(project, PROJECT_NOTES),
+    loadSkills(),
   ]);
   const sections = [
     `You are the Agent of Tavern Studio, where authors make themes, frontend cards, regex beautification, Tavern Helper scripts and extensions for SillyTavern and TauriTavern. You change the author's project only through its files, and see the result in a live preview of the real frontend. Reply in the language the author writes in.`,
-    `Workspace: project/ holds the author's files and is writable. tool-results/ holds long results of your own tool calls. Read a file with ${modelToolName('workspace.read_file')} before you change it.`,
+    `Workspace: project/ holds the author's files and is writable. Read-only beside it: skills/ holds Skills; vendor/ holds the frontend the preview runs, its anatomy generated from its source under vendor/anatomy/ and the source itself under vendor/src/; tool-results/ holds long results of your own tool calls. Read a file with ${modelToolName('workspace.read_file')} before you change it.`,
+    skills.length === 0
+      ? undefined
+      : `Skills: read a Skill's SKILL.md before work it covers.\n${skills
+          .map((skill) => `- ${skill.name} (skills/${skill.folder}/SKILL.md): ${skill.description}`)
+          .join('\n')}`,
     `Preview: ${previewControl.describe()}. ${MANIFEST} mounts project files into the frontend's data, so a saved change reaches the preview by itself.`,
     manifest === undefined ? undefined : `project/${MANIFEST}:\n${manifest}`,
     notes === undefined

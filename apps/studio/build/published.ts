@@ -4,10 +4,11 @@ import path from 'node:path';
 import type { RsbuildPlugin } from '@rsbuild/core';
 
 /**
- * Serves every directory under `root` (fixtures/, templates/) at
+ * Serves every directory under `root` (fixtures/, templates/, skills/) at
  * /_studio/<base>/<name>/, plus an index.json listing each file with its size
- * and SHA-256. Studio loads such a directory through its index; for a fixture
- * the hash is the file's identity in a Snapshot.
+ * and SHA-256, and /_studio/<base>/index.json listing the directories. Studio
+ * loads such a directory through its index; for a fixture the hash is the
+ * file's identity in a Snapshot.
  */
 export function pluginPublished(root: string, base: string): RsbuildPlugin {
   return {
@@ -18,8 +19,14 @@ export function pluginPublished(root: string, base: string): RsbuildPlugin {
         ({ compilation, sources }) => {
           // The directory for added and removed files, each file for its content.
           compilation.contextDependencies.add(root);
-          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
-            if (!entry.isDirectory()) continue;
+          const directories = fs
+            .readdirSync(root, { withFileTypes: true })
+            .filter((entry) => entry.isDirectory());
+          compilation.emitAsset(
+            `_studio/${base}/index.json`,
+            new sources.RawSource(JSON.stringify(directories.map((entry) => entry.name))),
+          );
+          for (const entry of directories) {
             const dir = path.join(root, entry.name);
             const files: Record<string, { size: number; sha256: string }> = {};
             for (const file of walk(dir)) {

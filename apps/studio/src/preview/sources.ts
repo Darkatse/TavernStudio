@@ -70,7 +70,8 @@ async function loadPublished(
   };
 }
 
-async function getJson<T>(url: string, what: string): Promise<T> {
+/** Loads JSON Studio serves; what names it in the error. */
+export async function getJson<T>(url: string, what: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not load ${what}: HTTP ${response.status}`);
   return (await response.json()) as T;

@@ -42,6 +42,8 @@ export async function writeAnatomy(image, id) {
   for (const [file, content] of Object.entries(files)) {
     await fs.writeFile(path.join(dir, file), `${JSON.stringify(content, null, 2)}\n`);
   }
+  // What the anatomy holds, so that readers list it instead of knowing it.
+  await fs.writeFile(path.join(dir, 'index.json'), `${JSON.stringify(Object.keys(files))}\n`);
 
   const fields = Object.entries(files['theme.json'].fields);
   const reload = fields.filter(([, field]) => !field.control).map(([key]) => key);
