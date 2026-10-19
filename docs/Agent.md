@@ -28,7 +28,9 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
   - 截图和 `tool-results/` 的长结果只保留最近 20 个 Run，更早的显示为"已清理"。
   - History 与 Journal 的文字记录保留。
   - 设置中显示占用。
-- 循环由我们自己实现，只有几百行。模型接入使用 AI SDK 7 Core 的 provider 包，不用它的 agent 抽象。
+- 循环由我们自己实现，只有几百行。模型接入使用 pi-ai 的单轮流式接口：
+  - 只引入 `@earendil-works/pi-ai/api/*.lazy`，每家 provider 在第一次请求时才加载，不用 pi-ai 的 agent 包；
+  - 精确锁定版本。
 
 ## 2. 模型接入
 
@@ -39,13 +41,15 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
   - 基于 new-api / one-api 的中转默认放开所有源；
   - 其余不返回 CORS 的端点，经可自部署的 CORS 中继访问。
 - 图片：OpenAI 兼容格式只接受 user 消息里的图片。因此截图工具只返回文字结果，图片另作为合成的 user 消息注入。
-- 沿用 TT 模型网关的经验：
-  - `finishReason` 为 length 时不执行工具；
+- History 原样保存 pi-ai 的 assistant 消息，各家签名都在里面，回放时原样交回。
+  - 签名的编码属于 pi-ai 的内部格式，升级前用录制的 History 做回放测试。
+  - 切换模型时，pi-ai 丢弃不能回放的推理；只有 provider、api、model 都相同才算同一模型。所以每个端点配置的 provider id 必须稳定。
+- 沿用 TT 模型网关的经验，以下由 Studio 自己处理，pi-ai 不做：
+  - 停止原因为 length 时不执行工具；
   - 模型调用了未声明的工具时，Run 失败；
-  - assistant 消息连同 reasoning 与 provider 元数据原样保存、原样回放；
-  - callId 可能重复，按顺序配对。
-  
-  中转端点是否回传 reasoning 字段，逐个实测。
+  - callId 可能重复，按顺序配对；
+  - 没有收到结果的工具调用，在发出请求前按 TT 的文案改写，不交给 pi-ai 自带的兜底。
+- 官方 SDK 会带 `x-stainless-*` 请求头。各端点的 CORS 预检逐个实测，不通过时用自定义 fetch 去掉这些头。
 
 ## 3. 工作区视图
 
