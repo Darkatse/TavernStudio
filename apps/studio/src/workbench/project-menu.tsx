@@ -1,6 +1,7 @@
-import { Check, FileDown, FileUp, Plus } from 'lucide-react';
+import { Check, FileDown, FileUp } from 'lucide-react';
 import { useRef, useState } from 'react';
 import { createFromTemplate, openProject } from '../project/projects';
+import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject, useProjectRecords } from '../project/use-project';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../ui/menu';
 import { showToast } from '../ui/toast';
@@ -47,16 +48,19 @@ export function ProjectMenu() {
           render={<ProjectButton onPointerEnter={prefetch} onFocus={prefetch} />}
         />
         <MenuContent>
-          <MenuItem
-            icon={<Plus />}
-            onClick={() =>
-              void run('项目没能新建', async () =>
-                openProject(await createFromTemplate('theme', '我的主题')),
-              )
-            }
-          >
-            新建主题项目
-          </MenuItem>
+          {PROJECT_TEMPLATES.map((template) => (
+            <MenuItem
+              key={template.folder}
+              icon={<template.icon />}
+              onClick={() =>
+                void run('项目没能新建', async () =>
+                  openProject(await createFromTemplate(template)),
+                )
+              }
+            >
+              {template.action}
+            </MenuItem>
+          ))}
           {records.length > 0 && <MenuSeparator />}
           {records.slice(0, RECENT).map((record) => {
             const open = record.id === project?.record.id;

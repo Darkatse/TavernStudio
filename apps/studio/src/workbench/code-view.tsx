@@ -1,10 +1,12 @@
-import { FileCode2, Plus } from 'lucide-react';
+import { FileCode2 } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
 import { createFromTemplate, openProject } from '../project/projects';
+import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject } from '../project/use-project';
 import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
 import { LoadingLine } from '../ui/loading';
+import { showToast } from '../ui/toast';
 
 // The file tree and the editor stay out of the first screen (docs/plan/P1.md, 性能).
 const ProjectCode = lazy(() =>
@@ -29,18 +31,30 @@ export function CodeView({ shown }: { shown: boolean }) {
           title="尚未打开项目"
           description="从模板新建一个项目，文件会显示在这里，改动即时出现在预览中。"
           action={
-            <Button
-              disabled={creating}
-              onClick={() => {
-                setCreating(true);
-                void createFromTemplate('theme', '我的主题')
-                  .then(openProject)
-                  .finally(() => setCreating(false));
-              }}
-            >
-              <Plus />
-              新建主题项目
-            </Button>
+            <div className="flex flex-wrap justify-center gap-2">
+              {PROJECT_TEMPLATES.map((template) => (
+                <Button
+                  key={template.folder}
+                  disabled={creating}
+                  onClick={() => {
+                    setCreating(true);
+                    void createFromTemplate(template)
+                      .then(openProject)
+                      .catch((error: unknown) =>
+                        showToast({
+                          kind: 'error',
+                          title: '项目没能新建',
+                          description: error instanceof Error ? error.message : String(error),
+                        }),
+                      )
+                      .finally(() => setCreating(false));
+                  }}
+                >
+                  <template.icon />
+                  {template.action}
+                </Button>
+              ))}
+            </div>
           }
         />
       </div>

@@ -1,0 +1,11 @@
+/* 我的扩展的样式。前端按 manifest.json 的 "css" 载入它；在 Studio 里修改后，预览原位换上新样式，不重载。 */
+
+.my-extension-length {
+  margin-inline-start: 0.5em;
+  padding: 0 0.6em;
+  border: 1px solid var(--SmartThemeBorderColor);
+  border-radius: 1em;
+  color: var(--SmartThemeQuoteColor);
+  font-size: calc(var(--mainFontSize) * 0.75);
+  white-space: nowrap;
+}

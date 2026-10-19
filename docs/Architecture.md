@@ -116,8 +116,8 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | 数据路径 | 热应用入口 |
 |---|---|
 | `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• `font_scale` 等滑块在 `input` 之后还要派发 `mouseup`，否则 CSS 变量等到松手才更新；<br>• 其余字段用各自的控件。<br>之后读回 vendor 内存中的 `power_user` 核对，不一致就报告并重载；值由 vendor 自己保存 |
-| 扩展的 CSS 文件 | 原位替换 `<link id="third-party_<name>-css">` 的 href。不重新插入，以保持层叠顺序 |
-| 扩展的 JS 文件 | 重载 View（ESM 无法卸载） |
+| `default-user/extensions/<名>/` 下整个替换的 CSS 文件，页面已经按 manifest 把它载入为 `<link id="third-party_<名>-css">`（id 经 vendor 的 `sanitizeSelector`） | Studio 写入 Session，等它发布到 Cache Storage，再给这个 link 换一个带新查询参数的 href，保留 TT 的 `ttCompat` 等原有参数，然后等它载入。<br>• 原位替换，不重新插入元素，以保持层叠顺序；<br>• Chromium 在新样式表载入之前保留旧的，实测没有闪出无样式的帧；<br>• 页面上没有对应的 link、或载入失败时，重载 |
+| 扩展的其他文件：JS、`manifest.json`、i18n、模板，以及 manifest 没有载入的 CSS | 重载 View：manifest 只在启动时读一次，ESM 无法卸载 |
 | 酒馆助手脚本：`settings.json` 与角色卡中的 `tavern_helper` 脚本 | TavernHelper 的公开 API `replaceScriptTrees`，只作用于当前角色或预设 |
 | 角色卡的其他字段，例如前端卡、角色正则 | 调用 `getCharacters()` 和 `reloadCurrentChat()` |
 
@@ -126,10 +126,11 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - **vendor 在内存里持有的数据。** 如果 vendor 在内存里持有一份数据、保存时整体写回，那么只改 Session 不会生效，vendor 之后保存时还会用旧值把它覆盖。
   - 这类路径只能走 vendor 的公开入口，做不到就重载。
   - 目前已知的有：`settings.json` 的全部字段、酒馆助手脚本、世界书、Quick Reply。
-- **运行中的页面是它数据的唯一写入者。** 热应用只驱动 vendor 自己的控件，由 vendor 走自己的保存路径写入，Studio 不在运行中的页面底下写数据。
+- **运行中的页面是它数据的唯一写入者。** 热应用只驱动 vendor 自己的控件，由 vendor 走自己的保存路径写入，Studio 不在运行中的页面底下写页面会写的数据。
   - 数据里出现这些值之后，放置才算完成；在此之前比较差异，仍以上一次的放置为准，不会把旧值误报为会话写入。
   - 控件没取到值（读回不一致），或 vendor 在 5 s 内没有保存，就改走重载路径：页面先经退出流程保存，Studio 再写入，然后重载。没有热应用入口的路径也走这条路。
   - 理由：TT 的 Web Host 保存 `settings.json` 前会比对页面加载时的版本。Studio 若既驱动控件、又直接写数据，就是同一个值写了两次，第二次让页面的版本过期，这个页面之后的每次保存都会被拒绝。ST 没有这项校验，但同样只走控件，两种 vendor 是同一条路。
+  - 扩展的文件在运行中的页面里没有写入者，vendor 不经 API 写它们。所以热应用扩展 CSS 时由 Studio 写入，没有双写；写入的同时，这些路径的放置就算完成，比较差异时不会把新内容当成会话写入。
 - **观察跟上项目。** Agent 写下的文件要经过 Mount 和 Session 才到达预览，可能还要重载。所以观察预览的工具（`app.*`、截图）先等预览放置完项目的最新文件、页面就绪，再动手。
 - **重载是权威。** 热应用只是优化，结果必须与重载一致。重载也改变不了的内容如实呈现，与真实 ST 一致：
   - 已有聊天里的开场白：`first_mes` 只在新建聊天时复制；
@@ -174,6 +175,18 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   - 选中哪个已保存的主题（`power_user.theme`）和无障碍偏好（`reduced_motion`）属于用户，不属于主题，项目不拥有它们。
   - 原因：TT 启动时按名字解析主题文件。项目拥有 `power_user.theme`，样板里又没有同名文件时，TT 会报错并改用另一个主题，项目的外观随之被覆盖。不拥有这个键时，选中的是样板里真实存在的主题，外观字段仍来自项目，这正是作者在 ST 里调过外观、尚未另存主题时的状态。
 - **结构化文档。** Pointer 可以指向 JSON 文件，也可以指向角色卡 PNG 里嵌的卡片 JSON，读写规则与 ST 相同。
+- **整个文件。** 不带 Pointer 的 Mount 把文件原样放到挂载点。无构建的扩展模板就是三条这样的 Mount，项目根即扩展根，推到 GitHub 后可以用 git 安装：
+
+  ```json
+  {
+    "fixture": "showcase",
+    "mounts": [
+      { "from": "manifest.json", "to": "default-user/extensions/my-extension/manifest.json" },
+      { "from": "index.js",      "to": "default-user/extensions/my-extension/index.js" },
+      { "from": "style.css",     "to": "default-user/extensions/my-extension/style.css" }
+    ]
+  }
+  ```
 - **目录。** `from` 可以是目录，整棵子树原样挂到 `to` 下。
   - 扩展通常写两条 Mount：一条挂 `manifest.json`，一条挂 `dist/`。
   - 这样保留了扩展根的布局，manifest 里的路径和相对 import 都依赖这个布局。
@@ -187,11 +200,11 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   - 带 `fence` 的先去掉包装。
   
   Pointer 里带数组下标时，作者在 ST 界面里调整顺序后会错位，这时以整体差异呈现。
-- **导出**沿 Mount 读取合成后的数据，组装为 ST 能导入的格式：
+- **导出**沿 Mount 读取合成后的数据，组装为 ST 能导入的格式。导出什么由放置决定：放进 `power_user` 的是主题，放进某个扩展文件夹的文件是那个扩展。一个项目有几种导出时，工作台用菜单列出。
   - 主题 JSON：照 ST 的 `getThemeObject` 组装，`name` 取项目名；
   - `user.css`；
   - 角色卡 PNG；
-  - 扩展 zip；
+  - 扩展 zip：项目放进 `default-user/extensions/<名>/` 的文件，从 Snapshot 读取，放在唯一的顶层文件夹 `<名>/` 下，文件名 `<名>.zip`。ST 与 TT 都不能从 zip 安装扩展，作者把它解压到 `data/default-user/extensions/` 下即可；
   - 酒馆助手 Script.json；
   - 正则 JSON；
   - 世界书 JSON；

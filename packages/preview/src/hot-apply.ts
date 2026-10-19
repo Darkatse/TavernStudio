@@ -1,12 +1,17 @@
 import { jsonEqual, type DataChange, type JsonValue } from '@tavern-studio/workspace';
+import { dataPathForUrl } from './routes';
 
 /**
- * How a vendor image sets each theme field through its own control, from the
- * image's anatomy (vendors/lib/anatomy.mjs, `theme.json`). A field without a
- * control has no hot-apply entry: changing it reloads the View.
+ * How a vendor image applies each theme field, from the image's anatomy
+ * (vendors/lib/anatomy.mjs, `theme.json`): the control that sets it, the CSS
+ * variables it drives, and the element whose content it becomes. A field
+ * without a control has no hot-apply entry: changing it reloads the View.
  */
 export interface ThemeAnatomy {
-  fields: Record<string, { control: ThemeControl | null }>;
+  fields: Record<
+    string,
+    { control: ThemeControl | null; cssVariables: string[]; element: string | null }
+  >;
 }
 
 export interface ThemeControl {
@@ -25,6 +30,12 @@ export interface ThemeControl {
 }
 
 const SETTINGS = 'default-user/settings.json';
+/** A user's extension folder, which names the extension: `third-party/<folder>`. */
+const EXTENSION_FOLDER = /^default-user\/extensions\/([^/]+)\//;
+/** How long a page may take to load a stylesheet again before the View reloads instead. */
+const STYLESHEET_WAIT_MS = 5000;
+/** Gives a stylesheet loaded again a URL of its own. The Preview SW ignores the query. */
+const RELOAD_PARAM = 'studio-reload';
 
 /** The theme field a change sets, when it sets one: `settings.json#/power_user/<field>`. */
 function themeField(change: DataChange): string | undefined {
@@ -35,34 +46,107 @@ function themeField(change: DataChange): string | undefined {
 }
 
 /**
- * Whether every change has a hot-apply entry (docs/Architecture.md §5): a
- * theme field with a control, set to a value a control can hold.
+ * The stylesheet a page loaded from a data file through an extension's
+ * manifest. SillyTavern and TauriTavern both load it as
+ * `<link id="third-party_<folder>-css">` (their `sanitizeSelector` of
+ * `third-party/<folder>-css`), at a URL the Preview SW maps to that file;
+ * TauriTavern may add a query of its own. Undefined for any other file, such
+ * as a stylesheet the manifest does not name, or one that has not loaded.
  */
-export function canHotApply(anatomy: ThemeAnatomy, changes: readonly DataChange[]): boolean {
+function extensionStylesheet(page: Window, path: string): HTMLLinkElement | undefined {
+  const folder = EXTENSION_FOLDER.exec(path)?.[1];
+  if (folder === undefined) return undefined;
+  const link = page.document.getElementById(
+    `third-party/${folder}-css`.replaceAll(/[^a-z0-9_-]/gi, '_'),
+  );
+  return link instanceof (page as typeof window).HTMLLinkElement &&
+    link.sheet !== null &&
+    dataPathForUrl(new URL(link.href)) === path
+    ? link
+    : undefined;
+}
+
+/**
+ * Whether every change has a hot-apply entry in every page
+ * (docs/Architecture.md §5), by data path:
+ * - a theme field with a control, set to a value a control can hold. The
+ *   page's control takes it, and the page saves it;
+ * - a whole extension stylesheet the page loaded through its manifest. No
+ *   page writes such a file: Studio writes it, and the page loads it again.
+ */
+export function canHotApply(
+  pages: readonly Window[],
+  anatomy: ThemeAnatomy,
+  changes: readonly DataChange[],
+): boolean {
   return changes.every((change) => {
     const field = themeField(change);
-    return field !== undefined && isScalar(change.value) && !!anatomy.fields[field]?.control;
+    if (field !== undefined) return isScalar(change.value) && !!anatomy.fields[field]?.control;
+    return (
+      change.pointer === undefined &&
+      pages.every((page) => extensionStylesheet(page, change.path) !== undefined)
+    );
   });
 }
 
 /** What a hot-apply did to a page. */
 export interface HotApplied {
-  /** Changes the vendor did not take; the caller then reloads, since a reload is the authority. */
+  /** Changes the page did not take; the caller then reloads, since a reload is the authority. */
   missed: DataChange[];
   /**
-   * The changes it took, with the value as the vendor now holds and will
-   * save it: a colour control keeps a colour in its own form, `#ffcc00` as
+   * The values it took, as the vendor now holds and will save them: a
+   * colour control keeps a colour in its own form, `#ffcc00` as
    * `rgba(255, 204, 0, 1)` for instance.
    */
   held: DataChange[];
 }
 
 /**
- * Brings a running vendor page to the changed values through its own
- * controls, as the author would by hand, and reads its settings back. The
- * vendor's handlers then save the values themselves.
+ * Brings a running vendor page to the changes `canHotApply` accepted. Theme
+ * values go through the page's own controls, as the author would set them
+ * by hand, and are read back; the vendor's handlers then save them. Whole
+ * stylesheets, which Studio has written and published, load again in place.
  */
-export function hotApply(
+export async function hotApply(
+  page: Window,
+  anatomy: ThemeAnatomy,
+  changes: readonly DataChange[],
+): Promise<HotApplied> {
+  const values = changes.filter((change) => change.pointer !== undefined);
+  const files = changes.filter((change) => change.pointer === undefined);
+  const applied = applyValues(page, anatomy, values);
+  const loaded = await Promise.all(files.map((change) => reloadStylesheet(page, change.path)));
+  applied.missed.push(...files.filter((_, index) => !loaded[index]));
+  return applied;
+}
+
+/**
+ * Loads an extension's stylesheet again in place: the same element at a new
+ * URL, so the cascade keeps its order. Chromium keeps the old sheet applied
+ * until the new one has loaded, so nothing shows unstyled in between.
+ * Resolves to whether it loaded.
+ */
+function reloadStylesheet(page: Window, path: string): Promise<boolean> {
+  const link = extensionStylesheet(page, path);
+  if (!link) return Promise.resolve(false);
+  const url = new URL(link.href);
+  url.searchParams.set(RELOAD_PARAM, crypto.randomUUID());
+  return new Promise((resolve) => {
+    const listening = new (page as typeof window).AbortController();
+    const settle = (loaded: boolean) => {
+      listening.abort();
+      clearTimeout(timer);
+      resolve(loaded);
+    };
+    const timer = setTimeout(() => settle(false), STYLESHEET_WAIT_MS);
+    link.addEventListener('load', () => settle(true), { signal: listening.signal });
+    link.addEventListener('error', () => settle(false), { signal: listening.signal });
+    link.href = url.href;
+  });
+}
+
+/** Sets theme values through the page's own controls and reads them back. */
+function applyValues(
   page: Window,
   anatomy: ThemeAnatomy,
   changes: readonly DataChange[],

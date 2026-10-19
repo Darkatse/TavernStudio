@@ -3,6 +3,7 @@ import { previewSession } from '../preview/session';
 import { loadTemplate } from '../preview/sources';
 import { db, type ProjectRecord } from '../storage/db';
 import { Project } from './project';
+import type { ProjectTemplate } from './templates';
 
 /** The fixture the preview shows while no project is open. */
 const DEFAULT_FIXTURE = 'showcase';
@@ -46,10 +47,10 @@ export function startStudio(): Promise<void> {
   return started;
 }
 
-/** A project from a template's files. */
-export async function createFromTemplate(template: string, name: string): Promise<ProjectRecord> {
-  const { files } = await loadTemplate(template);
-  return createProject(name, template, files);
+/** A project from a template's files, named as the template names a new one. */
+export async function createFromTemplate(template: ProjectTemplate): Promise<ProjectRecord> {
+  const { files } = await loadTemplate(template.folder);
+  return createProject(template.name, template.folder, files);
 }
 
 /**

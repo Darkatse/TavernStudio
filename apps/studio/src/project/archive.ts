@@ -1,6 +1,7 @@
 import { isRelativePath, MANIFEST } from '@tavern-studio/workspace';
-import { unzip, zip, type Unzipped, type Zippable } from 'fflate';
+import { unzip, type Unzipped, type Zippable } from 'fflate';
 import { saveFile, type SaveOutcome } from '../lib/save-file';
+import { zipFiles } from '../lib/zip';
 import type { ProjectRecord } from '../storage/db';
 import type { Project } from './project';
 import { createProject } from './projects';
@@ -23,10 +24,7 @@ export class ArchiveError extends Error {
 export async function exportArchive(project: Project): Promise<SaveOutcome> {
   const files: Zippable = {};
   for (const path of await project.store.files('')) files[path] = await project.store.read(path);
-  const zipped = await new Promise<Uint8Array>((resolve, reject) => {
-    zip(files, { level: 6 }, (error, data) => (error ? reject(error) : resolve(data)));
-  });
-  return saveFile(new Blob([new Uint8Array(zipped)], { type: 'application/zip' }), {
+  return saveFile(await zipFiles(files), {
     suggestedName: `${project.record.name}.zip`,
     description: 'Studio 项目',
     mimeType: 'application/zip',

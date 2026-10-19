@@ -222,8 +222,10 @@ export class PreviewSession implements PreviewHost {
    * page is the only writer of its data: when every View is running and every
    * change has a hot-apply entry, the pages' own controls take the values and
    * the pages save them, and the placements count as moved once the data
-   * shows it. Otherwise the Views unload first, saving on exit, and Studio
-   * writes the data before they load again.
+   * shows it. Files no page writes, an extension's stylesheet for one, Studio
+   * writes itself before the pages load them again. Otherwise the Views
+   * unload first, saving on exit, and Studio writes the data before they load
+   * again.
    */
   place(placements: readonly Placement[]): Promise<void> {
     return this.#queue(() => this.#move((current) => current, placements));
@@ -256,12 +258,31 @@ export class PreviewSession implements PreviewHost {
       this.#setPlacements(placements);
       return;
     }
-    const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
-    if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
+    const views = this.#views.all();
+    const pages = views.flatMap((view) =>
+      view.agent && view.frame.contentWindow ? [view.frame.contentWindow] : [],
+    );
+    // With no page running there is no one to take a value, so the data is written below.
+    const running = pages.length > 0 && pages.length === views.length;
+    if (running && canHotApply(pages, opened.anatomy, applied.changes)) {
       // A running page is the only writer of its data: its own controls take
-      // the values, and it saves them itself, through its own checks.
-      const results = pages.flatMap((page) =>
-        page ? [hotApply(page, opened.anatomy, applied.changes)] : [],
+      // the values, and it saves them itself, through its own checks. A whole
+      // file has no writer in the page, so Studio writes it, and the data then
+      // reflects the new placements there; the pages load it once the Preview
+      // SW serves it.
+      const files = new Set(
+        applied.changes.filter((change) => change.pointer === undefined).map(({ path }) => path),
+      );
+      if (files.size > 0) {
+        this.#write(opened.data, new Map([...applied.writes].filter(([path]) => files.has(path))));
+        this.#setPlacements([
+          ...previous.filter((placement) => !files.has(placement.path)),
+          ...placements.filter((placement) => files.has(placement.path)),
+        ]);
+        await this.#published;
+      }
+      const results = await Promise.all(
+        pages.map((page) => hotApply(page, opened.anatomy, applied.changes)),
       );
       const missed = results.flatMap((result) => result.missed);
       // The vendor saves the value as it holds it, a colour in its own form for instance.
@@ -271,8 +292,8 @@ export class PreviewSession implements PreviewHost {
         this.#setPlacements(placements);
         return;
       }
-      const positions = (missed.length > 0 ? missed : unsaved).map(
-        (change) => `${change.path}#${formatPointer(change.pointer ?? [])}`,
+      const positions = (missed.length > 0 ? missed : unsaved).map((change) =>
+        change.pointer ? `${change.path}#${formatPointer(change.pointer)}` : change.path,
       );
       this.#report({
         level: 'warning',
@@ -284,7 +305,10 @@ export class PreviewSession implements PreviewHost {
     }
     // The pages save on exit before Studio writes, so no write meets a page that read older data.
     await this.retireViews();
-    this.#write(opened.data, applyPlacements(opened.fixture, opened.data, previous, placements));
+    this.#write(
+      opened.data,
+      applyPlacements(opened.fixture, opened.data, previous, placements).writes,
+    );
     this.#setPlacements(placements);
     this.#bumpGeneration();
   }
@@ -386,7 +410,7 @@ export class PreviewSession implements PreviewHost {
     this.#notify();
   }
 
-  #write(data: DataDirectory, { writes }: Applied): void {
+  #write(data: DataDirectory, writes: Applied['writes']): void {
     for (const [path, content] of writes) {
       if (content === null) data.delete(path);
       else data.write(path, content);
@@ -559,7 +583,7 @@ export class PreviewSession implements PreviewHost {
     const data = new DataDirectory(base);
     restoreFiles(data, resumed?.files ?? []);
     const reflected = resumed?.record.placements ?? [];
-    this.#write(data, applyPlacements(fixtureData, data, reflected, placements));
+    this.#write(data, applyPlacements(fixtureData, data, reflected, placements).writes);
     const overlay = overlayOf(fixtureData, data);
     for (const { path } of overlay) hashes.delete(path);
     this.#webHostState = resumed?.record.webHost ?? null;

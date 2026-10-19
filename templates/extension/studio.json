@@ -1,0 +1,8 @@
+{
+  "fixture": "showcase",
+  "mounts": [
+    { "from": "manifest.json", "to": "default-user/extensions/my-extension/manifest.json" },
+    { "from": "index.js", "to": "default-user/extensions/my-extension/index.js" },
+    { "from": "style.css", "to": "default-user/extensions/my-extension/style.css" }
+  ]
+}
