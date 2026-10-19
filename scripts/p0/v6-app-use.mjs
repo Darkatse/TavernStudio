@@ -2,7 +2,7 @@
 // enters the JS-Slash-Runner card iframe, and `app.interact` clicks the card's
 // button, which the card then reports in its own DOM (docs/Agent.md §4).
 //
-// Usage: node scripts/p0/v6-app-use.mjs [--url http://localhost:3000/]
+// Usage: node scripts/p0/v6-app-use.mjs [--url http://localhost:3000/] [--vendor st|tt]
 
 import { parseArgs } from 'node:util';
 import { launch, openStudio, vendorFrame } from '../lib/studio.mjs';
@@ -11,6 +11,7 @@ const { values: options } = parseArgs({
   options: {
     url: { type: 'string', default: 'http://localhost:3000/' },
     browser: { type: 'string', default: 'chrome' },
+    vendor: { type: 'string', default: 'st' },
   },
 });
 
@@ -39,7 +40,7 @@ const refOf = (tree, text) =>
 const session = await launch(options);
 const result = {};
 try {
-  const page = await openStudio(session, options.url);
+  const page = await openStudio(session, options.url, { vendor: options.vendor });
   const card = vendorFrame(page).frameLocator(CARD);
   await card.getByRole('button', { name: BUTTON }).waitFor({ timeout: 30_000 });
 
@@ -58,9 +59,24 @@ try {
   const inside = await call(page, 'snapshot', { root: frameRef, depth: 6 });
   result.enter = { ms: inside.ms, tree: inside.output.tree };
 
-  const buttonRef = refOf(inside.output.tree, BUTTON);
-  if (!buttonRef) throw new Error('The card button is not in the iframe snapshot');
-  const click = await call(page, 'interact', { action: 'click', ref: buttonRef });
+  // As an Agent would: a button below the visible part of the chat needs the
+  // chat scrolled first, then a fresh look into the card.
+  result.scrolls = 0;
+  let buttonRef = refOf(inside.output.tree, BUTTON);
+  let click;
+  for (;;) {
+    if (!buttonRef) throw new Error('The card button is not in the iframe snapshot');
+    try {
+      click = await call(page, 'interact', { action: 'click', ref: buttonRef });
+      break;
+    } catch (error) {
+      if (!error.message.includes('outside the visible area') || result.scrolls === 5) throw error;
+      await call(page, 'interact', { action: 'scroll', selector: '#chat', direction: 'down' });
+      result.scrolls++;
+      const fresh = await call(page, 'snapshot', { selector: CARD, depth: 6 });
+      buttonRef = refOf(fresh.output.tree, BUTTON);
+    }
+  }
   result.click = { ms: click.ms, output: click.output };
 
   result.card = {

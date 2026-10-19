@@ -10,16 +10,16 @@
 | V1 | 通过 | ST 镜像可复现，`lib.js` 与上游构建逐字节一致 |
 | V2 | 通过 | 冷启动、热启动和重载时页面都由 SW 控制 |
 | V3 | 通过 | ST 启动并渲染 showcase，没有请求漏到网络，没有错误 |
-| V4 | 部分通过，阻塞于 W1 的一处缺陷 | `f1c50c42` 在扩展发现处失败：Web Host 用 POST 请求 ST 的 GET 端点。改正这一行后，桌面与移动身份都渲染出聊天和 JSR 卡片；APP_READY 之后另有 7 个范围外命令报错 |
+| V4 | 通过（`ee045cc5`） | 桌面与移动身份都渲染出聊天和 JSR 卡片。首测的 `f1c50c42` 在扩展发现处失败，并在 APP_READY 之后报出 7 个范围外命令；TauriTavern 已在 W2/W3 中修正 |
 | V5 | Chrome、Edge、Firefox 通过；WebKit 有两处限制 | JSR 从上游安装，前端卡在 srcdoc 中渲染，iframe 内请求由 SW 和页内接入应答。WebKit 中接入晚于卡片的启动代码，媒体元素绕过 SW |
-| V6 | 部分通过，阻塞于 app-use 缺陷 | `app.snapshot` 能进入 JSR iframe；`app.interact` 在 ST 上无法点击任何 iframe 内的元素，原因已定位，修复属于 app-use |
+| V6 | 通过（app-use 0.1.1） | `app.snapshot` 进入 JSR iframe，`app.interact` 完成点击。0.1.0 在 ST 上无法点击任何 iframe 内的元素，0.1.1 已修正 |
 | V7 | 通过，默认方式改为 Element Capture | Element Capture 与浏览器截图一致；snapdom 在 ST 上有系统性失真 |
 | V8 | 通过 | 两条主题热应用路径都在 3 ms 内生效，与重载结果一致 |
 | V9 | 已记录 | 抽样代码在 `top` 指向 Studio 时都不出错 |
 | V10 | 通过（TT 部分含 V4 第 1 项的改正） | 换镜像时清理干净，Studio 自有存储与 Agent 计数键保留；数据子资源带内容哈希 ETag，TT 校验缩略图所依赖的 `HEAD` 在替换后返回新 ETag |
 | V11 | 通过 | 三类来源的语法错误与运行时错误全部捕获；文件的行列号准确，srcdoc 内联脚本按固定偏移可映射 |
 
-退出条件尚未全部满足：V4 与 V6 各自等一处上游修复，见末节。
+退出条件已满足：V1–V8、V10、V11 通过，V9 已记录。遗留项见末节。
 
 ## V1 ST 镜像
 
@@ -66,7 +66,7 @@
 | `{ windows, desktop }` | 5 条消息 | 有 | APP_READY 后 942 ms |
 | `{ ios, mobile }`，移动布局 | 5 条消息 | 有 | APP_READY 后 984 ms |
 
-上表是改正了下面第 1 项之后的结果。改正只在镜像副本里临时做过，镜像已按原样重建。
+上表来自首测的 `f1c50c42`，下面第 1 项只在镜像副本里临时改正过。TauriTavern 在 W2/W3（`ee045cc5`）中修正了三项问题；用它的原样镜像重跑，桌面与移动都通过，JSR 卡片在 APP_READY 之后 155–194 ms 出现，范围外命令的报错与未捕获错误都已消失。仍有两条 console 错误：TT 路由把 `/api/sprites/get` 与 `/api/sd/comfy/workflows` 转成原生命令，Web Host 不支持，ST 自己会回退。卸载时的刷新失败属于 Studio 的卸载方式。
 
 **W1（`f1c50c42`）的问题**，属于 TauriTavern：
 1. **阻塞启动**：`get_extensions` 以 POST 请求 `/api/extensions/discover`，而 ST 的这个端点是 GET（`src/endpoints/extensions.js` 中的 `router.get('/discover')`）。`backend.js` 的 `json()` 默认用 POST，这个调用没有指定方法。TT 自己的测试后端只按路径匹配，原生路由用的是 `router.all`，所以都没有发现。
@@ -110,12 +110,12 @@ Attach 直接打包 npm 上的 `@tauritavern/app-use@0.1.0`，引擎在 vendor �
 |---|---|
 | `app.snapshot {}`，51 行 | 首次 158 ms，之后 14 ms |
 | 按 iframe 的 ref 进入 JSR 卡片 | 0.7 ms |
-| `app.interact` 点击卡片按钮 | 失败，见下 |
+| `app.interact` 点击卡片按钮 | 0.1.0 失败，见下；0.1.1 为 2.1 ms，卡片把 Health 从 42 改为 58 |
 
 - **缺陷**：app-use 0.1.0 的 `frameMapping` 遇到任一祖先元素带 `perspective` 就拒绝映射 iframe 坐标。ST 的 `style.css` 给 `html` 设了 `-webkit-perspective: 1000`（修复 Chrome 模糊层闪烁），所以在原版 ST 上，任何 iframe 内的元素都点不了。TT 的 `style.css` 已去掉这条规则，所以 TT 一侧的测试没有发现。
 - **验证**：在页面上把 `perspective` 置为 `none` 后，同一次点击 2.6 ms 完成，卡片自己把 Health 从 42 改为 58。
-- **处理**：只有 3D 变换才受 `perspective` 影响，而祖先的矩阵已被要求是 2D，所以这项检查可以去掉。修复与 0.1.1 发布属于 TauriTavern，已另建任务。Studio 不改 vendor 的 CSS。
-- TT vendor 需要的 `scrollTo` 选项随 V4 接入。
+- **处理**：只有 3D 变换才受 `perspective` 影响，而祖先的矩阵已被要求是 2D，所以这项检查可以去掉。TauriTavern 已在 app-use 0.1.1 中修正，Studio 不改 vendor 的 CSS。
+- **TauriTavern**（`--vendor tt`）：TT 的聊天由 ChatSurface 负责滚动。页面提供 `scrollChatSurfaceTo` 时，页面引擎把主页面 `#chat` 的滚动交给它，与 TT 应用内助手相同；这里判断的是页面提供的能力，不是 vendor。TT 中卡片按钮起初不在可见区域，app-use 拒绝点击并提示先滚动；脚本像 Agent 那样滚动一次 `#chat`，再点击成功，耗时 1.5 ms。
 
 ## V7 截图方式
 
@@ -223,7 +223,7 @@ StageDog 的 tavern_helper_template 与另外十余个本地缓存的扩展、�
 
 Firefox 与 WebKit 用的是 Playwright 的构建，在 Windows 上未必代表正式版的性能；它们只用于确认功能，不用来定预算。
 
-**TauriTavern**（`--vendor tt`，Chrome 155，含 V4 第 1 项的改正）：Studio 总从 ST 启动，所以只看切换后 TT 自己的部分。新 Session 的数据 168–208 ms；View 到 APP_READY 0.95–1.2 s；重载 1.28 s；JSR 卡片在 APP_READY 之后约 0.95 s 出现，因为 TT 延后激活第三方扩展。首屏解码 3.0 MB，ST 为 8.98 MB。
+**TauriTavern**（`--vendor tt`，Chrome 155，`ee045cc5`）：Studio 总从 ST 启动，所以只看切换后 TT 自己的部分。新 Session 的数据 159–180 ms；View 到 APP_READY 1.44–1.63 s；重载 1.35–1.41 s；JSR 卡片在 APP_READY 之后 155–194 ms 出现，因为 TT 延后激活第三方扩展。首屏解码 3.0 MB，ST 为 8.98 MB。W2/W3 让 TT 的系统扩展也在浏览器里启动，比 W1 的 `f1c50c42`（APP_READY 0.95–1.2 s，重载 1.28 s）慢约 0.3 s，超出建议的 1.1 s 重载预算。
 
 **P1 性能预算（建议）**
 
@@ -250,8 +250,6 @@ Firefox 与 WebKit 用的是 Playwright 的构建，在 Windows 上未必代表�
 
 | 项 | 前置条件 |
 |---|---|
-| V4 | TauriTavern 改正 W1 第 1 项后重跑 `scripts/p0/v4-tt.mjs`；第 2 项决定范围外命令在 Web Host 下的表现 |
-| V6 的 `app.interact` | `@tauritavern/app-use@0.1.1`：去掉 `perspective` 拒绝。之后 Studio 升级依赖并重跑 V6 |
 | WebKit 的两处限制在真实 Safari 上的表现 | 在 macOS / iOS 上实测 |
 | View 的卸载方式：让 vendor 的 `pagehide` 在仍附着的 realm 中运行 | P1，与 V4 第 3 项一起处理 |
 | 设备的安全区：iframe 中 `env(safe-area-inset-*)` 为 0，移动 View 的顶栏被圆角遮住 | P1，Device 预设 |

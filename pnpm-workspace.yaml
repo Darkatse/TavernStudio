@@ -2,4 +2,4 @@ packages:
   - apps/*
   - packages/*
 minimumReleaseAgeExclude:
-  - '@tauritavern/app-use@0.1.0'
+  - '@tauritavern/app-use@0.1.1'

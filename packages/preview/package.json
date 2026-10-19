@@ -9,7 +9,7 @@
     "./sw": "./src/sw.ts"
   },
   "dependencies": {
-    "@tauritavern/app-use": "0.1.0",
+    "@tauritavern/app-use": "0.1.1",
     "@tavern-studio/backend": "workspace:*"
   }
 }

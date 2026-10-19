@@ -1,4 +1,4 @@
-import { createObservation, interact } from '@tauritavern/app-use';
+import { createObservation, interact, type InteractionOptions } from '@tauritavern/app-use';
 import type { PageAgent } from './host';
 
 /**
@@ -8,6 +8,7 @@ import type { PageAgent } from './host';
  */
 export function createPageAgent(): PageAgent {
   const observation = createObservation();
+  const options: InteractionOptions = { scrollTo };
   return {
     snapshot(runId, args) {
       observation.enterRun(runId);
@@ -15,7 +16,23 @@ export function createPageAgent(): PageAgent {
     },
     interact(runId, args) {
       observation.enterRun(runId);
-      return interact(args, observation);
+      return interact(args, observation, options);
     },
   };
+}
+
+interface ChatSurfaceContext {
+  scrollChatSurfaceTo?: (options: ScrollToOptions) => void;
+}
+
+/**
+ * A page whose chat is laid out by its own surface (TauriTavern's ChatSurface)
+ * offers `scrollChatSurfaceTo`, and the chat must scroll through it, as TT's
+ * in-app assistant does. Every other region scrolls as usual.
+ */
+function scrollTo(element: HTMLElement, options: ScrollToOptions): void {
+  const tavern = (window as { SillyTavern?: { getContext(): ChatSurfaceContext } }).SillyTavern;
+  const scrollChat = tavern?.getContext().scrollChatSurfaceTo;
+  if (scrollChat && element === document.getElementById('chat')) scrollChat(options);
+  else element.scrollTo(options);
 }
