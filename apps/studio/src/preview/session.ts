@@ -351,15 +351,26 @@ export class PreviewSession implements PreviewHost {
     }
   }
 
-  /** The Web Host's backend port: synchronous, with text bodies. */
+  /**
+   * The Web Host's backend port: synchronous, answered with text or, for
+   * streamed generation, a stream. A response without a body reads as empty
+   * text, since an error status needs text for its message.
+   */
   #handleSync(backend: SessionBackend, request: WebHostRequest): WebHostResponse {
-    const { method, url, headers, body } = request;
+    const { method, url, headers } = request;
+    const body =
+      typeof request.body === 'object' && request.body !== null
+        ? {
+            kind: 'form' as const,
+            entries: request.body.entries.map(([name, value]) => [name, value] as [string, string]),
+          }
+        : request.body;
     const response = this.#handle(backend, { method, url, headers: { ...headers }, body });
     if (response instanceof Promise) {
       throw new Error(`${method} ${url} has no synchronous handler for the Web Host`);
     }
-    if (response.body !== null && typeof response.body !== 'string') {
-      throw new Error(`${method} ${url} answered with bytes; the Web Host takes text`);
+    if (response.body instanceof Uint8Array) {
+      throw new Error(`${method} ${url} answered with bytes; the Web Host takes text or a stream`);
     }
     return { status: response.status, headers: response.headers, body: response.body ?? '' };
   }

@@ -40,3 +40,8 @@ export function sanitize(name: string): string {
 }
 
 export const byName = (a: string, b: string) => a.localeCompare(b);
+
+/** A bare file name, as SillyTavern's validateFileName middleware requires. */
+export function isFileName(name: string): boolean {
+  return !/[/\\\0]/.test(name);
+}

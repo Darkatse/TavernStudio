@@ -86,6 +86,7 @@ async function readBody(request: Request): Promise<BackendBody> {
  * Response is built in the caller's realm so the page's own checks hold.
  */
 function toResponse(win: Realm, response: BackendResponse): Response {
+  // A stream (streamed generation) is handed over as it is: the page reads it as it arrives.
   const body = ArrayBuffer.isView(response.body) ? new Uint8Array(response.body) : response.body;
   return new win.Response(body, { status: response.status, headers: response.headers });
 }
@@ -240,8 +241,20 @@ function plainBody(body: XhrBody): BackendBody {
 
 const decoder = new TextDecoder();
 
+/** A response whose body is all there: what an XHR can be completed with. */
+type CompleteResponse = BackendResponse & { body: string | Uint8Array | null };
+
+/** Streams come from Studio's realm, so the check cannot use `instanceof`. */
+function isComplete(response: BackendResponse): response is CompleteResponse {
+  return Object.prototype.toString.call(response.body) !== '[object ReadableStream]';
+}
+
 /** Makes an XHR look completed with `response`, as the browser would. */
-function fulfil(win: Realm, xhr: XMLHttpRequest, response: BackendResponse): void {
+function fulfil(win: Realm, xhr: XMLHttpRequest, backendResponse: BackendResponse): void {
+  if (!isComplete(backendResponse)) {
+    throw new win.DOMException('Studio streams responses only to fetch', 'NotSupportedError');
+  }
+  const response = backendResponse;
   const text =
     response.body === null
       ? ''
@@ -269,7 +282,7 @@ function fulfil(win: Realm, xhr: XMLHttpRequest, response: BackendResponse): voi
 function responseFor(
   type: XMLHttpRequestResponseType,
   text: string,
-  response: BackendResponse,
+  response: CompleteResponse,
 ): unknown {
   switch (type) {
     case '':

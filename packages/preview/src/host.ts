@@ -54,7 +54,9 @@ export interface HostIdentity {
 
 /**
  * `installWebHost` options (TauriTavern docs/CurrentState/WebHost.md). Every
- * port answers synchronously; bodies are JSON strings, and a GET has none.
+ * port answers synchronously. Bodies are JSON strings, a GET has none, a
+ * character edit is a text-only form, and streamed generation answers with a
+ * stream of server-sent events.
  */
 export interface WebHostOptions {
   identity: HostIdentity;
@@ -67,13 +69,14 @@ export interface WebHostRequest {
   method: string;
   url: string;
   headers: Record<string, string>;
-  body: string | null;
+  body: string | { kind: 'form'; entries: [name: string, value: string][] } | null;
 }
 
 export interface WebHostResponse {
   status: number;
   headers: Record<string, string>;
-  body: string;
+  /** Always text for an error status, which becomes the error message. */
+  body: string | ReadableStream<Uint8Array>;
 }
 
 export interface DiagnosticEntry {

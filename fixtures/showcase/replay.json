@@ -1,0 +1,14 @@
+{
+  "replies": [
+    {
+      "content": "*Seraphina kneels beside you and lays a cool palm on your brow. The runes in the tea steam drift lower, settling over your chest like falling leaves.* \"Breathe with me. In... and out.\"\n\nThe glade answers her: the moss brightens, a breeze carries the scent of **silverleaf**, and somewhere above, an owl calls twice.\n\n> *The forest remembers every kindness.*\n\n\"There. Can you feel it? The ache is already fading.\""
+    },
+    {
+      "reasoning": "The wounds are closing faster than expected. Mana is spent on the healing, trust grows as the traveller rests.",
+      "content": "*She steps back, a little pale but smiling.* \"That took more out of me than I'd like to admit. Look.\"\n\n```html\n<!DOCTYPE html>\n<html>\n<head>\n<style>\n  body { margin: 0; font: 14px/1.5 system-ui, sans-serif; color: #e8e2d6; }\n  .card { margin: 4px; padding: 14px 16px; border-radius: 14px;\n    background: linear-gradient(160deg, #2c2a26, #1d1c1a); border: 1px solid #ffffff1a; }\n  h3 { margin: 0 0 10px; font-size: 15px; letter-spacing: .02em; }\n  .row { display: grid; grid-template-columns: 64px 1fr 40px; gap: 10px; align-items: center; margin: 6px 0; }\n  .bar { height: 8px; border-radius: 99px; background: #ffffff14; overflow: hidden; }\n  .fill { height: 100%; border-radius: inherit; }\n  .num { text-align: right; font-variant-numeric: tabular-nums; color: #b9b2a5; }\n</style>\n</head>\n<body>\n  <div class=\"card\">\n    <h3>🌲 Glade Sanctuary</h3>\n    <div class=\"row\"><span>Health</span><div class=\"bar\"><div class=\"fill\" style=\"width:71%;background:#e0705a\"></div></div><span class=\"num\">71</span></div>\n    <div class=\"row\"><span>Mana</span><div class=\"bar\"><div class=\"fill\" style=\"width:52%;background:#6aa5e8\"></div></div><span class=\"num\">52</span></div>\n    <div class=\"row\"><span>Trust</span><div class=\"bar\"><div class=\"fill\" style=\"width:72%;background:#d9a441\"></div></div><span class=\"num\">72</span></div>\n  </div>\n</body>\n</html>\n```"
+    },
+    {
+      "content": "*Seraphina settles into the chair by the window, watching the light fade between the trees.* \"Sleep now. I'll keep watch until morning.\""
+    }
+  ]
+}

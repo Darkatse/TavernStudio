@@ -204,7 +204,8 @@
                 }
             }
         },
-        "auto_load_chat": true
+        "auto_load_chat": true,
+        "auto_connect": true
     },
     "extension_settings": {
         "apiUrl": "http://localhost:5100",
@@ -627,7 +628,7 @@
         "ai21_model": "jamba-large",
         "openrouter_model": "OR_Website",
         "reverse_proxy": "",
-        "chat_completion_source": "openai",
+        "chat_completion_source": "custom",
         "max_context_unlocked": false,
         "api_url_scale": "",
         "show_external_models": false,
@@ -635,7 +636,9 @@
         "assistant_prefill": "",
         "assistant_impersonation": "",
         "use_sysprompt": false,
-        "squash_system_messages": false
+        "squash_system_messages": false,
+        "custom_url": "http://replay.invalid/v1",
+        "custom_model": "replay"
     },
     "currentVersion": "1.19.0",
     "active_character": "default_Seraphina.png",

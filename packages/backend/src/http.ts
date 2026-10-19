@@ -29,7 +29,8 @@ export interface FormFile {
 export interface BackendResponse {
   status: number;
   headers: Record<string, string>;
-  body: string | Uint8Array | null;
+  /** A stream carries server-sent events, such as streamed generation. */
+  body: string | Uint8Array | ReadableStream<Uint8Array> | null;
 }
 
 /**
@@ -52,4 +53,13 @@ export function json(data: unknown, status = 200): BackendResponse {
 
 export function empty(status: number): BackendResponse {
   return { status, headers: {}, body: null };
+}
+
+export function plain(message: string, status = 200): BackendResponse {
+  return { status, headers: { 'content-type': 'text/plain; charset=utf-8' }, body: message };
+}
+
+/** Express's `sendStatus(200)`, which SillyTavern answers most writes with. */
+export function ok(): BackendResponse {
+  return plain('OK');
 }

@@ -1,12 +1,16 @@
 import type { DataDirectory } from './data-directory';
 import { json, type BackendBody, type BackendRequest, type BackendResponse } from './http';
+import { createReplay, type Replay } from './replay';
 import { characterRoutes } from './routes/characters';
 import { chatRoutes } from './routes/chats';
 import { extensionRoutes } from './routes/extensions';
+import { generationRoutes } from './routes/generation';
 import { mediaRoutes } from './routes/media';
 import { quickReplyRoutes } from './routes/quick-replies';
 import { settingsRoutes } from './routes/settings';
+import { statsRoutes } from './routes/stats';
 import { systemRoutes } from './routes/system';
+import { themeRoutes } from './routes/themes';
 import { tokenizerRoutes } from './routes/tokenizers';
 import { worldRoutes } from './routes/worlds';
 
@@ -21,6 +25,8 @@ export interface VendorInfo {
 export interface RequestContext {
   data: DataDirectory;
   vendor: VendorInfo;
+  /** The Session's Replay: what it plays next is Session state. */
+  replay: Replay;
   url: URL;
   params: Record<string, string>;
   body: BackendBody;
@@ -45,8 +51,11 @@ const ROUTES: Routes = {
   ...chatRoutes,
   ...mediaRoutes,
   ...quickReplyRoutes,
+  ...themeRoutes,
   ...worldRoutes,
   ...tokenizerRoutes,
+  ...generationRoutes,
+  ...statsRoutes,
 };
 
 const decoder = new TextDecoder();
@@ -57,6 +66,7 @@ const decoder = new TextDecoder();
  */
 export function createSessionBackend(data: DataDirectory, vendor: VendorInfo): SessionBackend {
   const routes = compile(ROUTES);
+  const replay = createReplay(data);
 
   return {
     handle(request) {
@@ -74,6 +84,7 @@ export function createSessionBackend(data: DataDirectory, vendor: VendorInfo): S
       return match.handler({
         data,
         vendor,
+        replay,
         url,
         params: match.params(url.pathname),
         body: request.body,
