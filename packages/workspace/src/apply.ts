@@ -51,7 +51,7 @@ export function applyPlacements(
   next: readonly Placement[],
 ): Applied {
   const placed = next.filter((placement) => !previous.some((old) => samePlacement(placement, old)));
-  const stale = previous.filter((old) => !next.some((placement) => samePlacement(placement, old)));
+  const stale = replacedPlacements(previous, next);
   const applied: Applied = { writes: new Map(), changes: [] };
   for (const path of new Set([...placed, ...stale].map((placement) => placement.path))) {
     const at = (placements: readonly Placement[]) =>
@@ -67,6 +67,17 @@ export function applyPlacements(
     );
   }
   return applied;
+}
+
+/**
+ * The previous placements a move replaces: their content changed or went
+ * away. Session writes on the positions they own do not survive the move.
+ */
+export function replacedPlacements(
+  previous: readonly Placement[],
+  next: readonly Placement[],
+): Placement[] {
+  return previous.filter((old) => !next.some((placement) => samePlacement(placement, old)));
 }
 
 function applyToPath(

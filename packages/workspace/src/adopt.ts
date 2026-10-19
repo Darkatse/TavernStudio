@@ -1,6 +1,6 @@
-import type { DataReader } from './apply';
+import { replacedPlacements, type DataReader } from './apply';
 import { readDocument, sameContent, unfence } from './documents';
-import { getAt, jsonEqual, setAt, type JsonValue, type Pointer } from './json';
+import { formatPointer, getAt, jsonEqual, setAt, type JsonValue, type Pointer } from './json';
 import { intendedAt, type FilePlacement, type Placement, type ValuePlacement } from './placements';
 
 /**
@@ -38,6 +38,38 @@ export function findDifferences(
         : [{ kind: 'value', placement, pointer, project, session: value }];
     });
   });
+}
+
+/**
+ * The session writes a move from `previous` to `next` placements overwrites
+ * (docs/Architecture.md §5): the differences on the mount points it replaces,
+ * except those the new content takes over as it is, as after an adoption. A
+ * position the project no longer owns goes back to the fixture, so a session
+ * write there is lost as well.
+ */
+export function overwrittenBy(
+  session: DataReader,
+  previous: readonly Placement[],
+  next: readonly Placement[],
+): Difference[] {
+  const remaining = findDifferences(session, next);
+  return findDifferences(session, replacedPlacements(previous, next)).filter(
+    (difference) =>
+      !next.some((placement) => owns(placement, difference)) ||
+      remaining.some((other) => samePosition(other, difference)),
+  );
+}
+
+function owns(placement: Placement, difference: Difference): boolean {
+  if (placement.path !== difference.placement.path) return false;
+  if (placement.kind === 'file' || difference.kind === 'file') return true;
+  const at = formatPointer(difference.pointer);
+  return placement.owned.some((pointer) => formatPointer(pointer) === at);
+}
+
+function samePosition(a: Difference, b: Difference): boolean {
+  if (a.placement.path !== b.placement.path || a.kind !== b.kind) return false;
+  return a.kind === 'file' || formatPointer(a.pointer) === formatPointer((b as typeof a).pointer);
 }
 
 /** A session write that cannot go back through its Mount, named for the author. */

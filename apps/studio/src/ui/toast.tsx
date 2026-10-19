@@ -21,12 +21,20 @@ export interface ToastOptions {
    * happened as well (docs/UI.md §5); the toast makes sure it is seen.
    */
   kind?: 'info' | 'error';
+  /** Stays until dismissed, as an error does: news the author must not miss, such as something lost. */
+  stay?: boolean;
   /** One action that names what it does, for example "重试". */
   action?: { label: string; onClick: () => void };
 }
 
 /** Shows a toast through the mounted `Toaster` and returns its id. */
-export function showToast({ title, description, kind = 'info', action }: ToastOptions): string {
+export function showToast({
+  title,
+  description,
+  kind = 'info',
+  stay = false,
+  action,
+}: ToastOptions): string {
   const error = kind === 'error';
   return manager.add({
     title,
@@ -34,7 +42,7 @@ export function showToast({ title, description, kind = 'info', action }: ToastOp
     type: kind,
     priority: error ? 'high' : 'low',
     // A timeout of 0 never fires; other toasts take the Toaster's default.
-    ...(error ? { timeout: 0 } : {}),
+    ...(error || stay ? { timeout: 0 } : {}),
     ...(action ? { actionProps: { children: action.label, onClick: action.onClick } } : {}),
   });
 }

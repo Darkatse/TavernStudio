@@ -136,7 +136,8 @@ function RunBar({ block }: { block: RunBlock }) {
     start !== undefined && end !== undefined ? formatDuration(end - start) : undefined;
   const words: Record<RunStatus, string> = {
     running: duration ? `工作中 · ${duration}` : '工作中',
-    completed: duration ? `工作了 ${duration}` : '已完成',
+    // A space only between Chinese and a number: "工作了 8 秒", "工作了不到 1 秒".
+    completed: duration ? `工作了${/^\d/.test(duration) ? ' ' : ''}${duration}` : '已完成',
     failed: '失败',
     cancelled: '已停止',
     interrupted: '已中断',

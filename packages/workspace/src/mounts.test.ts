@@ -6,6 +6,7 @@ import {
   applyPlacements,
   findDifferences,
   MountError,
+  overwrittenBy,
   parseManifest,
   resolveMounts,
   type Difference,
@@ -208,6 +209,27 @@ describe('Mounts', () => {
     expect(decoder.decode(bytes(adopted['theme.json'] ?? ''))).toBe(
       '{\n  "theme": "Bamboo",\n  "main_text_color": "rgba(200, 0, 0, 1)",\n  "blur_strength": 5\n}\n',
     );
+  });
+
+  test('a project change reports the session writes it overwrites, not those it takes over', async () => {
+    const before = await placements(theme);
+    const session = vendorSaves(compose(fixture, before), (settings) => {
+      settings.power_user.main_text_color = 'rgba(200, 0, 0, 1)';
+      settings.power_user.blur_strength = 9;
+      settings.power_user.custom_css = 'body { color: blue; }\n';
+    });
+    // theme.json drops blur_strength; theme.css takes the session's CSS as it is.
+    const after = await placements({
+      ...theme,
+      'theme.json': '{ "theme": "Bamboo", "main_text_color": "rgba(10, 20, 30, 1)" }',
+      'theme.css': 'body { color: blue; }\n',
+    });
+
+    expect(
+      overwrittenBy(session, before, after)
+        .map((difference) => (difference.kind === 'value' ? difference.pointer.join('/') : ''))
+        .toSorted(),
+    ).toEqual(['power_user/blur_strength', 'power_user/main_text_color']);
   });
 
   test('fenced text round-trips, and text that lost its fence cannot be adopted', async () => {
