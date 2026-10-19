@@ -6,6 +6,9 @@ export class StaleFileError extends Error {
   override name = 'StaleFileError';
 }
 
+/** The content a write replaces, with its SHA-256 (hex); null when there was no file. */
+export type ReplacedContent = { bytes: Uint8Array; sha256: string } | null;
+
 /**
  * A project's files under one directory handle. OPFS and a local folder opened
  * through File System Access are both a `FileSystemDirectoryHandle`, so this is
@@ -50,20 +53,22 @@ export class ProjectStore implements ProjectReader {
   /**
    * Writes a file, creating its folders. With `expected`, the write happens
    * only if the file's content still has that SHA-256 (hex), or, for null,
-   * if the file does not exist yet. Resolves to the new content's SHA-256.
+   * if the file does not exist yet. `keep` receives the content the write
+   * replaces, from the same read as that check, and the write waits for it:
+   * a Checkpoint saves the original this way (docs/Agent.md §1). Resolves to
+   * the new content's SHA-256.
    */
-  write(path: string, content: Uint8Array, expected?: string | null): Promise<string> {
+  write(
+    path: string,
+    content: Uint8Array,
+    expected?: string | null,
+    keep?: (replaced: ReplacedContent) => Promise<void>,
+  ): Promise<string> {
     return this.#exclusive(async () => {
-      if (expected !== undefined) {
-        const actual = await this.#read(path).then(sha256, (error: unknown) => {
-          if (error instanceof DOMException && error.name === 'NotFoundError') return null;
-          throw error;
-        });
-        if (actual !== expected) {
-          throw new StaleFileError(
-            actual === null ? `${path} no longer exists` : `${path} changed since it was read`,
-          );
-        }
+      if (expected !== undefined || keep) {
+        const replaced = await this.#current(path);
+        if (expected !== undefined) checkExpected(path, replaced, expected);
+        await keep?.(replaced);
       }
       const directory = await this.#directory(parentOf(path), true);
       const handle = await directory.getFileHandle(nameOf(path), { create: true });
@@ -75,8 +80,10 @@ export class ProjectStore implements ProjectReader {
     });
   }
 
-  remove(path: string): Promise<void> {
+  /** Removes a file; with `expected`, only if its content still has that SHA-256. */
+  remove(path: string, expected?: string): Promise<void> {
     return this.#exclusive(async () => {
+      if (expected !== undefined) checkExpected(path, await this.#current(path), expected);
       const directory = await this.#directory(parentOf(path), false);
       if (!directory) throw new Error(`The project has no file ${path}`);
       await directory.removeEntry(nameOf(path));
@@ -88,6 +95,16 @@ export class ProjectStore implements ProjectReader {
   subscribe(listener: (paths: readonly string[]) => void): () => void {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
+  }
+
+  async #current(path: string): Promise<ReplacedContent> {
+    try {
+      const bytes = await this.#read(path);
+      return { bytes, sha256: await sha256(bytes) };
+    } catch (error) {
+      if (error instanceof DOMException && error.name === 'NotFoundError') return null;
+      throw error;
+    }
   }
 
   async #read(path: string): Promise<Uint8Array> {
@@ -134,6 +151,14 @@ async function listFiles(directory: FileSystemDirectoryHandle, prefix: string): 
     else files.push(...(await listFiles(handle, `${prefix}${name}/`)));
   }
   return files;
+}
+
+function checkExpected(path: string, current: ReplacedContent, expected: string | null): void {
+  const actual = current?.sha256 ?? null;
+  if (actual === expected) return;
+  throw new StaleFileError(
+    actual === null ? `${path} no longer exists` : `${path} changed since it was read`,
+  );
 }
 
 function checkPath(path: string): void {

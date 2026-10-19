@@ -28,6 +28,13 @@ export type JournalEvent = { run: string; time: number } & (
   | { type: 'run_completed' }
   | { type: 'run_cancelled' }
   | { type: 'run_failed'; code: string; message: string }
+  /**
+   * A rollback, itself an operation named by `run`: the project went back to
+   * before `target`, a Run or an earlier rollback (see `checkpoint.ts`).
+   */
+  | { type: 'rolled_back'; target: string; files: number }
+  /** The operation's Checkpoint was cleared for space; it can no longer be rolled back to. */
+  | { type: 'checkpoint_pruned' }
 );
 
 /** The events that end a Run; a Run without one after a reload was interrupted. */

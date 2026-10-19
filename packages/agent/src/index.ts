@@ -1,4 +1,6 @@
 export { normalizeArguments } from './arguments';
+export { operations, restorePlan, undoneOperations } from './checkpoint';
+export type { CheckpointFile, RestoreStep } from './checkpoint';
 export { closeToolGroups, keepLatestImages, modelContext } from './context';
 export { ENDPOINT_PRESETS, endpointModel, endpointStreams, probeEndpoint } from './endpoints';
 export type { Endpoint, EndpointApi } from './endpoints';

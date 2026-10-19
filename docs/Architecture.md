@@ -249,8 +249,8 @@ apps/studio           Studio 应用
 apps/edge             可选：LLM CORS 中继、截图用的跨域图片代理（Cloudflare Worker）
 packages/preview      Preview SW、Attach、ST 接入
 packages/backend      Session Backend 与 Replay
-packages/agent        Run 循环、工具、Journal、模型接入
-packages/workspace    OPFS 文件、Mount、Snapshot、Checkpoint
+packages/agent        Run 循环、工具、Journal、Checkpoint 的回滚规则、模型接入
+packages/workspace    OPFS 文件（写入时交出被替换的内容）、Mount、Snapshot
 packages/st-data      角色卡 PNG、聊天 JSONL、主题格式
 vendors/              ST 镜像构建脚本、TT 镜像装配脚本
 fixtures/             样板

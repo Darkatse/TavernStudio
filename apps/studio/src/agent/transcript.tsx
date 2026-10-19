@@ -1,10 +1,12 @@
 import type { AssistantMessage, HistoryEntry } from '@tavern-studio/agent';
 import { ArrowDown } from 'lucide-react';
-import { useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { AlertDialog } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
 import type { Conversation } from './conversation';
+import { requestRollback, RollbackConfirm, RollbackView, type RollbackRequest } from './rollback';
 import { RunView } from './run-view';
-import { runBlocks } from './runs';
+import { transcriptBlocks, type RunBlock, type TranscriptBlock } from './runs';
 import { useConversationState } from './use-conversation';
 
 /** How close to the bottom still counts as following the conversation. */
@@ -18,11 +20,18 @@ const FOLLOW_SLACK = 40;
  */
 export function Transcript({ conversation }: { conversation: Conversation }) {
   const state = useConversationState(conversation);
-  const blocks = runBlocks(state.entries, state.events, state.active);
+  const blocks = transcriptBlocks(state);
   const scroller = useRef<HTMLDivElement>(null);
   const following = useRef(true);
   const [away, setAway] = useState(false);
+  const [rollback, setRollback] = useState<RollbackRequest>();
+  const [confirming, setConfirming] = useState(false);
   const last = blocks.at(-1);
+  const lastRun = blocks.findLast((block): block is RunBlock => block.kind === 'run');
+  const rollBackTo = (target: TranscriptBlock) => {
+    setRollback(requestRollback(conversation, target));
+    setConfirming(true);
+  };
 
   // Keep to the bottom as content grows, while following.
   useLayoutEffect(() => {
@@ -62,23 +71,41 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
         }}
       >
         <div className="flex flex-col gap-8">
-          {blocks.map((block) => (
-            <RunView
-              key={block.id}
-              block={block}
-              latest={block === last}
-              partial={
-                state.active?.id === block.id
-                  ? streamingReply(block.work, state.active.partial)
-                  : undefined
-              }
-            />
-          ))}
+          {blocks.map((block) =>
+            block.kind === 'run' ? (
+              <RunView
+                key={block.id}
+                block={block}
+                latest={block === lastRun}
+                partial={
+                  state.active?.id === block.id
+                    ? streamingReply(block.work, state.active.partial)
+                    : undefined
+                }
+                onRollback={() => rollBackTo(block)}
+              />
+            ) : (
+              <RollbackView
+                key={block.id}
+                block={block}
+                latest={block === last}
+                onUndo={() => rollBackTo(block)}
+              />
+            ),
+          )}
         </div>
       </div>
       <p aria-live="polite" className="sr-only">
-        {last && last.status !== 'running' ? statusAnnouncement(last.status) : ''}
+        {lastRun && lastRun.status !== 'running' ? statusAnnouncement(lastRun.status) : ''}
       </p>
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        {rollback && (
+          // The plan reads the files; that takes well under the 300 ms that needs a hint.
+          <Suspense fallback={null}>
+            <RollbackConfirm conversation={conversation} request={rollback} />
+          </Suspense>
+        )}
+      </AlertDialog>
       {away && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">
           <Button

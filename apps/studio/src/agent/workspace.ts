@@ -1,17 +1,16 @@
 import { TOOL_RESULTS_ROOT, type AgentWorkspace, type WorkspaceRoot } from '@tavern-studio/agent';
-import type { Project } from '../project/project';
 import { db } from '../storage/db';
 
 const encoder = new TextEncoder();
 
 /**
- * The Agent's view of files (docs/Agent.md §3): the project, writable, and
- * the long results of its own tool calls, read-only.
+ * The Agent's view of files (docs/Agent.md §3): the project, writable through
+ * the Run's Checkpoint, and the long results of its own tool calls, read-only.
  */
-export function agentWorkspace(project: Project): AgentWorkspace {
+export function agentWorkspace(project: string, projectRoot: WorkspaceRoot): AgentWorkspace {
   return {
-    project: project.store,
-    [TOOL_RESULTS_ROOT]: toolResultsRoot(project.record.id),
+    project: projectRoot,
+    [TOOL_RESULTS_ROOT]: toolResultsRoot(project),
   };
 }
 

@@ -10,13 +10,16 @@ import {
   ChevronRight,
   CircleSlash,
   LoaderCircle,
+  RotateCcw,
   TriangleAlert,
   Unplug,
   type LucideIcon,
 } from 'lucide-react';
 import { useState } from 'react';
 import { formatDuration, useNow } from '../lib/use-now';
+import { Button } from '../ui/button';
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible';
+import { Tooltip } from '../ui/tooltip';
 import { Markdown } from './markdown';
 import { resultsOf, textOf, type RunBlock, type RunStatus } from './runs';
 import { callDetail, callLabel, type CallState } from './tool-labels';
@@ -30,11 +33,13 @@ export function RunView({
   block,
   latest,
   partial,
+  onRollback,
 }: {
   block: RunBlock;
   latest: boolean;
   /** The reply still streaming in this Run. */
   partial: AssistantMessage | undefined;
+  onRollback: () => void;
 }) {
   const [open, setOpen] = useState<boolean>();
   const running = block.status === 'running';
@@ -44,10 +49,33 @@ export function RunView({
   const tail = streamingWork ? block.answer : (partial ?? block.answer);
 
   return (
-    <section className="flex flex-col gap-3 run-block">
-      <p className="ml-10 self-end rounded-xl bg-sunken px-3.5 py-2 text-prose whitespace-pre-wrap">
-        {block.request}
-      </p>
+    <section
+      className={clsx(
+        'group/run flex flex-col gap-3 transition-opacity motion-moderate run-block',
+        block.undone && 'opacity-55',
+      )}
+    >
+      <div className="relative ml-10 self-end">
+        {/* The Checkpoint before this Run (docs/plan/P1.md): shown on hover, focus and touch. */}
+        {block.restorable && (
+          <div data-density="compact" className="absolute top-1 right-full mr-1.5">
+            <Tooltip content="回滚到此处" side="top">
+              <Button
+                variant="ghost"
+                icon
+                aria-label="回滚到这次运行之前"
+                className="opacity-0 transition-opacity motion-fast group-hover/run:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
+                onClick={onRollback}
+              >
+                <RotateCcw />
+              </Button>
+            </Tooltip>
+          </div>
+        )}
+        <p className="rounded-xl bg-sunken px-3.5 py-2 text-prose whitespace-pre-wrap">
+          {block.request}
+        </p>
+      </div>
       {(block.work.length > 0 || running) && (
         <Collapsible open={expanded} onOpenChange={setOpen}>
           <RunBar block={block} />
@@ -119,6 +147,7 @@ function RunBar({ block }: { block: RunBlock }) {
       <span className="tabular-nums">
         {words[block.status]}
         {block.toolCalls > 0 && ` · ${block.toolCalls} 次调用`}
+        {block.undone && ' · 已回滚'}
       </span>
       <span className="h-px flex-1 bg-line" />
     </CollapsibleTrigger>

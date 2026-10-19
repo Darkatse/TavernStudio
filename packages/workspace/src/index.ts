@@ -10,3 +10,4 @@ export type { Mount, MountPoint, ProjectManifest } from './manifest';
 export { resolveMounts } from './placements';
 export type { FilePlacement, Placement, ProjectReader, ValuePlacement } from './placements';
 export { ProjectStore, sha256, StaleFileError } from './project-store';
+export type { ReplacedContent } from './project-store';

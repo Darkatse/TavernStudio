@@ -1,4 +1,4 @@
-import type { HistoryEntry, JournalEvent } from '@tavern-studio/agent';
+import type { CheckpointFile, HistoryEntry, JournalEvent } from '@tavern-studio/agent';
 import type { Placement } from '@tavern-studio/workspace';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
@@ -55,6 +55,19 @@ export interface ToolResultRecord {
   text: string;
 }
 
+/** A file a Run or rollback changed, for the project's Checkpoint (docs/Agent.md §1). */
+export interface CheckpointFileRecord extends CheckpointFile {
+  project: string;
+  /** The compressed size of the content kept for `before`, which the limit counts. */
+  size: number;
+}
+
+/** A file content a Checkpoint keeps, gzip-compressed, by its SHA-256; shared across projects. */
+export interface CheckpointBlobRecord {
+  sha256: string;
+  gzip: Uint8Array;
+}
+
 /** A preference, such as the Agent's model endpoints. */
 export interface PreferenceRecord {
   key: string;
@@ -68,6 +81,12 @@ interface StudioSchema extends DBSchema {
   history: { key: number; value: HistoryRecord; indexes: { project: string } };
   journal: { key: number; value: JournalRecord; indexes: { project: string } };
   toolResults: { key: string; value: ToolResultRecord; indexes: { project: string } };
+  checkpointFiles: {
+    key: [string, string];
+    value: CheckpointFileRecord;
+    indexes: { project: string };
+  };
+  checkpointBlobs: { key: string; value: CheckpointBlobRecord };
   preferences: { key: string; value: PreferenceRecord };
 }
 
@@ -78,19 +97,27 @@ export type StudioDatabase = IDBPDatabase<StudioSchema>;
  * interface through its own stores, so a thin promise wrapper is all that
  * IndexedDB needs here (docs/Decisions.md).
  */
-export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 1, {
-  upgrade(database) {
-    database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
-    database.createObjectStore('session', { keyPath: 'id' });
-    database.createObjectStore('sessionFiles', { keyPath: 'path' });
-    for (const store of ['history', 'journal'] as const) {
+export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 2, {
+  upgrade(database, oldVersion) {
+    if (oldVersion < 1) {
+      database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
+      database.createObjectStore('session', { keyPath: 'id' });
+      database.createObjectStore('sessionFiles', { keyPath: 'path' });
+      for (const store of ['history', 'journal'] as const) {
+        database
+          .createObjectStore(store, { keyPath: 'seq', autoIncrement: true })
+          .createIndex('project', 'project');
+      }
       database
-        .createObjectStore(store, { keyPath: 'seq', autoIncrement: true })
+        .createObjectStore('toolResults', { keyPath: 'path' })
         .createIndex('project', 'project');
+      database.createObjectStore('preferences', { keyPath: 'key' });
     }
-    database
-      .createObjectStore('toolResults', { keyPath: 'path' })
-      .createIndex('project', 'project');
-    database.createObjectStore('preferences', { keyPath: 'key' });
+    if (oldVersion < 2) {
+      database
+        .createObjectStore('checkpointFiles', { keyPath: ['op', 'path'] })
+        .createIndex('project', 'project');
+      database.createObjectStore('checkpointBlobs', { keyPath: 'sha256' });
+    }
   },
 });

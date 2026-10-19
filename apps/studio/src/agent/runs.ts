@@ -1,17 +1,30 @@
 import {
+  operations,
+  restorePlan,
   TERMINAL_EVENTS,
+  undoneOperations,
   type AssistantMessage,
+  type CheckpointFile,
   type HistoryEntry,
   type JournalEvent,
   type ToolResultMessage,
 } from '@tavern-studio/agent';
-import type { ActiveRun } from './conversation';
+import type { ConversationState } from './conversation';
 
 export type RunStatus = 'running' | 'completed' | 'cancelled' | 'failed' | 'interrupted';
 
-/** One Run as the Transcript shows it (docs/Agent.md §7). */
-export interface RunBlock {
+/** What every operation in the Transcript carries about rolling back. */
+interface Operation {
   id: string;
+  /** A later rollback undid it, and that rollback is still in effect. */
+  undone: boolean;
+  /** The project can go back to before it: its Checkpoint is kept and files changed from it on. */
+  restorable: boolean;
+}
+
+/** One Run as the Transcript shows it (docs/Agent.md §7). */
+export interface RunBlock extends Operation {
+  kind: 'run';
   /** The author's message that started the Run. */
   request: string;
   /** Everything between the request and the final answer: rounds, guidance, tool calls. */
@@ -25,32 +38,30 @@ export interface RunBlock {
   toolCalls: number;
 }
 
+/** A rollback, where it happened in the conversation. */
+export interface RollbackBlock extends Operation {
+  kind: 'rollback';
+  /** The Run it went back to before, or the rollback it undid. */
+  target: RunBlock | RollbackBlock | undefined;
+  files: number;
+}
+
+export type TranscriptBlock = RunBlock | RollbackBlock;
+
 /**
- * Groups History into Runs. A Run without a terminal Journal event that is
- * not the active one was interrupted: Studio closed while it ran, and its
- * tools are not replayed (docs/Agent.md §1).
+ * The conversation's operations in the order they began: History grouped
+ * into Runs, and the rollbacks between them. A Run without a terminal
+ * Journal event that is not the active one was interrupted: Studio closed
+ * while it ran, and its tools are not replayed (docs/Agent.md §1).
  */
-export function runBlocks(
-  entries: readonly HistoryEntry[],
-  events: readonly JournalEvent[],
-  active: ActiveRun | undefined,
-): RunBlock[] {
-  const blocks = new Map<string, RunBlock>();
+export function transcriptBlocks(state: ConversationState): TranscriptBlock[] {
+  const { entries, events, files, active, rollingBack } = state;
+  const runs = new Map<string, RunBlock>();
   for (const entry of entries) {
-    let block = blocks.get(entry.run);
+    let block = runs.get(entry.run);
     if (!block) {
-      block = {
-        id: entry.run,
-        request: '',
-        work: [],
-        answer: undefined,
-        status: 'interrupted',
-        failure: undefined,
-        startedAt: undefined,
-        endedAt: undefined,
-        toolCalls: 0,
-      };
-      blocks.set(entry.run, block);
+      block = newRun(entry.run);
+      runs.set(entry.run, block);
     }
     const { message } = entry;
     if (entry.round === 0 && message.role === 'user') {
@@ -63,7 +74,7 @@ export function runBlocks(
     block.work.push(entry);
   }
 
-  for (const block of blocks.values()) {
+  for (const block of runs.values()) {
     const last = block.work.at(-1)?.message;
     if (last?.role === 'assistant' && !last.content.some((part) => part.type === 'toolCall')) {
       block.answer = last;
@@ -71,10 +82,27 @@ export function runBlocks(
     }
   }
 
+  const blocks = new Map<string, TranscriptBlock>();
+  const pruned = new Set<string>();
   for (const event of events) {
-    const block = blocks.get(event.run);
+    if (event.type === 'checkpoint_pruned') pruned.add(event.run);
+    if (event.type === 'rolled_back') {
+      blocks.set(event.run, {
+        kind: 'rollback',
+        id: event.run,
+        target: blocks.get(event.target),
+        files: event.files,
+        undone: false,
+        restorable: false,
+      });
+      continue;
+    }
+    const block = runs.get(event.run);
     if (!block) continue;
-    if (event.type === 'run_created') block.startedAt = event.time;
+    if (event.type === 'run_created') {
+      block.startedAt = event.time;
+      blocks.set(block.id, block);
+    }
     if (!TERMINAL_EVENTS.has(event.type)) continue;
     block.endedAt = event.time;
     if (event.type === 'run_completed') block.status = 'completed';
@@ -84,9 +112,43 @@ export function runBlocks(
       block.failure = { code: event.code, message: event.message };
     }
   }
-  const running = active && blocks.get(active.id);
+  // History reaches here before the Journal's first event only for a Run just starting.
+  for (const block of runs.values()) if (!blocks.has(block.id)) blocks.set(block.id, block);
+
+  const running = active && runs.get(active.id);
   if (running) running.status = 'running';
+  const undone = undoneOperations(events);
+  const busy = active !== undefined || rollingBack;
+  for (const block of blocks.values()) {
+    block.undone = undone.has(block.id);
+    block.restorable = !busy && !pruned.has(block.id) && canRestore(events, files, block.id);
+  }
   return [...blocks.values()];
+}
+
+function newRun(id: string): RunBlock {
+  return {
+    kind: 'run',
+    id,
+    request: '',
+    work: [],
+    answer: undefined,
+    status: 'interrupted',
+    failure: undefined,
+    startedAt: undefined,
+    endedAt: undefined,
+    toolCalls: 0,
+    undone: false,
+    restorable: false,
+  };
+}
+
+function canRestore(
+  events: readonly JournalEvent[],
+  files: readonly CheckpointFile[],
+  op: string,
+): boolean {
+  return operations(events).includes(op) && restorePlan(events, files, op).length > 0;
 }
 
 /** The results of a Run's tool calls, by call id, for the rows that show them. */

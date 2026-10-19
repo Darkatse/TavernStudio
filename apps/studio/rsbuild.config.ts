@@ -49,10 +49,11 @@ export default defineConfig({
             hotUpdateMainFilename: `${assets}/hot/[runtime].[fullhash].hot-update.json`,
             hotUpdateChunkFilename: `${assets}/hot/[id].[fullhash].hot-update.js`,
           },
-          // pi-ai probes for credential files through a variable `import()` of
-          // node:fs; in a browser it fails and pi-ai catches it.
+          // pi-ai reaches Node built-ins through a variable `import()`, on
+          // purpose, so that bundlers leave them alone; it only runs them under
+          // Node, or catches their failure.
           ignoreWarnings: [
-            { module: /pi-ai[\\/]dist[\\/]auth[\\/]context\.js$/, message: /Critical dependency/ },
+            { module: /@earendil-works[\\/]pi-ai[\\/]dist[\\/]/, message: /Critical dependency/ },
           ],
         },
       },

@@ -7,6 +7,7 @@ import {
   type HistoryEntry,
   type RunEnvironment,
   type UserMessage,
+  type WorkspaceRoot,
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
 import { systemPrompt } from './system-prompt';
@@ -17,11 +18,13 @@ export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools'>;
 
 /**
  * Runs the Agent on a project with the author's model: its tools, its system
- * prompt and the model API. This module loads with the first Run, so the
+ * prompt and the model API. The Run writes the project through `projectRoot`,
+ * which keeps its Checkpoint. This module loads with the first Run, so the
  * Agent's engine stays off Studio's first screen (docs/plan/P1.md, 性能).
  */
 export async function runInProject(
   project: Project,
+  projectRoot: WorkspaceRoot,
   run: string,
   history: readonly HistoryEntry[],
   message: UserMessage,
@@ -35,7 +38,7 @@ export async function runInProject(
       options: { apiKey: model.apiKey },
     },
     systemPrompt: await systemPrompt(project),
-    tools: workspaceTools(agentWorkspace(project)),
+    tools: workspaceTools(agentWorkspace(project.record.id, projectRoot)),
     ...hooks,
   });
 }
