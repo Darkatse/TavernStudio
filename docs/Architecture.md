@@ -59,7 +59,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 同一源
 ├─ 顶层 /：Studio（资源位于 /_studio/）── 工作区、Agent、Session Backend、密钥
 │   └─ <iframe src="/">  Preview SW 按 destination=iframe 返回 vendor 的 index.html
-│        Attach：在 vendor 脚本之前装入 Device 环境、错误与 console 捕获、API 接入
+│        Attach：在 vendor 脚本之前装入 Device 环境、错误与 console 捕获、API 接入、app-use 引擎
 │          ST：ST 接入（页内，含子 iframe）→ Session Backend
 │          TT：TT host kernel → Web Host → Session Backend
 └─ Preview SW
@@ -91,7 +91,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 **Session 归属**：同一浏览器里打开第二个 Studio 标签页时，新标签页接管 Session，旧标签页会收到通知。
 
-**已知限制**：预览里的 `window.top` 指向 Studio，少量生态代码会受影响，例如 LittleWhiteBox 的 `window.top.XBTasks`。
+**顶层窗口**：ST 与扩展默认自己就是顶层页面，Attach 因此把 `window.parent` 指回页面自身。`window.top` 不可重定义，在 vendor 页面及其下各层 iframe 中都指向 Studio。P0 抽样的生态代码都不受影响：LittleWhiteBox 会把 `XBTasks` 写到 Studio 的 window 上，但它自己不读取（[P0 报告 V9](plan/P0-Report.md#v9-windowtop)）。直接读取 `top.document`、`top.SillyTavern` 的作者代码会出错，诊断会记录这些错误。
 
 ## 5. 编辑与预览
 
@@ -109,7 +109,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - **会话写入**进入 Session，例如 ST 保存设置、作者在 ST 界面里保存主题、脚本写变量。落在 Mount 覆盖路径上的写入以差异形式呈现给用户；用户采纳后，沿 Mount 反向写回项目文件。
 - **变量面板**通过页内真实的 TavernHelper / MVU API 修改变量，卡片收到的事件与生产环境相同。
 - **Replay 推动叙事状态**：用户发送消息后，生成端点回放下一条预设回复。用于测试流式楼层、MVU 变量更新和 `AI_OUTPUT` 正则。
-- **诊断来自运行时。** Attach 在预览页和子 iframe 中收集 `error`、`unhandledrejection` 与 `console.error`，经 Mount 映射回项目文件和行号。编辑器的 lint 标记与 Agent 的 `app.read_logs` 读取同一份记录。内联在 srcdoc 里的脚本能映射到什么精度，由 P0 实测确定。
+- **诊断来自运行时。** Attach 在预览页和子 iframe 中收集 `error`、`unhandledrejection` 与 `console.error`，经 Mount 映射回项目文件和行号。编辑器的 lint 标记与 Agent 的 `app.read_logs` 读取同一份记录。独立文件的行列号准确。JSR 脚本和前端卡的内联脚本报告的是 srcdoc 文档内的行号，与作者源码之间差一个固定偏移，即 JSR 拼接在前面的内容；Studio 从 iframe 的 srcdoc 中找到作者代码的起点，换算回源码行号。
 
 ## 6. 项目
 
@@ -166,7 +166,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - 数据：Dexie，界面经 `liveQuery` 订阅。
 
 **框架边界**：只有 `apps/studio` 的外壳使用 React。
-- 进入 vendor 页面的代码不用框架，包括 Attach、ST 接入、诊断收集、app-use 注入包；Preview SW 也不用。这与 TT 的划分相同：完整的状态型界面用 React root，接入上游 DOM 的部分用原生代码。
+- 进入 vendor 页面的代码不用框架，包括 Attach 和它打包的 ST 接入、诊断收集与 app-use 引擎；Preview SW 也不用。这与 TT 的划分相同：完整的状态型界面用 React root，接入上游 DOM 的部分用原生代码。
 - `packages/*` 不依赖框架，可以在没有 DOM 的环境中测试。
 - 外壳只有一个工作区页面，不用路由。不用全局状态库：以局部 state 为主，需要时经 `useSyncExternalStore` 接外部 store，与 TT 相同。
 

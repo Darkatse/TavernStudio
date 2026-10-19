@@ -15,6 +15,8 @@
 | Web Host 只模拟真实平台的身份 | 新增 `web` 平台会让每个平台分支和守卫多出一项，而且并不存在"web 版 TT"这个产品 | 新增 `web` 平台 |
 | TT 前端总是运行在宿主之上，原生全局只经 `tauri-bridge.js` 读取 | 宿主边界只剩一个接缝，Web Host 要模拟的也只有这一处。"是否在 TauriTavern 中"由仓库决定，不是运行时才知道的事实 | 各模块各自读取 `window.__TAURI__`；保留以 `__TAURI_RUNNING__` / `isTauri()` 区分 TT 与上游行为的双分支，这会带来静默降级，并让上游修改被合并进死分支 |
 | app-use 引擎运行在被观察页面的 realm 里 | 引擎只保留一种运行模型，`#chat` 滚动和 `app.evaluate` 自然就是对的 | 在父窗口里观察子窗口：会在父 realm 里再加载一份 ST 运行时 |
+| app-use 引擎随 Attach 打包 | 页面一连接，引擎就在它的 realm 里可用，重载后自然重建，不需要另外管理注入的时机。代价是 Attach 增加约 12 kB（gzip），启动时间不变（P0 V6） | 首次使用时再注入单独的包：要处理注入时机、加载失败和每次重载后的重新注入，换来的只是少加载这 12 kB |
+| Agent 截图默认用 Element Capture，snapdom 只作退回 | P0 V7 实测：Element Capture 与浏览器截图一致，含模糊面板与 JSR 卡片，授权后每帧约 1 ms。snapdom 在 ST 上会丢失或压暗背景层、重复 `<q>` 的引号、让文本重新折行，换选项也不变，每次 0.6–1.1 s。主题是 Studio 的主要产物，背景与排版失真会直接误导 Agent | snapdom 作默认、Element Capture 作像素级选项：省去一次授权，代价是默认截图在最常见的场景里失真 |
 | Agent 循环自己写，模型接入用 AI SDK Core | 自己掌握 Run / Round / Journal 的语义，并与 TT 保持一致 | libfx：需要 JSPI，BYOK 只支持 OpenAI 兼容格式，WASM 下工具串行执行，版本仍是 0.0.x。AI SDK 的 agent 抽象：大版本之间频繁改名 |
 | 知识以文件为主，配合 agentic 检索 | 精确、可离线、可审计，并与 vendor 版本对应 | 浏览器内的 embedding 模型；Vectorize / AI Search |
 | 不做跨源隔离 | COOP/COEP 会阻止前端卡加载第三方资源 | WebContainers、@rolldown/browser |

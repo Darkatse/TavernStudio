@@ -58,6 +58,8 @@ installWebHost({
 ## 4. 酒馆助手
 
 - JSR 不打包进 vendor 镜像，而是按固定版本从上游安装到 Snapshot 的 `extensions/JS-Slash-Runner/`，与在 ST 里安装扩展的方式一致。安装后离线缓存。
+- 文件取自 jsDelivr 的 GitHub 镜像，逐个按 jsDelivr 公布的 SHA-256 校验。jsDelivr 拒绝超过 50 MB 的仓库，这类扩展（如 LittleWhiteBox）需要另一个来源。
+- JSR 的 blob URL 模式不受支持：Chromium 中 blob: iframe 不受 Preview SW 控制。默认的 srcdoc 模式不受影响。
 - JSR 使用 PolyForm Noncommercial 许可，Studio 保留其许可声明，不把它的代码并入 Studio。
 
 ## 5. 升级
