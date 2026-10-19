@@ -1,12 +1,14 @@
 import { Import } from 'lucide-react';
 import type { Difference } from '@tavern-studio/workspace';
 import { lazy, Suspense, useEffect, useState } from 'react';
+import { messagesNow, useMessages } from '../i18n/messages';
 import type { Project } from '../project/project';
 import { useCurrentProject, useProjectState } from '../project/use-project';
 import { Button } from '../ui/button';
 import { LoadingLine } from '../ui/loading';
 import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { showToast } from '../ui/toast';
+import { workbenchMessages } from './messages';
 
 // The panel brings CodeMirror's diff with it, so it loads when the author
 // heads for the button, not with the first screen.
@@ -18,10 +20,9 @@ const prefetch = () => void loadPanel();
 const announced = new WeakSet<readonly Difference[]>();
 
 /** A lost session write in a few words: where it was, and what it held. */
-function describe(difference: Difference): string {
+function describe(difference: Difference, deleted: string): string {
   if (difference.kind === 'file') return difference.placement.path;
-  const value =
-    difference.session === undefined ? '（已删除）' : JSON.stringify(difference.session);
+  const value = difference.session === undefined ? deleted : JSON.stringify(difference.session);
   return `${difference.pointer.join('.')} = ${value.length > 60 ? `${value.slice(0, 60)}…` : value}`;
 }
 
@@ -36,6 +37,7 @@ export function AdoptionButton() {
 }
 
 function Adoption({ project }: { project: Project }) {
+  const m = useMessages(workbenchMessages).adoption;
   const { differences, overwritten } = useProjectState(project);
   const count = new Set(differences.map((difference) => difference.placement)).size;
   const [open, setOpen] = useState(false);
@@ -43,9 +45,12 @@ function Adoption({ project }: { project: Project }) {
   useEffect(() => {
     if (overwritten.length === 0 || announced.has(overwritten)) return;
     announced.add(overwritten);
+    const text = messagesNow(workbenchMessages).adoption;
     showToast({
-      title: '项目改动覆盖了预览里尚未采纳的修改',
-      description: `这些值换成了项目里的内容：${overwritten.map(describe).join('；')}`,
+      title: text.overwritten,
+      description: text.overwrittenDetail(
+        overwritten.map((difference) => describe(difference, text.deleted)).join(text.separator),
+      ),
       stay: true,
     });
   }, [overwritten]);
@@ -57,7 +62,7 @@ function Adoption({ project }: { project: Project }) {
         <PopoverTrigger
           render={
             <Button
-              aria-label={`待采纳 ${count}`}
+              aria-label={m.count(count)}
               onPointerEnter={prefetch}
               onFocus={prefetch}
               className="pr-2 max-md:pl-2"
@@ -65,7 +70,7 @@ function Adoption({ project }: { project: Project }) {
           }
         >
           <Import />
-          <span className="max-md:hidden">待采纳</span>
+          <span className="max-md:hidden">{m.label}</span>
           <span className="min-w-4 rounded-full bg-primary px-1 text-center text-micro text-primary-fg tabular-nums">
             {count}
           </span>
@@ -75,7 +80,7 @@ function Adoption({ project }: { project: Project }) {
         <Suspense
           fallback={
             <div aria-busy="true" className="relative h-24">
-              <LoadingLine label="正在载入待采纳的修改" />
+              <LoadingLine label={m.loading} />
             </div>
           }
         >

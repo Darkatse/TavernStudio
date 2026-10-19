@@ -1,26 +1,21 @@
+import { readPreference, writePreference } from './preference-cookie';
+
 /** Follow the system, or keep Studio light or dark whatever the system says. */
 export type ColorScheme = 'system' | 'light' | 'dark';
 
 /**
- * The manual scheme lives in a cookie, the one preference that must be known
- * before the first frame: index.html reads it with an inline script, which
- * IndexedDB could not serve in time. Losing it only means following the
- * system again (docs/UI.md §3).
+ * The manual scheme must be known before the first frame: index.html reads
+ * this cookie with an inline script (docs/UI.md §3).
  */
 const COOKIE = 'studio-scheme';
 
 export function readColorScheme(): ColorScheme {
-  const scheme = new RegExp(`(?:^|; )${COOKIE}=(light|dark)(?:;|$)`).exec(document.cookie)?.[1];
-  return scheme === 'light' || scheme === 'dark' ? scheme : 'system';
+  return readPreference(COOKIE, ['light', 'dark'] as const) ?? 'system';
 }
 
 /** Keeps the author's choice and applies it. */
 export function setColorScheme(scheme: ColorScheme): void {
-  const attributes = '; Path=/; SameSite=Strict';
-  document.cookie =
-    scheme === 'system'
-      ? `${COOKIE}=${attributes}; Max-Age=0`
-      : `${COOKIE}=${scheme}${attributes}; Max-Age=31536000`;
+  writePreference(COOKIE, scheme === 'system' ? undefined : scheme);
   applyColorScheme(scheme);
 }
 

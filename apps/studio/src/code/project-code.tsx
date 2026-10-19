@@ -3,6 +3,7 @@ import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { editorsOf, useEditors } from '../editor/editors';
+import { messagesNow, useMessages } from '../i18n/messages';
 import { useMediaQuery } from '../lib/use-media-query';
 import { mountPointsBySource, usePlacements } from '../project/mount-points';
 import type { Project } from '../project/project';
@@ -12,6 +13,7 @@ import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { EditorArea } from './editor-area';
 import { FileTree } from './file-tree';
+import { codeMessages } from './messages';
 
 /**
  * The code view of an open project: the file tree beside the editor on wide
@@ -22,6 +24,7 @@ import { FileTree } from './file-tree';
  * screen (docs/plan/P1.md, 性能).
  */
 export function ProjectCode({ project }: { project: Project }) {
+  const m = useMessages(codeMessages);
   const wide = useMediaQuery('(min-width: 768px)');
   const editors = editorsOf(project.store);
   const { tabs, active } = useEditors(editors);
@@ -79,19 +82,19 @@ export function ProjectCode({ project }: { project: Project }) {
       (reason: unknown) =>
         showToast({
           kind: 'error',
-          title: `没能打开 ${path}`,
+          title: messagesNow(codeMessages).openFailed(path),
           description: reason instanceof Error ? reason.message : String(reason),
         }),
     );
   };
 
   const filesToggle = (
-    <Tooltip content={shown ? '隐藏文件列表' : '显示文件列表'}>
+    <Tooltip content={shown ? m.hideFileList : m.showFileList}>
       <Button
         ref={toggleButton}
         variant="ghost"
         icon
-        aria-label="文件列表"
+        aria-label={m.fileList}
         aria-controls={filesId}
         aria-expanded={shown}
         onClick={() => showFiles(!shown)}
@@ -119,7 +122,7 @@ export function ProjectCode({ project }: { project: Project }) {
       projectError={error}
       filesToggle={filesToggle}
       emptyAction={
-        shown ? undefined : <Button onClick={() => showFiles(true)}>打开文件列表</Button>
+        shown ? undefined : <Button onClick={() => showFiles(true)}>{m.openFileList}</Button>
       }
       panelId={panelId}
     />

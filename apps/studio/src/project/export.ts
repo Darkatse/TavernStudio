@@ -1,7 +1,9 @@
 import { themeFile } from '@tavern-studio/st-data';
 import type { FilePlacement, Placement } from '@tavern-studio/workspace';
+import { messagesNow } from '../i18n/messages';
 import { saveFile, type SaveOutcome } from '../lib/save-file';
 import { previewSession } from '../preview/session';
+import { projectMessages } from './messages';
 import type { Project } from './project';
 
 const SETTINGS = 'default-user/settings.json';
@@ -81,7 +83,7 @@ function exportTheme(project: Project, fileName: string): Promise<SaveOutcome> {
   const content = new Blob([`${JSON.stringify(theme, null, 4)}\n`], { type: 'application/json' });
   return saveFile(content, {
     suggestedName: fileName,
-    description: 'SillyTavern 主题',
+    description: messagesNow(projectMessages).fileTypes.theme,
     mimeType: 'application/json',
     extension: '.json',
   });
@@ -110,7 +112,7 @@ async function exportExtension(
   const { zipFiles } = await import('../lib/zip');
   return saveFile(await zipFiles(files), {
     suggestedName: fileName,
-    description: 'SillyTavern 扩展',
+    description: messagesNow(projectMessages).fileTypes.extension,
     mimeType: 'application/zip',
     extension: '.zip',
   });

@@ -55,6 +55,12 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
   });
 }
 
+/** Why a Run cannot start with the model settings, for the interface to word. */
+export type ModelProblem =
+  | { kind: 'no-model' }
+  /** The selected endpoint, by its label, has no key. */
+  | { kind: 'no-key'; label: string };
+
 /**
  * The selected endpoint and its key, or why a Run cannot start. It takes the
  * settings rather than reading them, so a component that renders it re-renders
@@ -62,10 +68,12 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
  */
 export function selectedEndpoint(
   current: AgentSettings,
-): { endpoint: Endpoint; apiKey: string } | { endpoint: Endpoint | undefined; problem: string } {
+):
+  | { endpoint: Endpoint; apiKey: string }
+  | { endpoint: Endpoint | undefined; problem: ModelProblem } {
   const endpoint = current.endpoints.find((candidate) => candidate.id === current.selected);
-  if (!endpoint) return { endpoint, problem: '还没有选择模型。在设置里添加一个模型服务。' };
+  if (!endpoint) return { endpoint, problem: { kind: 'no-model' } };
   const apiKey = current.keys[endpoint.id];
-  if (!apiKey) return { endpoint, problem: `${endpoint.label} 还没有填写 API Key。` };
+  if (!apiKey) return { endpoint, problem: { kind: 'no-key', label: endpoint.label } };
   return { endpoint, apiKey };
 }

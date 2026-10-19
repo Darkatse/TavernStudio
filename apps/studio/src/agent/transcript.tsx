@@ -1,12 +1,14 @@
 import type { AssistantMessage, HistoryEntry } from '@tavern-studio/agent';
 import { ArrowDown } from 'lucide-react';
 import { Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { useMessages } from '../i18n/messages';
 import { AlertDialog } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
 import type { Conversation } from './conversation';
+import { runMessages } from './run-messages';
 import { requestRollback, RollbackConfirm, RollbackView, type RollbackRequest } from './rollback';
 import { RunView } from './run-view';
-import { transcriptBlocks, type RunBlock, type TranscriptBlock } from './runs';
+import { transcriptBlocks, type RunBlock, type RunStatus, type TranscriptBlock } from './runs';
 import { useConversationState } from './use-conversation';
 
 /** How close to the bottom still counts as following the conversation. */
@@ -19,6 +21,7 @@ const FOLLOW_SLACK = 40;
  * streamed word (docs/UI.md §5).
  */
 export function Transcript({ conversation }: { conversation: Conversation }) {
+  const m = useMessages(runMessages);
   const state = useConversationState(conversation);
   // Blocks stay the same objects while a reply streams, so only the Run that streams renders again.
   const blocks = transcriptBlocks({
@@ -35,6 +38,7 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
   const [confirming, setConfirming] = useState(false);
   const last = blocks.at(-1);
   const lastRun = blocks.findLast((block): block is RunBlock => block.kind === 'run');
+  const announcements: Partial<Record<RunStatus, string>> = m.announcement;
   const rollBackTo = (target: TranscriptBlock) => {
     setRollback(requestRollback(conversation, target));
     setConfirming(true);
@@ -67,7 +71,7 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
       <div
         ref={scroller}
         role="log"
-        aria-label="与 Agent 的对话"
+        aria-label={m.conversation}
         aria-live="off"
         aria-busy={state.active !== undefined}
         className="h-full overflow-y-auto px-4 pt-2 pb-6"
@@ -102,8 +106,9 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
           )}
         </div>
       </div>
+      {/* Said once a Run ends; an interrupted Run ended before this page opened. */}
       <p aria-live="polite" className="sr-only">
-        {lastRun && lastRun.status !== 'running' ? statusAnnouncement(lastRun.status) : ''}
+        {(lastRun && announcements[lastRun.status]) ?? ''}
       </p>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         {rollback && (
@@ -127,7 +132,7 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
             }}
           >
             <ArrowDown />
-            回到最新
+            {m.jumpToLatest}
           </Button>
         </div>
       )}
@@ -145,11 +150,4 @@ function streamingReply(
 ): AssistantMessage | undefined {
   if (!partial) return undefined;
   return work.some((entry) => entry.message === partial) ? undefined : partial;
-}
-
-function statusAnnouncement(status: string): string {
-  if (status === 'completed') return 'Agent 已完成';
-  if (status === 'failed') return 'Agent 运行失败';
-  if (status === 'cancelled') return 'Agent 已停止';
-  return '';
 }

@@ -4,12 +4,14 @@ import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { AgentPanel } from '../agent/agent-panel';
 import { BrandMark } from '../brand/brand-mark';
+import { useMessages } from '../i18n/messages';
 import { useMediaQuery } from '../lib/use-media-query';
 import { startStudio } from '../project/projects';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tooltip } from '../ui/tooltip';
 import { Workbench, type WorkbenchView } from '../workbench/workbench';
+import { shellMessages } from './messages';
 
 /**
  * The workspace: Agent beside the workbench on wide screens, one pane at a
@@ -36,15 +38,16 @@ interface ShellLayoutProps {
 }
 
 function WideShell({ view, onViewChange }: ShellLayoutProps) {
+  const m = useMessages(shellMessages);
   const agent = usePanelRef();
   const [agentCollapsed, setAgentCollapsed] = useState(false);
 
   const agentToggle = (
-    <Tooltip content={agentCollapsed ? '展开 Agent' : '收起 Agent'}>
+    <Tooltip content={agentCollapsed ? m.expandAgent : m.collapseAgent}>
       <Button
         variant="ghost"
         icon
-        aria-label="Agent 面板"
+        aria-label={m.agentPanel}
         aria-controls="agent"
         aria-expanded={!agentCollapsed}
         onClick={() => (agentCollapsed ? agent.current?.expand() : agent.current?.collapse())}
@@ -83,14 +86,14 @@ function WideShell({ view, onViewChange }: ShellLayoutProps) {
 
 type NarrowPane = 'agent' | WorkbenchView;
 
-const narrowPanes: SegmentedOption<NarrowPane>[] = [
-  { value: 'agent', label: 'Agent', icon: <Bot /> },
-  { value: 'preview', label: '预览', icon: <Eye /> },
-  { value: 'code', label: '代码', icon: <Code2 /> },
-];
-
 function NarrowShell({ view, onViewChange }: ShellLayoutProps) {
+  const m = useMessages(shellMessages);
   const [agentShown, setAgentShown] = useState(false);
+  const narrowPanes: SegmentedOption<NarrowPane>[] = [
+    { value: 'agent', label: m.agent, icon: <Bot /> },
+    { value: 'preview', label: m.preview, icon: <Eye /> },
+    { value: 'code', label: m.code, icon: <Code2 /> },
+  ];
 
   return (
     <div className="flex h-dvh flex-col gap-2 p-2 pb-[max(--spacing(2),env(safe-area-inset-bottom))]">
@@ -108,7 +111,7 @@ function NarrowShell({ view, onViewChange }: ShellLayoutProps) {
       </div>
       <nav>
         <SegmentedControl
-          label="面板"
+          label={m.panes}
           fill
           value={agentShown ? 'agent' : view}
           options={narrowPanes}

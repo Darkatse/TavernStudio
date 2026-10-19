@@ -1,6 +1,8 @@
+import { useMessages } from '../i18n/messages';
 import { useElementSize } from '../lib/use-element-size';
 import { useSessionStatus } from '../preview/use-session';
 import type { Device } from '../preview/devices';
+import { workbenchMessages } from './messages';
 import { PreviewView } from './preview-view';
 
 /** Height of the caption line plus its gap to the frame. */
@@ -16,6 +18,7 @@ const CAPTION_SPACE = 28;
  * viewport and keeps running, as the workbench promises (docs/UI.md §1).
  */
 export function DeviceStage({ device, generation }: { device: Device; generation: number }) {
+  const m = useMessages(workbenchMessages);
   const [stageRef, stage] = useElementSize();
   const session = useSessionStatus();
   const { width, height } = device.viewport;
@@ -44,7 +47,7 @@ export function DeviceStage({ device, generation }: { device: Device; generation
         </div>
         <figcaption className="text-caption text-muted tabular-nums">
           {session.phase === 'open' && `${session.vendor.label} · `}
-          {device.label} · {width} × {height} · {Math.round(scale * 100)}%
+          {m.device[device.id]} · {width} × {height} · {Math.round(scale * 100)}%
         </figcaption>
       </figure>
     </div>

@@ -10,6 +10,8 @@ import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { clsx } from 'clsx';
 import { X } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { common } from '../i18n/common';
+import { useMessages } from '../i18n/messages';
 import { Button } from './button';
 
 export const Dialog = BaseDialog.Root;
@@ -36,6 +38,7 @@ export function DialogContent({
   footer,
   size = 'md',
 }: DialogContentProps) {
+  const { close } = useMessages(common);
   return (
     <BaseDialog.Portal>
       {/* iOS Safari: a fixed backdrop leaves a gap under the collapsing toolbar. */}
@@ -56,7 +59,7 @@ export function DialogContent({
                 </BaseDialog.Description>
               )}
             </div>
-            <BaseDialog.Close render={<Button variant="ghost" icon aria-label="关闭" />}>
+            <BaseDialog.Close render={<Button variant="ghost" icon aria-label={close} />}>
               <X />
             </BaseDialog.Close>
           </header>

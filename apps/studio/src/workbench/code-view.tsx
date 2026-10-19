@@ -1,5 +1,7 @@
 import { FileCode2 } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
+import { messagesNow, useMessages } from '../i18n/messages';
+import { projectMessages } from '../project/messages';
 import { createFromTemplate, openProject } from '../project/projects';
 import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject } from '../project/use-project';
@@ -7,6 +9,7 @@ import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
 import { LoadingLine } from '../ui/loading';
 import { showToast } from '../ui/toast';
+import { workbenchMessages } from './messages';
 
 // The file tree and the editor stay out of the first screen (docs/plan/P1.md, 性能).
 const ProjectCode = lazy(() =>
@@ -18,6 +21,8 @@ const ProjectCode = lazy(() =>
  * stays, like the preview, while the view is hidden.
  */
 export function CodeView({ shown }: { shown: boolean }) {
+  const m = useMessages(workbenchMessages).codeView;
+  const { templates } = useMessages(projectMessages);
   const project = useCurrentProject();
   const [creating, setCreating] = useState(false);
   const [wanted, setWanted] = useState(shown);
@@ -28,8 +33,8 @@ export function CodeView({ shown }: { shown: boolean }) {
       <div className="flex min-h-0 flex-1 items-center justify-center p-8">
         <EmptyState
           icon={<FileCode2 />}
-          title="尚未打开项目"
-          description="从模板新建一个项目，文件会显示在这里，改动即时出现在预览中。"
+          title={m.empty}
+          description={m.emptyDetail}
           action={
             <div className="flex flex-wrap justify-center gap-2">
               {PROJECT_TEMPLATES.map((template) => (
@@ -43,7 +48,7 @@ export function CodeView({ shown }: { shown: boolean }) {
                       .catch((error: unknown) =>
                         showToast({
                           kind: 'error',
-                          title: '项目没能新建',
+                          title: messagesNow(projectMessages).createFailed,
                           description: error instanceof Error ? error.message : String(error),
                         }),
                       )
@@ -51,7 +56,7 @@ export function CodeView({ shown }: { shown: boolean }) {
                   }}
                 >
                   <template.icon />
-                  {template.action}
+                  {templates[template.folder].action}
                 </Button>
               ))}
             </div>
@@ -65,7 +70,7 @@ export function CodeView({ shown }: { shown: boolean }) {
     <Suspense
       fallback={
         <div aria-busy="true" className="relative flex-1">
-          <LoadingLine label="正在载入编辑器" />
+          <LoadingLine label={m.loading} />
         </div>
       }
     >

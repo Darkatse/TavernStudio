@@ -175,15 +175,16 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   - 选中哪个已保存的主题（`power_user.theme`）和无障碍偏好（`reduced_motion`）属于用户，不属于主题，项目不拥有它们。
   - 原因：TT 启动时按名字解析主题文件。项目拥有 `power_user.theme`，样板里又没有同名文件时，TT 会报错并改用另一个主题，项目的外观随之被覆盖。不拥有这个键时，选中的是样板里真实存在的主题，外观字段仍来自项目，这正是作者在 ST 里调过外观、尚未另存主题时的状态。
 - **结构化文档。** Pointer 可以指向 JSON 文件，也可以指向角色卡 PNG 里嵌的卡片 JSON，读写规则与 ST 相同。
-- **整个文件。** 不带 Pointer 的 Mount 把文件原样放到挂载点。无构建的扩展模板就是三条这样的 Mount，项目根即扩展根，推到 GitHub 后可以用 git 安装：
+- **整个文件。** 不带 Pointer 的 Mount 把文件原样放到挂载点。无构建的扩展模板就是四条这样的 Mount，项目根即扩展根，推到 GitHub 后可以用 git 安装：
 
   ```json
   {
     "fixture": "showcase",
     "mounts": [
-      { "from": "manifest.json", "to": "default-user/extensions/my-extension/manifest.json" },
-      { "from": "index.js",      "to": "default-user/extensions/my-extension/index.js" },
-      { "from": "style.css",     "to": "default-user/extensions/my-extension/style.css" }
+      { "from": "manifest.json",   "to": "default-user/extensions/my-extension/manifest.json" },
+      { "from": "index.js",        "to": "default-user/extensions/my-extension/index.js" },
+      { "from": "style.css",       "to": "default-user/extensions/my-extension/style.css" },
+      { "from": "i18n/zh-cn.json", "to": "default-user/extensions/my-extension/i18n/zh-cn.json" }
     ]
   }
   ```
@@ -235,7 +236,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | Session 子资源 | Cache Storage |
 | vendor 镜像与知识包缓存 | Cache Storage |
 | 密钥 | 默认只在内存中；用户勾选后持久化到 IndexedDB |
-| 手动深浅色设置 | cookie，首帧之前读取（[UI §3](UI.md#3-视觉-token)） |
+| 手动深浅色与界面语言的设置 | cookie，首次渲染之前读取（[UI §3](UI.md#3-视觉-token)、[§6](UI.md#6-文案与本地化)） |
 
 - Cache 名统一带 Studio 前缀。
 - Studio 不使用 localStorage 和 sessionStorage：vendor 与项目代码同源，随时可能调用 `localStorage.clear()`。

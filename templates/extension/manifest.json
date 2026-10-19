@@ -1,10 +1,13 @@
 {
-  "display_name": "我的扩展",
+  "display_name": "My Extension",
   "loading_order": 100,
   "requires": [],
   "optional": [],
   "js": "index.js",
   "css": "style.css",
+  "i18n": {
+    "zh-cn": "i18n/zh-cn.json"
+  },
   "author": "",
   "version": "0.1.0",
   "homePage": "",

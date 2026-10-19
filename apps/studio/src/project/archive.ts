@@ -1,32 +1,50 @@
 import { isRelativePath, MANIFEST } from '@tavern-studio/workspace';
-import { unzip, type Unzipped, type Zippable } from 'fflate';
+import type { Unzipped, Zippable } from 'fflate';
+import { messagesNow } from '../i18n/messages';
 import { saveFile, type SaveOutcome } from '../lib/save-file';
-import { zipFiles } from '../lib/zip';
 import type { ProjectRecord } from '../storage/db';
+import { projectMessages } from './messages';
 import type { Project } from './project';
 import { createProject } from './projects';
 
 /**
  * A project as a zip of its files at their paths (docs/Architecture.md §6, 归档).
- * This module loads when the author exports or imports, so the zip library
- * stays off Studio's first screen.
+ * The zip library loads when the author exports or imports, so it stays off
+ * Studio's first screen.
  */
 
 /** The longest path an archive may hold, as PureTavern limits it. */
 const MAX_PATH = 500;
 
-/** Why an archive cannot become a project, in the author's terms. */
+/** Why an archive cannot become a project, as data the interface words for the author. */
+export type ArchiveReason =
+  /** The file is no zip; `detail` is the zip library's own words. */
+  | { kind: 'notZip'; detail: string }
+  /** The zip holds no studio.json, at its root or in its one top folder. */
+  | { kind: 'notProject' }
+  /** Paths that leave the project or that no file system takes. */
+  | { kind: 'unsafePaths'; paths: readonly string[] }
+  /** Paths that differ only in case: one file on Windows and macOS. */
+  | { kind: 'caseClash'; pairs: readonly (readonly [string, string])[] };
+
 export class ArchiveError extends Error {
   override name = 'ArchiveError';
+  readonly reason: ArchiveReason;
+
+  constructor(reason: ArchiveReason) {
+    super(`The archive cannot become a project: ${JSON.stringify(reason)}`);
+    this.reason = reason;
+  }
 }
 
 /** Saves the project's files as a zip the author can keep, share or import again. */
 export async function exportArchive(project: Project): Promise<SaveOutcome> {
   const files: Zippable = {};
   for (const path of await project.store.files('')) files[path] = await project.store.read(path);
+  const { zipFiles } = await import('../lib/zip');
   return saveFile(await zipFiles(files), {
     suggestedName: `${project.record.name}.zip`,
-    description: 'Studio 项目',
+    description: messagesNow(projectMessages).fileTypes.project,
     mimeType: 'application/zip',
     extension: '.zip',
   });
@@ -35,10 +53,12 @@ export async function exportArchive(project: Project): Promise<SaveOutcome> {
 /** Creates a project from an archive, named after its file. */
 export async function importArchive(file: File): Promise<ProjectRecord> {
   const bytes = new Uint8Array(await file.arrayBuffer());
-  const entries = await new Promise<Unzipped>((resolve, reject) => {
-    unzip(bytes, (error, data) =>
-      error ? reject(new ArchiveError(`这个文件不是能读的 zip：${error.message}`)) : resolve(data),
-    );
+  const { unzipFiles } = await import('../lib/zip');
+  const entries = await unzipFiles(bytes).catch((error: unknown) => {
+    throw new ArchiveError({
+      kind: 'notZip',
+      detail: error instanceof Error ? error.message : String(error),
+    });
   });
   return createProject(file.name.replace(/\.zip$/i, ''), 'archive', projectFiles(entries));
 }
@@ -58,7 +78,7 @@ function projectFiles(entries: Unzipped): [string, Uint8Array][] {
     const tops = new Set(files.map(([path]) => path.split('/', 1)[0]));
     const [top] = tops;
     if (tops.size !== 1 || !files.some(([path]) => path === `${top}/${MANIFEST}`)) {
-      throw new ArchiveError(`这个 zip 里没有 ${MANIFEST}，不是 Studio 项目。`);
+      throw new ArchiveError({ kind: 'notProject' });
     }
     files = files.map(([path, content]) => [path.slice(`${top}/`.length), content]);
   }
@@ -66,26 +86,15 @@ function projectFiles(entries: Unzipped): [string, Uint8Array][] {
   const unsafe = files
     .map(([path]) => path)
     .filter((path) => !isRelativePath(path) || path.length > MAX_PATH);
-  if (unsafe.length > 0) {
-    throw new ArchiveError(`这些路径会落到项目之外或无法使用：${list(unsafe)}`);
-  }
+  if (unsafe.length > 0) throw new ArchiveError({ kind: 'unsafePaths', paths: unsafe });
   const seen = new Map<string, string>();
-  const clashes: string[] = [];
+  const clashes: [string, string][] = [];
   for (const [path] of files) {
     const folded = path.normalize('NFC').toLowerCase();
     const other = seen.get(folded);
     if (other === undefined) seen.set(folded, path);
-    else clashes.push(`${other} 与 ${path}`);
+    else clashes.push([other, path]);
   }
-  if (clashes.length > 0) {
-    throw new ArchiveError(
-      `这些文件名只有大小写不同，在 Windows 和 macOS 上是同一个文件：${list(clashes)}`,
-    );
-  }
+  if (clashes.length > 0) throw new ArchiveError({ kind: 'caseClash', pairs: clashes });
   return files;
-}
-
-function list(items: readonly string[]): string {
-  const shown = items.slice(0, 5).join('；');
-  return items.length > 5 ? `${shown}，另有 ${items.length - 5} 处` : shown;
 }

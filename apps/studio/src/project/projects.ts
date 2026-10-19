@@ -1,7 +1,9 @@
 import { ProjectStore } from '@tavern-studio/workspace';
+import { messagesNow } from '../i18n/messages';
 import { previewSession } from '../preview/session';
 import { loadTemplate } from '../preview/sources';
 import { db, type ProjectRecord } from '../storage/db';
+import { projectMessages } from './messages';
 import { Project } from './project';
 import type { ProjectTemplate } from './templates';
 
@@ -47,10 +49,11 @@ export function startStudio(): Promise<void> {
   return started;
 }
 
-/** A project from a template's files, named as the template names a new one. */
+/** A project from a template's files, named as Studio names a new one of its kind. */
 export async function createFromTemplate(template: ProjectTemplate): Promise<ProjectRecord> {
   const { files } = await loadTemplate(template.folder);
-  return createProject(template.name, template.folder, files);
+  const { name } = messagesNow(projectMessages).templates[template.folder];
+  return createProject(name, template.folder, files);
 }
 
 /**

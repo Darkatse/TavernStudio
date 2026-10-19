@@ -3,7 +3,7 @@ export type SaveOutcome = 'saved' | 'downloaded' | 'cancelled';
 
 export interface SaveOptions {
   suggestedName: string;
-  /** For the save dialog, for example "SillyTavern 主题". */
+  /** The kind of file, for the save dialog, in Studio's language: "SillyTavern theme". */
   description: string;
   mimeType: string;
   extension: string;

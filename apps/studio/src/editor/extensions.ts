@@ -8,7 +8,7 @@ import {
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
 import { bracketMatching, indentOnInput } from '@codemirror/language';
 import { highlightSelectionMatches, searchKeymap } from '@codemirror/search';
-import { EditorState, type Extension } from '@codemirror/state';
+import { EditorState, StateEffect, StateField, type Extension } from '@codemirror/state';
 import {
   crosshairCursor,
   drawSelection,
@@ -20,35 +20,31 @@ import {
   lineNumbers,
   rectangularSelection,
 } from '@codemirror/view';
+import { messagesNow } from '../i18n/messages';
+import { editorMessages, type Phrases } from './messages';
 import { studioTheme } from './theme';
 
-/** CodeMirror's own words in Studio's language. */
-export const phrases = EditorState.phrases.of({
-  Find: '查找',
-  Replace: '替换',
-  next: '下一个',
-  previous: '上一个',
-  all: '全部',
-  'match case': '区分大小写',
-  regexp: '正则',
-  'by word': '全词',
-  replace: '替换',
-  'replace all': '全部替换',
-  close: '关闭',
-  'current match': '当前匹配',
-  'on line': '所在行',
-  'replaced $ matches': '已替换 $ 处',
-  'replaced match on line $': '已替换第 $ 行的匹配',
-  'Go to line': '跳到行',
-  go: '跳转',
-  Completions: '补全',
-  'Selection deleted': '已删除所选内容',
-  'Control character': '控制字符',
-  'folded code': '折叠的代码',
-  unfold: '展开',
-  to: '至',
-  '$ unchanged lines': '$ 行未改动',
+const setPhrases = StateEffect.define<Phrases>();
+
+/**
+ * CodeMirror's own words (the search panel, completions, announcements) in
+ * Studio's language. A state takes the language Studio speaks when it is
+ * created; `phrasesNow` brings it to a language chosen since. A view redraws
+ * itself when its state's phrases change.
+ */
+export const phrases: Extension = StateField.define<Phrases>({
+  create: () => messagesNow(editorMessages).phrases,
+  update: (value, transaction) => {
+    for (const effect of transaction.effects) if (effect.is(setPhrases)) return effect.value;
+    return value;
+  },
+  provide: (field) => EditorState.phrases.from(field),
 });
+
+/** The effect that gives a state CodeMirror's words in the language Studio speaks now. */
+export function phrasesNow(): StateEffect<Phrases> {
+  return setPhrases.of(messagesNow(editorMessages).phrases);
+}
 
 /**
  * The language of a file, by its extension; plain text when Studio has none

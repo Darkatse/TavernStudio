@@ -14,14 +14,17 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useEffect, useId, useRef, type ReactNode } from 'react';
+import { useMessages } from '../i18n/messages';
 import { MenuTrigger, type MenuHandle } from '../ui/menu';
 import { PathText } from '../ui/path-text';
 import { Tooltip } from '../ui/tooltip';
+import { codeMessages } from './messages';
 import type { TreeNode } from './tree-model';
 
 /** The name being typed into a row, for a rename or a new file or folder. */
 export interface Naming {
   value: string;
+  /** Why the name cannot be used, in Studio's language. */
   problem: string | undefined;
   onChange: (value: string) => void;
   onCommit: () => void;
@@ -40,6 +43,7 @@ export interface FileRowProps {
 
 /** One flat row of the file tree, the compact control height (docs/UI.md §3). */
 export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProps) {
+  const m = useMessages(codeMessages);
   const node = item.getItemData();
   const level = item.getItemMeta().level;
   const expanded = item.isExpanded();
@@ -48,7 +52,7 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
     <div
       {...item.getProps()}
       aria-selected={active}
-      aria-description={mountPoints && `挂载到 ${mountPoints.join('、')}`}
+      aria-description={mountPoints && m.mountedAtPoints(mountPoints)}
       data-path={node.path}
       // Rows that appear, such as a folder's children as it opens, fade in.
       // Their height changes at once (docs/UI.md §4).
@@ -68,7 +72,7 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
       </span>
       <FileIcon node={node} expanded={expanded} />
       {naming ? (
-        <NameField naming={naming} label={node.draft ? '新名称' : `${node.name} 的新名称`} />
+        <NameField naming={naming} label={node.draft ? m.newName : m.newNameFor(node.name)} />
       ) : (
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
       )}
@@ -87,7 +91,7 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
             <button
               type="button"
               tabIndex={-1}
-              aria-label={`${node.name} 的操作`}
+              aria-label={m.actionsFor(node.name)}
               // Shown on hover, and always under keyboard focus or touch (docs/UI.md §5).
               className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-sm text-muted opacity-0 transition-[opacity,background-color,color] motion-fast group-hover/row:opacity-100 group-focus-visible/row:opacity-100 hover:bg-hover hover:text-fg data-popup-open:opacity-100 pointer-coarse:opacity-100"
               onClick={(event) => event.stopPropagation()}
@@ -127,9 +131,10 @@ const iconsByExtension: Record<string, typeof File> = {
 };
 
 export function MountPointList({ points }: { points: readonly string[] }) {
+  const m = useMessages(codeMessages);
   return (
     <span className="flex flex-col gap-0.5">
-      <span>挂载到</span>
+      <span>{m.mountedAt}</span>
       {points.map((point) => (
         <span key={point} className="font-mono break-words">
           <PathText path={point} />
@@ -199,7 +204,8 @@ function Problem({ id, children }: { id: string; children: ReactNode }) {
     <span
       id={id}
       role="alert"
-      className="absolute top-full left-0 z-20 mt-1 flex w-max max-w-64 items-start gap-1.5 rounded-md bg-raised px-2 py-1.5 text-caption shadow-popover"
+      // As wide as the field at most: the tree's panel clips anything wider.
+      className="absolute top-full left-0 z-20 mt-1 flex w-max max-w-full items-start gap-1.5 rounded-md bg-raised px-2 py-1.5 text-caption shadow-popover"
     >
       {children}
     </span>

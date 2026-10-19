@@ -10,13 +10,25 @@ const ENGINES = { firefox, webkit };
 /**
  * Launches a browser and collects what goes wrong across every page: API
  * requests reaching the network, same-origin error responses, page errors.
+ *
+ * Studio speaks `locale` through its own preference cookie (docs/UI.md §6),
+ * Chinese unless asked otherwise, since the scripts find controls by their
+ * Chinese names. The browser's language, which the preview's frontend
+ * follows, stays as it is.
  */
-export async function launch({ url, browser: name = 'chrome', args = [], headless = true }) {
+export async function launch({
+  url,
+  browser: name = 'chrome',
+  args = [],
+  headless = true,
+  locale = 'zh',
+}) {
   const engine = ENGINES[name];
   const browser = engine
     ? await engine.launch({ headless, args })
     : await chromium.launch({ channel: name, headless, args });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  await context.addCookies([{ name: 'studio-locale', value: locale, url }]);
   // A vendor page loads several hundred resources; the default buffer keeps 250.
   await context.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
   const origin = new URL(url).origin;
@@ -118,11 +130,13 @@ export async function createThemeProject(page) {
 
 /** Points the Agent at an OpenAI-compatible endpoint, such as a scripted model, through the settings dialog. */
 export async function useModel(page, baseUrl, model = 'scripted') {
-  await page.getByRole('button', { name: '模型设置' }).click();
+  await page.getByRole('button', { name: '设置', exact: true }).click();
   const dialog = page.getByRole('dialog');
+  await dialog.getByRole('tab', { name: '模型' }).click();
   await dialog.getByLabel('服务', { exact: true }).selectOption('custom');
   await dialog.getByLabel('地址', { exact: true }).fill(baseUrl);
-  await dialog.getByLabel('模型', { exact: true }).fill(model);
+  // The field, not the "模型" tab's panel, which bears the same name.
+  await dialog.getByRole('combobox', { name: '模型' }).fill(model);
   await dialog.getByLabel('API Key', { exact: true }).fill('scripted');
   await dialog.getByRole('button', { name: '保存' }).click();
   await page.keyboard.press('Escape');

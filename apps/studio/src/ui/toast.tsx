@@ -8,7 +8,9 @@
  */
 import { Toast as BaseToast } from '@base-ui/react/toast';
 import { TriangleAlert, X } from 'lucide-react';
+import { useMessages } from '../i18n/messages';
 import { Button } from './button';
+import { uiMessages } from './messages';
 
 const manager = BaseToast.createToastManager();
 
@@ -23,7 +25,7 @@ export interface ToastOptions {
   kind?: 'info' | 'error';
   /** Stays until dismissed, as an error does: news the author must not miss, such as something lost. */
   stay?: boolean;
-  /** One action that names what it does, for example "重试". */
+  /** One action that names what it does, for example "Retry". */
   action?: { label: string; onClick: () => void };
 }
 
@@ -57,12 +59,13 @@ export function closeToast(id: string): void {
  * the toasts, and Esc closes the focused one.
  */
 export function Toaster() {
+  const m = useMessages(uiMessages);
   return (
     <BaseToast.Provider toastManager={manager} limit={3}>
       <BaseToast.Portal>
         {/* Narrow screens keep the bottom panel switcher (shell.tsx) uncovered. */}
         <BaseToast.Viewport
-          aria-label="通知"
+          aria-label={m.notifications}
           className="fixed inset-x-2 bottom-[calc(max(--spacing(2),env(safe-area-inset-bottom))+var(--size-control)+--spacing(2))] outline-none md:inset-x-auto md:right-4 md:bottom-4 md:w-90"
         >
           <ToastList />
@@ -73,6 +76,7 @@ export function Toaster() {
 }
 
 function ToastList() {
+  const m = useMessages(uiMessages);
   const { toasts } = BaseToast.useToastManager();
   return toasts.map((toast) => (
     <BaseToast.Root
@@ -91,7 +95,9 @@ function ToastList() {
           <BaseToast.Description className="break-words text-muted" />
         </div>
         <BaseToast.Action render={<Button />} />
-        <BaseToast.Close render={<Button variant="ghost" icon aria-label="关闭通知" />}>
+        <BaseToast.Close
+          render={<Button variant="ghost" icon aria-label={m.dismissNotification} />}
+        >
           <X />
         </BaseToast.Close>
       </BaseToast.Content>

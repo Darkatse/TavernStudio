@@ -1,0 +1,117 @@
+import { defineMessages } from '../i18n/messages';
+
+export const codeMessages = defineMessages({
+  zh: {
+    // The file tree.
+    projectFiles: '项目文件',
+    newFile: '新建文件',
+    newFolder: '新建文件夹',
+    deleteMenuItem: '删除…',
+    fileList: '文件列表',
+    showFileList: '显示文件列表',
+    hideFileList: '隐藏文件列表',
+    openFileList: '打开文件列表',
+    listFailed: '没能列出项目文件',
+    noFiles: '项目里还没有文件',
+    noFilesHint: '新建一个文件开始编写，或者让 Agent 来写。',
+    deleteTitle: (name: string) => `删除 ${name}？`,
+    emptyFolder: '这个文件夹是空的。',
+    deleteWarning:
+      '下列文件会从项目中删除，打开的标签随之关闭，未保存的修改一并丢弃。删除后不能撤销。',
+    deleteFailed: (name: string) => `没能删除 ${name}`,
+    newName: '新名称',
+    newNameFor: (name: string) => `${name} 的新名称`,
+    actionsFor: (name: string) => `${name} 的操作`,
+    mountedAt: '挂载到',
+    mountedAtPoints: (points: readonly string[]) => `挂载到 ${points.join('、')}`,
+    /** Why a typed name was not taken. */
+    nameProblem: {
+      empty: '名称不能为空',
+      separator: '名称里不能有 / 或 \\',
+      dots: '不能用 . 或 .. 作名称',
+      spaces: '名称不能以空格开头或结尾',
+      taken: (name: string) => `这里已经有名为 ${name} 的文件或文件夹`,
+      unsaved: (name: string) => `${name} 有没能保存的修改，先在它的标签里处理`,
+      failed: (message: string) => `没能完成：${message}`,
+    },
+
+    // The editor area.
+    openFailed: (path: string) => `没能打开 ${path}`,
+    noFileOpen: '未打开文件',
+    previewFailed: '预览没能更新',
+    noOpenFiles: '没有打开的文件',
+    noOpenFilesHint: '从文件列表打开一个文件。改动会自动保存，并即时出现在预览里。',
+    notText: '不能以文本打开',
+    notTextHint: '编辑器只打开 UTF-8 文本文件。这个文件仍会照常挂载到预览里。',
+    saveStatus: { conflict: '冲突', failed: '保存失败', saving: '保存中', saved: '已保存' },
+    deletedElsewhere: (name: string) => `${name} 已在别处删除`,
+    changedElsewhere: (name: string) => `${name} 已在别处修改`,
+    deletedElsewhereHint: '编辑器里还有没保存的修改。保留它们会重新创建这个文件。',
+    changedElsewhereHint:
+      '编辑器里还有没保存的修改。载入新版本会替换它们，可以撤销；保留我的修改会覆盖另一处的改动。',
+    closeFile: '关闭文件',
+    takeTheirs: '载入新版本',
+    keepMine: '保留我的修改',
+    saveFailed: (name: string) => `没能保存 ${name}`,
+
+    // The tabs.
+    openTabs: '打开的文件',
+    closeTab: (path: string) => `关闭 ${path}`,
+  },
+  en: {
+    projectFiles: 'Project files',
+    newFile: 'New file',
+    newFolder: 'New folder',
+    deleteMenuItem: 'Delete…',
+    fileList: 'File list',
+    showFileList: 'Show file list',
+    hideFileList: 'Hide file list',
+    openFileList: 'Open file list',
+    listFailed: "Couldn't list the project's files",
+    noFiles: 'No files yet',
+    noFilesHint: 'Create a file to start writing, or ask the Agent to write one.',
+    deleteTitle: (name: string) => `Delete ${name}?`,
+    emptyFolder: 'This folder is empty.',
+    deleteWarning:
+      "Deleting removes these files from the project, closes their tabs and discards unsaved edits. This can't be undone.",
+    deleteFailed: (name: string) => `Couldn't delete ${name}`,
+    newName: 'New name',
+    newNameFor: (name: string) => `New name for ${name}`,
+    actionsFor: (name: string) => `Actions for ${name}`,
+    mountedAt: 'Mounted at',
+    mountedAtPoints: (points: readonly string[]) => `Mounted at ${points.join(', ')}`,
+    nameProblem: {
+      empty: "Name can't be empty",
+      separator: "Name can't contain / or \\",
+      dots: "Name can't be . or ..",
+      spaces: "Name can't start or end with a space",
+      taken: (name: string) => `A file or folder named ${name} is already here`,
+      unsaved: (name: string) =>
+        `${name} has edits that couldn't be saved. Resolve them in its tab first.`,
+      failed: (message: string) => `Couldn't finish: ${message}`,
+    },
+
+    openFailed: (path: string) => `Couldn't open ${path}`,
+    noFileOpen: 'No file open',
+    previewFailed: "Couldn't update the preview",
+    noOpenFiles: 'No open files',
+    noOpenFilesHint:
+      'Open a file from the file list. Changes save automatically and show up in the preview right away.',
+    notText: "Can't open as text",
+    notTextHint:
+      'The editor opens UTF-8 text files only. This file is still mounted in the preview as usual.',
+    saveStatus: { conflict: 'Conflict', failed: 'Save failed', saving: 'Saving', saved: 'Saved' },
+    deletedElsewhere: (name: string) => `${name} was deleted elsewhere`,
+    changedElsewhere: (name: string) => `${name} was changed elsewhere`,
+    deletedElsewhereHint: 'The editor has unsaved edits. Keeping them creates the file again.',
+    changedElsewhereHint:
+      'The editor has unsaved edits. Loading the new version replaces them, and you can undo that. Keeping your edits overwrites the change made elsewhere.',
+    closeFile: 'Close file',
+    takeTheirs: 'Load new version',
+    keepMine: 'Keep my edits',
+    saveFailed: (name: string) => `Couldn't save ${name}`,
+
+    openTabs: 'Open files',
+    closeTab: (path: string) => `Close ${path}`,
+  },
+});

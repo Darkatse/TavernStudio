@@ -18,6 +18,8 @@ import { DeviceStage } from './device-stage';
 import { ExportButton } from './export-button';
 import { ProjectButton } from './project-button';
 import { devices, type DeviceId } from '../preview/devices';
+import { useMessages } from '../i18n/messages';
+import { workbenchMessages } from './messages';
 
 // The menu brings Base UI's Menu, which nothing else on the first screen
 // needs; it loads right after, behind a button that looks the same.
@@ -26,11 +28,6 @@ const ProjectMenu = lazy(() =>
 );
 
 export type WorkbenchView = 'preview' | 'code';
-
-const deviceOptions: SegmentedOption<DeviceId>[] = [
-  { value: 'desktop', label: devices.desktop.label, icon: <Monitor /> },
-  { value: 'mobile', label: devices.mobile.label, icon: <Smartphone /> },
-];
 
 const vendorKindLabels: Record<VendorKind, string> = { st: 'ST', tt: 'TT' };
 
@@ -60,14 +57,19 @@ export function Workbench({
   showViewTabs = true,
   initialDevice = 'desktop',
 }: WorkbenchProps) {
+  const m = useMessages(workbenchMessages);
   const deviceId = useDevice();
+  const deviceOptions: SegmentedOption<DeviceId>[] = [
+    { value: 'desktop', label: m.device.desktop, icon: <Monitor /> },
+    { value: 'mobile', label: m.device.mobile, icon: <Smartphone /> },
+  ];
   useEffect(() => void previewSession.selectDevice(initialDevice), [initialDevice]);
   const generation = useViewGeneration();
   const session = useSessionStatus();
 
   return (
     <section
-      aria-label="工作台"
+      aria-label={m.workbench}
       className="flex h-full min-w-0 flex-col overflow-hidden rounded-xl bg-surface shadow-panel"
     >
       <Tabs
@@ -79,41 +81,42 @@ export function Workbench({
       >
         <header
           data-density="compact"
-          className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-2.5"
+          className="flex h-12 shrink-0 items-center gap-1.5 border-b border-line px-2.5 md:gap-2"
         >
           {leading}
           <Suspense fallback={<ProjectButton />}>
             <ProjectMenu />
           </Suspense>
           {showViewTabs && (
-            <TabsList label="视图">
+            <TabsList label={m.views}>
               <Tab value="preview">
                 <Eye />
-                预览
+                {m.preview}
               </Tab>
               <Tab value="code">
                 <Code2 />
-                代码
+                {m.code}
               </Tab>
             </TabsList>
           )}
-          <div className="ml-auto flex items-center gap-1.5">
+          <div className="ml-auto flex items-center gap-1 md:gap-1.5">
             <AdoptionButton />
             <ExportButton />
             {view === 'preview' && (
               <>
                 <VendorSwitch session={session} />
                 <SegmentedControl
-                  label="设备"
+                  label={m.devices}
                   value={deviceId}
                   options={deviceOptions}
+                  iconsWhenNarrow
                   onChange={(id) => void previewSession.selectDevice(id)}
                 />
-                <Tooltip content="重新载入预览">
+                <Tooltip content={m.reloadPreview}>
                   <Button
                     variant="ghost"
                     icon
-                    aria-label="重新载入预览"
+                    aria-label={m.reloadPreview}
                     disabled={session.phase !== 'open'}
                     onClick={() => void previewSession.reload()}
                   >
@@ -143,6 +146,7 @@ export function Workbench({
  * §3), and a switch opens a new Session, so it waits while one is opening.
  */
 function VendorSwitch({ session }: { session: SessionStatus }) {
+  const m = useMessages(workbenchMessages);
   const { images, selected } = useVendorChoice();
   // One choice per frontend: the last built image of each kind.
   const choices = [...new Map(images.map((image) => [image.kind, image])).values()];
@@ -150,7 +154,7 @@ function VendorSwitch({ session }: { session: SessionStatus }) {
 
   return (
     <SegmentedControl
-      label="前端"
+      label={m.frontends}
       value={selected}
       options={choices.map((image) => ({ value: image.id, label: vendorKindLabels[image.kind] }))}
       disabled={session.phase === 'opening'}

@@ -8,41 +8,39 @@ import {
 } from '@tavern-studio/agent';
 import { clsx } from 'clsx';
 import { Check, ChevronDown, Plus, TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useRef, useState } from 'react';
+import { useId, useRef, useState } from 'react';
+import { common } from '../i18n/common';
+import { useMessages } from '../i18n/messages';
 import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Autocomplete } from '../ui/autocomplete';
 import { Button } from '../ui/button';
-import { DialogContent } from '../ui/dialog';
 import { Field, Input } from '../ui/input';
+import { agentMessages } from './messages';
+import { modelSettingsMessages, type ModelSettingsText } from './model-settings-messages';
 import { updateAgentSettings, useAgentSettings } from './settings';
 
 const CUSTOM = 'custom';
 
-/** The model services the Agent can use, each with the author's own key (docs/Agent.md §2). */
-export function SettingsDialog() {
-  return (
-    <DialogContent
-      size="lg"
-      title="模型"
-      description="Agent 在浏览器里直接请求你配置的模型服务，使用你自己的 API Key。"
-    >
-      <Endpoints />
-    </DialogContent>
-  );
-}
-
-/** Mounted while the dialog is open, so each opening starts from the stored settings. */
-function Endpoints() {
+/**
+ * The model services the Agent can use, each with the author's own key
+ * (docs/Agent.md §2). Mounted while the settings show it, so each opening
+ * starts from the stored settings.
+ */
+export function ModelSettings() {
+  const m = useMessages(modelSettingsMessages);
+  const panel = useMessages(agentMessages);
   const settings = useAgentSettings();
   const rememberId = useId();
   const [editing, setEditing] = useState<Endpoint | undefined>(() =>
-    settings.endpoints.length === 0 ? draft(firstUnused(settings.endpoints)) : undefined,
+    settings.endpoints.length === 0
+      ? draft(firstUnused(settings.endpoints), m.customName)
+      : undefined,
   );
 
   return (
     <>
       {settings.endpoints.length > 0 && (
-        <ul className="flex flex-col gap-1" aria-label="已配置的模型">
+        <ul className="flex flex-col gap-1" aria-label={m.configuredModels}>
           {settings.endpoints.map((endpoint) => {
             const selected = endpoint.id === settings.selected;
             return (
@@ -62,11 +60,11 @@ function Endpoints() {
                   <span className="shrink-0 font-medium">{endpoint.label}</span>
                   <span className="truncate text-muted">{endpoint.model}</span>
                   {!settings.keys[endpoint.id] && (
-                    <span className="ml-auto shrink-0 text-caption text-muted">未填写 Key</span>
+                    <span className="ml-auto shrink-0 text-caption text-muted">{panel.noKey}</span>
                   )}
                 </button>
                 <Button variant="ghost" onClick={() => setEditing(endpoint)}>
-                  编辑
+                  {m.edit}
                 </Button>
               </li>
             );
@@ -83,10 +81,10 @@ function Endpoints() {
       ) : (
         <Button
           className="self-start"
-          onClick={() => setEditing(draft(firstUnused(settings.endpoints)))}
+          onClick={() => setEditing(draft(firstUnused(settings.endpoints), m.customName))}
         >
           <Plus />
-          添加模型服务
+          {m.addService}
         </Button>
       )}
       <div className="flex items-start gap-2.5 rounded-lg bg-sunken p-3">
@@ -100,37 +98,15 @@ function Endpoints() {
         />
         <div className="flex flex-col gap-0.5">
           <label htmlFor={rememberId} className="font-medium">
-            在本机记住 API Key
+            {m.rememberKeys}
           </label>
           <p id={`${rememberId}-hint`} className="text-caption text-pretty text-muted">
-            默认只放在内存里，关闭页面就忘掉。记住后存在浏览器里；预览中运行的扩展和卡片与 Studio
-            同源，也能读到它。建议使用有额度上限的 Key。
+            {m.rememberKeysHint}
           </p>
         </div>
       </div>
-      <StorageUsage />
     </>
   );
-}
-
-/** How much Studio keeps in this browser (docs/Agent.md §1, 存储上限). */
-function StorageUsage() {
-  const [usage, setUsage] = useState<number>();
-  useEffect(() => {
-    void navigator.storage.estimate().then((estimate) => setUsage(estimate.usage));
-  }, []);
-  if (usage === undefined) return null;
-  return (
-    <p className="text-caption text-pretty text-muted">
-      Studio 在这个浏览器里占用 {formatSize(usage)}
-      。只有最近 20 次运行保留截图和长结果；Checkpoint 每个项目最多保留 100 MB，超出时从最早的清理。
-    </p>
-  );
-}
-
-function formatSize(bytes: number): string {
-  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /**
@@ -144,14 +120,17 @@ function firstUnused(endpoints: readonly Endpoint[]): string {
   return unused?.id ?? CUSTOM;
 }
 
-/** A new endpoint from a preset, or an OpenAI-compatible one the author points at. */
-function draft(preset: string): Endpoint {
+/**
+ * A new endpoint from a preset, or an OpenAI-compatible one the author points
+ * at, named `customName` until they rename it.
+ */
+function draft(preset: string, customName: string): Endpoint {
   const base = ENDPOINT_PRESETS.find((candidate) => candidate.id === preset);
   return base
     ? { ...base, model: '' }
     : {
         id: `custom-${crypto.randomUUID().slice(0, 8)}`,
-        label: '自定义',
+        label: customName,
         api: 'openai-completions',
         baseUrl: '',
         model: '',
@@ -169,13 +148,7 @@ type Listing =
   | { state: 'failed'; message: string };
 
 /** Who filled the limits in; undefined once the author sets them. */
-type LimitsFrom = ModelInfo['limitsFrom'] | 'nobody';
-
-const LIMITS_HINT: Record<NonNullable<LimitsFrom>, string> = {
-  service: '上限按服务的模型列表填好了，可以修改。',
-  'pi-ai': '上限按 pi-ai 的模型资料填好了，可以修改。',
-  nobody: '服务和 pi-ai 都没有给出这个模型的上限，这里是默认值，请按服务文档核对。',
-};
+export type LimitsFrom = ModelInfo['limitsFrom'] | 'nobody';
 
 /**
  * What picking a model fills in: what is known of it, and the defaults for
@@ -210,6 +183,8 @@ function EndpointForm({
   apiKey: string;
   onDone: () => void;
 }) {
+  const m = useMessages(modelSettingsMessages);
+  const c = useMessages(common);
   const settings = useAgentSettings();
   const [value, setValue] = useState(endpoint);
   const [key, setKey] = useState(apiKey);
@@ -324,14 +299,14 @@ function EndpointForm({
       }}
     >
       {!known && (
-        <Field label="服务">
+        <Field label={m.service}>
           {(id) => (
             <div className="relative">
               <select
                 id={id}
                 value={custom ? CUSTOM : value.id}
                 onChange={(event) => {
-                  setValue(draft(event.target.value));
+                  setValue(draft(event.target.value, m.customName));
                   setProbe({ state: 'idle' });
                   forgetModels();
                   setLimitsFrom(undefined);
@@ -343,7 +318,7 @@ function EndpointForm({
                     {preset.label}
                   </option>
                 ))}
-                <option value={CUSTOM}>自定义（OpenAI 兼容）</option>
+                <option value={CUSTOM}>{m.customService}</option>
               </select>
               <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-(--size-icon) -translate-y-1/2 text-muted" />
             </div>
@@ -351,7 +326,7 @@ function EndpointForm({
         </Field>
       )}
       {custom && (
-        <Field label="名称">
+        <Field label={m.name}>
           {(id) => (
             <Input
               id={id}
@@ -361,10 +336,7 @@ function EndpointForm({
           )}
         </Field>
       )}
-      <Field
-        label="地址"
-        hint={custom ? 'OpenAI 兼容接口的地址，例如 https://example.com/v1' : undefined}
-      >
+      <Field label={m.baseUrl} hint={custom ? m.baseUrlHint : undefined}>
         {(id) => (
           <Input
             id={id}
@@ -378,7 +350,7 @@ function EndpointForm({
           />
         )}
       </Field>
-      <Field label="API Key">
+      <Field label={m.apiKey}>
         {(id) => (
           <Input
             id={id}
@@ -394,13 +366,13 @@ function EndpointForm({
         )}
       </Field>
       <Field
-        label="模型"
-        hint={
-          listing.state === 'done'
-            ? `服务提供了 ${listing.models.length} 个模型。可以从列表里选，也可以直接填写模型 id。`
-            : '服务方的模型 id。填好地址和 API Key 后，可以从服务获取模型列表。'
+        label={m.model}
+        hint={listing.state === 'done' ? m.modelsListed(listing.models.length) : m.modelHint}
+        error={
+          listing.state === 'failed'
+            ? requestAdvice(listing.message, m, m.listingFailed)
+            : undefined
         }
-        error={listing.state === 'failed' ? probeAdvice(listing.message) : undefined}
       >
         {(id) => (
           <div className="flex gap-2">
@@ -409,7 +381,7 @@ function EndpointForm({
               onValueChange={editModel}
               items={models}
               itemToString={(model) => model.id}
-              empty="没有匹配的模型，也可以直接填写。"
+              empty={m.noMatchingModel}
               open={choosing}
               onOpenChange={setChoosing}
               input={{ id, ref: modelInput, className: 'flex-1' }}
@@ -430,14 +402,15 @@ function EndpointForm({
               disabled={!reachable || listing.state === 'running'}
               onClick={fetchModels}
             >
-              {listing.state === 'running' ? '正在获取…' : '获取模型'}
+              {listing.state === 'running' ? m.fetchingModels : m.fetchModels}
             </Button>
           </div>
         )}
       </Field>
       <div className="flex flex-col gap-1.5">
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="上下文窗口（tokens）">
+        {/* Bottom-aligned, so the fields line up when one label wraps. */}
+        <div className="grid grid-cols-2 items-end gap-3">
+          <Field label={m.contextWindow}>
             {(id) => (
               <Input
                 id={id}
@@ -450,7 +423,7 @@ function EndpointForm({
               />
             )}
           </Field>
-          <Field label="单次输出上限（tokens）">
+          <Field label={m.maxTokens}>
             {(id) => (
               <Input
                 id={id}
@@ -465,60 +438,57 @@ function EndpointForm({
           </Field>
         </div>
         <p className="text-caption text-pretty text-muted">
-          {limitsFrom
-            ? LIMITS_HINT[limitsFrom]
-            : '上下文窗口是模型一次能读的 token 数，单次输出上限是一次回复最多写的 token 数；对话越长，留给回复的越少。'}
+          {limitsFrom ? m.limitsFrom[limitsFrom] : m.limitsHint}
         </p>
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         <Toggle
-          label="会思考（推理模型）"
+          label={m.reasoning}
           checked={value.reasoning}
           onChange={(reasoning) => edit({ reasoning })}
         />
-        <Toggle
-          label="能看图（截图需要）"
-          checked={value.images}
-          onChange={(images) => edit({ images })}
-        />
+        <Toggle label={m.images} checked={value.images} onChange={(images) => edit({ images })} />
       </div>
       {probe.state === 'ok' && (
         <output className="flex items-center gap-1.5 text-caption">
           <Check className="size-3.5" />
-          连接成功。
+          {m.connected}
         </output>
       )}
       {probe.state === 'failed' && (
         <p role="alert" className="flex items-start gap-1.5 text-caption text-pretty text-danger">
           <TriangleAlert className="mt-px size-3.5 shrink-0" />
-          {probeAdvice(probe.message)}
+          {requestAdvice(probe.message, m, m.probeFailed)}
         </p>
       )}
-      <div className="flex justify-end gap-2">
+      {/* Where the actions do not fit beside Remove, they wrap below it, still on the right. */}
+      <div className="flex flex-wrap gap-2">
         {known && (
           <AlertDialog>
             <AlertDialogTrigger
               render={<Button type="button" variant="ghost" className="mr-auto" />}
             >
-              移除
+              {m.remove}
             </AlertDialogTrigger>
             <AlertDialogContent
-              title={`移除 ${endpoint.label}？`}
-              description="它的地址、模型和 API Key 会从 Studio 中删除。对话记录不受影响。"
-              action="移除"
+              title={m.removeTitle(endpoint.label)}
+              description={m.removeDescription}
+              action={m.remove}
               onAction={remove}
             />
           </AlertDialog>
         )}
-        <Button type="button" variant="ghost" onClick={onDone}>
-          取消
-        </Button>
-        <Button type="button" disabled={!complete || probe.state === 'running'} onClick={test}>
-          {probe.state === 'running' ? '正在测试…' : '测试连接'}
-        </Button>
-        <Button type="submit" variant="primary" disabled={!complete}>
-          保存
-        </Button>
+        <div className="ml-auto flex gap-2">
+          <Button type="button" variant="ghost" onClick={onDone}>
+            {c.cancel}
+          </Button>
+          <Button type="button" disabled={!complete || probe.state === 'running'} onClick={test}>
+            {probe.state === 'running' ? m.testing : m.testConnection}
+          </Button>
+          <Button type="submit" variant="primary" disabled={!complete}>
+            {c.save}
+          </Button>
+        </div>
       </div>
     </form>
   );
@@ -555,10 +525,16 @@ function Toggle({
   );
 }
 
-/** A failed probe in the author's terms: a browser that cannot reach the address is a CORS question. */
-function probeAdvice(message: string): string {
-  if (/fetch|network|cors|connection error/i.test(message)) {
-    return `浏览器无法直接访问这个地址（${message}）。服务可能没有返回 CORS 头：换用支持浏览器直连的地址，或经 CORS 中继访问。`;
-  }
-  return message;
+/**
+ * A failed request to the service in the author's terms: a browser that
+ * cannot reach the address is a CORS question; anything else is `failed`
+ * with the error's own message.
+ */
+function requestAdvice(
+  message: string,
+  m: ModelSettingsText,
+  failed: (error: string) => string,
+): string {
+  if (/fetch|network|cors|connection error/i.test(message)) return m.unreachable(message);
+  return failed(message);
 }

@@ -2,7 +2,9 @@ import { clsx } from 'clsx';
 import { X } from 'lucide-react';
 import type { KeyboardEvent, WheelEvent } from 'react';
 import type { Editors, Tab } from '../editor/editors';
+import { useMessages } from '../i18n/messages';
 import { nameOf, parentOf } from '../project/paths';
+import { codeMessages } from './messages';
 
 // A vertical wheel scrolls the strip sideways; it has no room for a scrollbar.
 function onWheel(event: WheelEvent<HTMLDivElement>) {
@@ -23,6 +25,7 @@ export interface FileTabsProps {
  * it, the strip scrolls sideways, and arrow keys move between tabs.
  */
 export function FileTabs({ editors, tabs, active, panel }: FileTabsProps) {
+  const m = useMessages(codeMessages);
   const select = (path: string, element: HTMLElement | undefined) => {
     editors.activate(path);
     element?.focus();
@@ -57,7 +60,7 @@ export function FileTabs({ editors, tabs, active, panel }: FileTabsProps) {
   return (
     <div
       role="tablist"
-      aria-label="打开的文件"
+      aria-label={m.openTabs}
       tabIndex={-1}
       data-density="compact"
       onKeyDown={onKeyDown}
@@ -94,6 +97,7 @@ function FileTab({
   onSelect: (element: HTMLElement) => void;
   onClose: () => void;
 }) {
+  const m = useMessages(codeMessages);
   return (
     <div
       className={clsx(
@@ -135,7 +139,7 @@ function FileTab({
         <button
           type="button"
           tabIndex={-1}
-          aria-label={`关闭 ${tab.path}`}
+          aria-label={m.closeTab(tab.path)}
           onClick={onClose}
           className={clsx(
             'col-start-1 row-start-1 grid size-full cursor-pointer place-items-center rounded-sm text-muted transition-[opacity,background-color] motion-fast-exit group-focus-within/tab:opacity-100 group-focus-within/tab:motion-fast group-hover/tab:opacity-100 group-hover/tab:motion-fast hover:bg-hover hover:text-fg pointer-coarse:opacity-100',

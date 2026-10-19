@@ -1,8 +1,10 @@
 import { clsx } from 'clsx';
 import { useState } from 'react';
+import { useMessages } from '../i18n/messages';
 import { previewSession } from '../preview/session';
 import { useSessionStatus } from '../preview/use-session';
 import type { Device } from '../preview/devices';
+import { workbenchMessages } from './messages';
 import { StartupOverlay } from './startup-overlay';
 
 /**
@@ -11,6 +13,7 @@ import { StartupOverlay } from './startup-overlay';
  * reports APP_READY, then cross-fades with the startup overlay.
  */
 export function PreviewView({ device, scale }: { device: Device; scale: number }) {
+  const m = useMessages(workbenchMessages);
   const session = useSessionStatus();
   const [booted, setBooted] = useState(false);
   const { width, height } = device.viewport;
@@ -39,7 +42,7 @@ export function PreviewView({ device, scale }: { device: Device; scale: number }
           {/* oxlint-disable-next-line react/iframe-missing-sandbox */}
           <iframe
             ref={attach}
-            title="预览"
+            title={m.preview}
             className={clsx(
               'isolate block size-full border-0 transition-opacity motion-slow',
               booted ? 'opacity-100' : 'pointer-events-none opacity-0',

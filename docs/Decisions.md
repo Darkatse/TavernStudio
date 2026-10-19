@@ -38,5 +38,7 @@
 | Studio 不使用 localStorage 和 sessionStorage | 同源代码随时可能清空它们 | 把密钥放在 sessionStorage |
 | IndexedDB 经 idb（约 1 kB）访问 | Studio 的状态以内存为准，界面经各自 store 订阅，用不到 Dexie 的 `liveQuery`。Dexie 在首屏 JS 中占约 30.5 kB（gzip），是首屏预算 200 kB 的六分之一 | Dexie：原先的选择，冲着 `liveQuery` 去的，而这一订阅方式最终没有用上 |
 | zip 用 fflate，按需加载 | 压缩与解压都有，项目归档和扩展 zip 共用一份。归档所在的按需 chunk 约 7.2 kB（gzip），不进首屏 | JSZip：体积大数倍。在浏览器自带的 `CompressionStream('deflate-raw')` 上自写 zip 容器：中央目录、UTF-8 文件名标志和各家压缩工具的变体都要自己处理 |
-| 手动深浅色设置存在 cookie 里，`index.html` 的内联脚本在首帧之前读出 | 它是唯一需要在首帧之前读到的偏好，而 IndexedDB 是异步的，读到之前页面已经按系统配色画了一帧。cookie 是它唯一的存储位置，丢失时只会回到跟随系统 | 存在 IndexedDB，接受首帧闪一下。同时存在 IndexedDB 与 cookie：同一个设置有两份 |
+| 首次渲染之前要读到的偏好存在 cookie 里：深浅色由 `index.html` 的内联脚本在首帧之前读出，界面语言在模块加载时读出 | IndexedDB 是异步的：读到之前，页面已经按系统配色画了一帧，React 也已经渲染了一遍文字。两项共用 `lib/preference-cookie.ts`，cookie 是它们唯一的存储位置，丢失时只会回到跟随系统 | 存在 IndexedDB，接受首帧闪一下，或推迟首次渲染。同时存在 IndexedDB 与 cookie：同一个设置有两份 |
+| 界面文案用自有的类型化消息表：每个功能目录一个 `messages.ts`，中英文并排，经 `useMessages` 取当前语言；不引入 i18n 库 | 只有两种语言，中文没有复数。类型检查保证英文与中文键一一对应、带参数的文案参数一致，不需要另写测试。文案跟着功能的代码按需加载，首屏 JS 离预算只剩几 kB。TT 应用内助手用 ST 的 `translate` 和 JSON 词典，是因为它是 ST 扩展，Studio 没有这层宿主 | i18next 加 react-i18next：首屏多十几 kB（gzip），键默认不受类型检查。Lingui：依赖 SWC 插件，与 rspack 内置的 SWC 版本绑定。Paraglide：多一个编译步骤和 inlang 项目文件。按语言分文件的 JSON 词典：加一条文案要改两处，参数不受检查 |
+| 预览里前端的语言与 Studio 界面的语言无关 | 预览呈现的是作者的作品在真实前端里的样子，前端的语言跟随它自己的设置（ST 读浏览器端状态里的 `language`，否则读 `navigator.language`），与真实部署一致。作者为哪种语言的用户写作，与作者自己用什么语言操作 Studio 是两件事 | Studio 切换语言时同时改预览前端的语言：预览会偏离作者的目标环境，还要往 vendor 的浏览器端状态里写入 |
 | 部署用 Workers Static Assets | Cloudflare 对新项目的推荐方案 | Pages |

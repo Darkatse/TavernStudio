@@ -10,7 +10,7 @@ import {
 import type { Project } from '../project/project';
 import { db } from '../storage/db';
 import { Checkpoints, type RollbackPlan } from './checkpoints';
-import { agentSettings, selectedEndpoint, settingsLoaded } from './settings';
+import { agentSettings, selectedEndpoint, settingsLoaded, type ModelProblem } from './settings';
 
 /** How many of the latest Runs keep their screenshots and long tool results (docs/Agent.md §1). */
 const RUNS_WITH_MEDIA = 20;
@@ -35,8 +35,18 @@ export interface ConversationState {
   /** Guidance the author sent during the Run, waiting for the next request. */
   guidance: readonly string[];
   /** Why the last message could not start a Run, or the record could not be kept. */
-  problem: string | undefined;
+  problem: ConversationProblem | undefined;
 }
+
+/** A step of the conversation whose failure the author is told of. */
+export type ConversationFailure = 'load' | 'start' | 'rollback' | 'prune' | 'save';
+
+/**
+ * What went wrong, as data the interface words in the author's language
+ * (docs/UI.md §6): the model settings a Run cannot start with, or the step
+ * that failed and its error's own message.
+ */
+export type ConversationProblem = ModelProblem | { kind: ConversationFailure; error: string };
 
 /**
  * A project's conversation with the Agent (docs/Agent.md §1): History and
@@ -102,7 +112,7 @@ export class Conversation {
     } catch (error) {
       // A Run must not continue a History it could not read; the conversation stays closed.
       this.#set({
-        problem: `对话记录未能读取：${error instanceof Error ? error.message : String(error)}`,
+        problem: { kind: 'load', error: error instanceof Error ? error.message : String(error) },
       });
     }
   }
@@ -173,7 +183,7 @@ export class Conversation {
         });
       } else {
         // Nothing of the Run reached History, so the Transcript has nowhere to show it.
-        this.#set({ problem: `Agent 未能启动：${reason}` });
+        this.#set({ problem: { kind: 'start', error: reason } });
       }
     } finally {
       cancelAnimationFrame(this.#frame);
@@ -216,7 +226,10 @@ export class Conversation {
       await this.#checkpoints.rollback(id, plan);
     } catch (error) {
       this.#set({
-        problem: `回滚没有完成，可以撤销已还原的部分：${error instanceof Error ? error.message : String(error)}`,
+        problem: {
+          kind: 'rollback',
+          error: error instanceof Error ? error.message : String(error),
+        },
       });
     } finally {
       this.#set({ rollingBack: false });
@@ -232,7 +245,7 @@ export class Conversation {
       }
     } catch (error) {
       this.#set({
-        problem: `Checkpoint 未能清理：${error instanceof Error ? error.message : String(error)}`,
+        problem: { kind: 'prune', error: error instanceof Error ? error.message : String(error) },
       });
     }
   }
@@ -305,7 +318,7 @@ export class Conversation {
   #save(write: () => Promise<unknown>): void {
     this.#saving = this.#saving.then(write).catch((error: unknown) => {
       this.#set({
-        problem: `对话记录未能保存，刷新后会丢失：${error instanceof Error ? error.message : String(error)}`,
+        problem: { kind: 'save', error: error instanceof Error ? error.message : String(error) },
       });
     });
   }

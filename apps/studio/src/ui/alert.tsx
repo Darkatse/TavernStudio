@@ -12,7 +12,7 @@ export interface AlertProps {
   title: string;
   /** What the decision is about, or the error's original text. */
   children?: ReactNode;
-  /** Buttons named for what they do: "重试", "载入新版本". */
+  /** Buttons named for what they do: "Retry", "Load new version". */
   actions?: ReactNode;
 }
 

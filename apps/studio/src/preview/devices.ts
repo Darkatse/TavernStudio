@@ -8,7 +8,6 @@ export type DeviceId = 'desktop' | 'mobile';
  */
 export interface Device {
   id: DeviceId;
-  label: string;
   viewport: { width: number; height: number };
   /** Corner radius of the screen or window, in viewport pixels. */
   cornerRadius: number;
@@ -19,7 +18,6 @@ export interface Device {
 export const devices: Record<DeviceId, Device> = {
   desktop: {
     id: 'desktop',
-    label: '桌面',
     viewport: { width: 1440, height: 900 },
     cornerRadius: 12,
     // The browser Studio runs in, as it is.
@@ -27,7 +25,6 @@ export const devices: Record<DeviceId, Device> = {
   },
   mobile: {
     id: 'mobile',
-    label: '移动',
     viewport: { width: 390, height: 844 },
     cornerRadius: 47,
     identity: {

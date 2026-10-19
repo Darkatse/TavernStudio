@@ -4,6 +4,8 @@ import { EditorView } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
 import { languageOf, phrases } from '../editor/extensions';
 import { studioTheme } from '../editor/theme';
+import { useMessages } from '../i18n/messages';
+import { adoptionMessages } from './messages';
 
 export interface TextDiffProps {
   /** The project's text. */
@@ -17,8 +19,11 @@ export interface TextDiffProps {
 /**
  * Text from the project against the Session's, as one read-only document:
  * `@codemirror/merge`'s unified view, with unchanged stretches folded away.
+ * A change of Studio's language builds it again, with its label and
+ * CodeMirror's words in the new language.
  */
 export function TextDiff({ original, changed, path }: TextDiffProps) {
+  const { changesTo } = useMessages(adoptionMessages);
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const parent = host.current;
@@ -35,7 +40,7 @@ export function TextDiff({ original, changed, path }: TextDiffProps) {
             EditorState.readOnly.of(true),
             EditorView.editable.of(false),
             EditorView.lineWrapping,
-            EditorView.contentAttributes.of({ 'aria-label': `${path} 的修改` }),
+            EditorView.contentAttributes.of({ 'aria-label': changesTo(path) }),
             language,
             phrases,
             studioTheme,
@@ -53,7 +58,7 @@ export function TextDiff({ original, changed, path }: TextDiffProps) {
       gone = true;
       view?.destroy();
     };
-  }, [original, changed, path]);
+  }, [original, changed, path, changesTo]);
 
   return (
     <div ref={host} className="overflow-hidden rounded-lg shadow-[0_0_0_1px_var(--color-line)]" />

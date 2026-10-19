@@ -10,7 +10,7 @@ import {
 import { EditorView } from '@codemirror/view';
 import { sha256, StaleFileError, type ProjectStore } from '@tavern-studio/workspace';
 import { QUIET_WAIT_MS } from '../ui/loading';
-import { languageOf } from './extensions';
+import { languageOf, phrasesNow } from './extensions';
 
 /** Typing pauses this long before the buffer is saved. */
 const SAVE_DELAY_MS = 300;
@@ -175,6 +175,14 @@ export class OpenFile {
     this.path = path;
     const perPath = await fileExtensions(path);
     if (this.path === path) this.#apply({ effects: fileSlot.reconfigure(perPath) });
+  }
+
+  /**
+   * Takes CodeMirror's own words in the language Studio speaks now. Only the
+   * buffer changes; the editors put it into the view.
+   */
+  rephrase(): void {
+    if (this.state) this.state = this.state.update({ effects: phrasesNow() }).state;
   }
 
   /** Closes without saving. */

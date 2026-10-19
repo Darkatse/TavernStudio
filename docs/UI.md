@@ -51,7 +51,7 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 只经 `var()` 读取的 token，例如 diff 和语法高亮，放在 `@theme static` 中：Tailwind 只输出被工具类用到的变量。
 
 深浅色跟随系统，也可以手动切换：
-- 手动设置存在 cookie `studio-scheme` 里，由 `index.html` 的内联脚本在首帧之前读出。它是唯一需要在首帧之前读到的偏好，IndexedDB 来不及应答；cookie 丢失时回到跟随系统。
+- 手动设置存在 cookie `studio-scheme` 里，由 `index.html` 的内联脚本在首帧之前读出，IndexedDB 来不及应答；cookie 丢失时回到跟随系统。界面语言同样存在 cookie 里，见 §6。
 - 切换的瞬间冻结所有过渡，避免逐个元素出现颜色渐变。
 
 ## 4. 动效
@@ -132,3 +132,25 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
   - 脏点与关闭按钮在同一格里交换；
   - 溢出时横向滚动。标签栏放不下细滚动条，所以不显示滚动条：滚轮转为横向，切换标签时滚到可见处。
 - **输入法**：中文输入法组字期间，按 Enter 不发送。
+
+## 6. 文案与本地化
+
+Studio 的界面说中文和英文。
+
+- **语言**：设置里三选一：跟随浏览器、中文、English。跟随浏览器时，取 `navigator.languages` 中第一个 Studio 会说的语言，都不会时用英文。切换立即生效，不重载。手动的选择存在 cookie `studio-locale` 里，首次渲染之前读出，并设置 `<html lang>`（中文为 `zh-CN`），它同时决定中文字形回落到哪种字体。
+- **文案的位置**：每个功能目录有一个 `messages.ts`，用 `defineMessages` 并排写中文和英文。按需加载的部分有自己的文案模块，与它一起加载，例如 `agent/run-messages.ts` 随 Transcript、`agent/model-settings-messages.ts` 随设置对话框，首屏只带首屏的文案。组件经 `useMessages` 取当前语言的文案，渲染之外的代码（如导出结束时的 toast）经 `messagesNow` 取。几处共用的词（取消、关闭、重试……）放在 `i18n/common.ts`。
+- **组件里不写文案**：用户能看到或读屏器能读到的文字，包括 `aria-label`、tooltip、toast、占位文字和 CodeMirror 的界面短语，都来自 `messages.ts`。
+- **两种语言一一对应**：英文必须和中文有相同的键；中文是函数的地方，英文也是函数，参数相同。由类型检查保证，不另写测试。
+- **参数与复数**：带参数的文案写成函数，例如 `deleted: (name: string) => …`。英文的复数用 `plural(count, 'file', 'files')`。数字和大小经 `formatNumber`，按当前语言的 `Intl` 格式输出；时长用 `common.duration`。
+- **错误**：
+  - 预料中、作者要处理的错误，由领域代码抛出带数据的错误（例如归档导入里不合格的路径），界面按当前语言写成句子；
+  - 意料之外的错误，在当前语言的说明之后附上原文。原文是英文，面向维护者，各语言相同。
+- **不翻译的**：
+  - 发给模型的提示词、工具说明和工具结果，保持英文；Agent 的回复跟随作者消息的语言；
+  - 预览里 SillyTavern / TauriTavern 自己的界面，跟随它们自己的语言设置；
+  - 项目文件、样板、文档；
+  - ST、TT、Agent、Checkpoint、Mount 等专有名词，两种语言都照写。
+- **模板**：项目的起始文件用英文写，包括代码注释和 `AGENTS.md`。扩展模板里扩展自己的界面文字，经 SillyTavern 的本地化（manifest 的 `i18n` 与 `getContext().t`）同时给出中文，随预览前端的语言显示，这也是生态里扩展本地化的做法。新项目的默认名称来自 Studio 的文案。
+- **语气**：
+  - 中文：短句，说清下一步该做什么，不用"您"，不用感叹号；
+  - 英文：句首大写（sentence case），平实，不用 "please"，不用感叹号。按钮写动作，如 "Export"、"Roll back to here"。

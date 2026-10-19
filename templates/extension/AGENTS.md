@@ -1,15 +1,18 @@
-# 扩展项目
+# Extension project
 
-这是一个 SillyTavern 扩展，不需要构建，在 SillyTavern 与 TauriTavern 上都能运行。项目根就是扩展根：推到 GitHub 后，可以用仓库地址在 SillyTavern 里安装。
+This is a SillyTavern extension. It needs no build step and runs on both SillyTavern and TauriTavern. The project root is the extension root: push it to GitHub, and SillyTavern can install it from the repository's URL.
 
-`studio.json` 把三个文件挂到 `default-user/extensions/my-extension/`，前端把它当作已安装的第三方扩展 `third-party/my-extension`：
+`studio.json` mounts four files into `default-user/extensions/my-extension/`, where the frontend finds them as the installed third-party extension `third-party/my-extension`:
 
-- `manifest.json`：前端启动时读一次，声明显示名、载入顺序和要载入的 `index.js`、`style.css`。改动后预览重载。
-- `index.js`：扩展的代码，作为 ES module 载入。改动后预览重载。
-- `style.css`：扩展的样式。改动后预览原位换上新样式，不重载。
+- `manifest.json`: read once when the frontend starts. It declares the display name, the loading order, the `index.js` and `style.css` to load, and the translation files under `i18n`. The preview reloads when it changes.
+- `index.js`: the extension's code, loaded as an ES module. The preview reloads when it changes.
+- `style.css`: the extension's styles. The preview swaps them in place, without reloading.
+- `i18n/zh-cn.json`: the Chinese for the extension's text. The preview reloads when it changes.
 
-新增的文件（例如 i18n 或 HTML 模板）要在 `studio.json` 里加一条同样挂到 `default-user/extensions/my-extension/` 下的 Mount，否则预览和导出里都没有它。
+Text the extension shows is written in English and goes through `t` from `SillyTavern.getContext()`, as in `` t`${length} chars` ``. A translation file maps that English to the language's text, with `${0}`, `${1}`, … standing for the values: `"${0} chars": "${0} 字"`. The frontend loads the file for its own language before `index.js` runs, and keeps the English for text the file lacks. To add a language, add its file, map SillyTavern's code for it (such as `zh-tw` or `ja-jp`) to the file under `i18n` in `manifest.json`, and mount the file.
 
-改扩展名时，一起改三条 Mount 里的 `my-extension`、`index.js` 里的 `PREFIX` 和 `style.css` 里的 class 前缀。`SETTINGS_KEY` 是已保存设置的键，发布之后不要再改。
+Any new file, such as an HTML template, needs a Mount into `default-user/extensions/my-extension/` in `studio.json` too; otherwise neither the preview nor the export has it.
 
-导出得到 `my-extension.zip`，解压到 `data/default-user/extensions/` 下就是安装好的扩展。
+To rename the extension, change `my-extension` in every Mount, `PREFIX` in `index.js` and the class prefix in `style.css`. `SETTINGS_KEY` is the key the settings are saved under; don't change it once the extension is published.
+
+Export gives `my-extension.zip`; unzipped into `data/default-user/extensions/`, it is the installed extension.

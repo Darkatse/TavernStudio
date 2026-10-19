@@ -3,6 +3,7 @@
   "mounts": [
     { "from": "manifest.json", "to": "default-user/extensions/my-extension/manifest.json" },
     { "from": "index.js", "to": "default-user/extensions/my-extension/index.js" },
-    { "from": "style.css", "to": "default-user/extensions/my-extension/style.css" }
+    { "from": "style.css", "to": "default-user/extensions/my-extension/style.css" },
+    { "from": "i18n/zh-cn.json", "to": "default-user/extensions/my-extension/i18n/zh-cn.json" }
   ]
 }

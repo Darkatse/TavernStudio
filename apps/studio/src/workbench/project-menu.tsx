@@ -1,18 +1,25 @@
 import { Check, FileDown, FileUp } from 'lucide-react';
 import { useRef, useState } from 'react';
+import { messagesNow, useMessages } from '../i18n/messages';
+import { ArchiveError, exportArchive, importArchive, type ArchiveReason } from '../project/archive';
+import { projectMessages } from '../project/messages';
 import { createFromTemplate, openProject } from '../project/projects';
 import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject, useProjectRecords } from '../project/use-project';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../ui/menu';
 import { showToast } from '../ui/toast';
 import { ProjectButton } from './project-button';
+import { projectMenuMessages, type ProjectMenuText } from './project-menu-messages';
 
-// The archive brings the zip library with it, so it loads as the author heads for the menu.
-const loadArchive = () => import('../project/archive');
-const prefetch = () => void loadArchive();
+// Archives bring the zip library with them, so it loads as the author heads for the menu.
+const prefetch = () => void import('../lib/zip');
 
 /** How many projects the menu lists, the ones opened last. */
 const RECENT = 8;
+/** How many of an archive's unusable paths a failed import names. */
+const LISTED = 5;
+
+type Failure = 'create' | keyof ProjectMenuText['failed'];
 
 /**
  * The project the workbench shows, and the ways to another: start one from a
@@ -20,20 +27,26 @@ const RECENT = 8;
  * as an archive (docs/Architecture.md §6).
  */
 export function ProjectMenu() {
+  const m = useMessages(projectMenuMessages);
+  const { templates } = useMessages(projectMessages);
   const project = useCurrentProject();
   const records = useProjectRecords();
   const picker = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
-  const run = async (failure: string, action: () => Promise<void>) => {
+  // Toasts speak the language of the moment they show, read when they do.
+  const run = async (failure: Failure, action: () => Promise<void>) => {
     setBusy(true);
     try {
       await action();
     } catch (error) {
+      const text = messagesNow(projectMenuMessages);
       showToast({
         kind: 'error',
-        title: failure,
-        description: error instanceof Error ? error.message : String(error),
+        // Creating a project fails the same from the code view; the project's text says it.
+        title:
+          failure === 'create' ? messagesNow(projectMessages).createFailed : text.failed[failure],
+        description: describe(error, text),
       });
     } finally {
       setBusy(false);
@@ -53,12 +66,10 @@ export function ProjectMenu() {
               key={template.folder}
               icon={<template.icon />}
               onClick={() =>
-                void run('项目没能新建', async () =>
-                  openProject(await createFromTemplate(template)),
-                )
+                void run('create', async () => openProject(await createFromTemplate(template)))
               }
             >
-              {template.action}
+              {templates[template.folder].action}
             </MenuItem>
           ))}
           {records.length > 0 && <MenuSeparator />}
@@ -69,7 +80,7 @@ export function ProjectMenu() {
                 key={record.id}
                 icon={open ? <Check /> : <span className="size-(--size-icon)" />}
                 onClick={() => {
-                  if (!open) void run('项目没能打开', () => openProject(record));
+                  if (!open) void run('open', () => openProject(record));
                 }}
               >
                 <span className="truncate">{record.name}</span>
@@ -78,24 +89,25 @@ export function ProjectMenu() {
           })}
           <MenuSeparator />
           <MenuItem icon={<FileUp />} onClick={() => picker.current?.click()}>
-            导入项目…
+            {m.import}
           </MenuItem>
           <MenuItem
             icon={<FileDown />}
             disabled={!project}
             onClick={() => {
               if (!project) return;
-              void run('项目没能导出', async () => {
-                const outcome = await (await loadArchive()).exportArchive(project);
+              void run('export', async () => {
+                const outcome = await exportArchive(project);
                 if (outcome === 'cancelled') return;
+                const text = messagesNow(projectMenuMessages);
                 showToast({
-                  title: outcome === 'saved' ? '项目已保存' : '项目已交给浏览器下载',
-                  description: `${project.record.name}.zip，可在这里导入，或在别处解压编辑。`,
+                  title: outcome === 'saved' ? text.saved : text.downloaded,
+                  description: text.archived(`${project.record.name}.zip`),
                 });
               });
             }}
           >
-            导出项目
+            {m.export}
           </MenuItem>
         </MenuContent>
       </Menu>
@@ -109,13 +121,42 @@ export function ProjectMenu() {
           // The same file can be chosen again after a failed import.
           event.target.value = '';
           if (!file) return;
-          void run('项目没能导入', async () => {
-            const record = await (await loadArchive()).importArchive(file);
+          void run('import', async () => {
+            const record = await importArchive(file);
             await openProject(record);
-            showToast({ title: '项目已导入', description: record.name });
+            showToast({
+              title: messagesNow(projectMenuMessages).imported,
+              description: record.name,
+            });
           });
         }}
       />
     </>
   );
+}
+
+/**
+ * A failure as the author reads it: why an archive cannot become a project,
+ * in their language; anything else in its original words (docs/UI.md §6).
+ */
+function describe(error: unknown, text: ProjectMenuText): string {
+  if (error instanceof ArchiveError) return archiveProblem(error.reason, text.archive);
+  return error instanceof Error ? error.message : String(error);
+}
+
+function archiveProblem(reason: ArchiveReason, text: ProjectMenuText['archive']): string {
+  const list = (items: readonly string[]) => {
+    const listed = items.slice(0, LISTED).join(text.separator);
+    return items.length > LISTED ? text.more(listed, items.length - LISTED) : listed;
+  };
+  switch (reason.kind) {
+    case 'notZip':
+      return text.notZip(reason.detail);
+    case 'notProject':
+      return text.notProject;
+    case 'unsafePaths':
+      return text.unsafePaths(list(reason.paths));
+    case 'caseClash':
+      return text.caseClash(list(reason.pairs.map(([one, other]) => text.pair(one, other))));
+  }
 }

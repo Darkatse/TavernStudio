@@ -1,10 +1,12 @@
 import { clsx } from 'clsx';
 import { ArrowUp, CornerDownRight, Square, TriangleAlert } from 'lucide-react';
 import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { useMessages } from '../i18n/messages';
 import { Button } from '../ui/button';
 import { Tooltip } from '../ui/tooltip';
-import type { Conversation, ConversationState } from './conversation';
-import { selectedEndpoint, useAgentSettings } from './settings';
+import type { Conversation, ConversationProblem, ConversationState } from './conversation';
+import { agentMessages, type AgentText } from './messages';
+import { selectedEndpoint, useAgentSettings, type ModelProblem } from './settings';
 
 /**
  * Where the author writes to the Agent. Enter sends and Shift+Enter breaks
@@ -19,6 +21,7 @@ export function Composer({
   conversation: Conversation | undefined;
   onOpenSettings: () => void;
 }) {
+  const m = useMessages(agentMessages);
   const settings = useAgentSettings();
   const state = useSyncExternalStore(
     conversation?.subscribe ?? noSubscription,
@@ -29,7 +32,7 @@ export function Composer({
   const selected = selectedEndpoint(settings);
   const running = state?.active !== undefined;
   const stop = running && text.trim() === '';
-  const blocked = blockedReason(state, 'problem' in selected ? selected.problem : undefined);
+  const blocked = blockedReason(state, 'problem' in selected ? selected.problem : undefined, m);
 
   const submit = () => {
     const message = text.trim();
@@ -53,13 +56,13 @@ export function Composer({
           className="flex items-start gap-1.5 px-1 text-caption text-pretty text-danger"
         >
           <TriangleAlert className="mt-px size-3.5 shrink-0" />
-          {state.problem}
+          {problemText(state.problem, m)}
         </p>
       )}
       <div className="rounded-xl bg-surface shadow-control transition-shadow motion-fast focus-within:shadow-focus">
         {state && state.guidance.length > 0 && <Guidance items={state.guidance} />}
         <label htmlFor="composer-message" className="sr-only">
-          给 Agent 的消息
+          {m.message}
         </label>
         <textarea
           ref={field}
@@ -67,7 +70,7 @@ export function Composer({
           rows={2}
           value={text}
           disabled={!state?.loaded}
-          placeholder={running ? '补充说明，会在下一步交给 Agent…' : '描述你想要的效果…'}
+          placeholder={running ? m.guidancePlaceholder : m.placeholder}
           onChange={(event) => {
             setText(event.target.value);
             fitToContent(event.target);
@@ -86,10 +89,10 @@ export function Composer({
             <span className="truncate">
               {selected.endpoint
                 ? `${selected.endpoint.label} · ${selected.endpoint.model}`
-                : '未配置模型'}
+                : m.noModel}
             </span>
             {'problem' in selected && selected.endpoint && (
-              <span className="shrink-0 text-fg">· 未填写 Key</span>
+              <span className="shrink-0 text-fg">· {m.noKey}</span>
             )}
           </Button>
           <Explained reason={blocked}>
@@ -98,7 +101,7 @@ export function Composer({
               variant="primary"
               icon
               disabled={!stop && (blocked !== undefined || text.trim() === '')}
-              aria-label={stop ? '停止' : running ? '补充给 Agent' : '发送'}
+              aria-label={stop ? m.stop : running ? m.sendGuidance : m.send}
               onClick={stop ? () => conversation?.cancel() : undefined}
             >
               <SendIcon stop={stop} />
@@ -113,17 +116,34 @@ export function Composer({
 const noSubscription = () => () => {};
 
 /** Why nothing can be sent now; during a Run, Guidance needs no model of its own. */
-function blockedReason(state: ConversationState | undefined, modelProblem: string | undefined) {
-  if (!state) return '打开项目后即可对话';
-  if (!state.loaded) return '对话记录还没有读取';
-  if (!state.active) return modelProblem;
+function blockedReason(
+  state: ConversationState | undefined,
+  modelProblem: ModelProblem | undefined,
+  m: AgentText,
+): string | undefined {
+  if (!state) return m.noProject;
+  if (!state.loaded) return m.notLoaded;
+  if (!state.active && modelProblem) return problemText(modelProblem, m);
   return undefined;
+}
+
+/** A problem in the author's language; an error's own message follows it (docs/UI.md §6). */
+function problemText(problem: ConversationProblem, m: AgentText): string {
+  switch (problem.kind) {
+    case 'no-model':
+      return m.modelMissing;
+    case 'no-key':
+      return m.keyMissing(problem.label);
+    default:
+      return m.failed[problem.kind](problem.error);
+  }
 }
 
 /** Guidance waiting for the Run's next request, so the author sees it was taken. */
 function Guidance({ items }: { items: ConversationState['guidance'] }) {
+  const m = useMessages(agentMessages);
   return (
-    <ul aria-label="待交给 Agent 的补充" className="flex flex-col gap-1 px-3.5 pt-3">
+    <ul aria-label={m.guidance} className="flex flex-col gap-1 px-3.5 pt-3">
       {items.map((item, index) => (
         // oxlint-disable-next-line react/no-array-index-key -- Guidance only grows during a Run.
         <li key={index} className="flex items-center gap-1.5 text-caption text-muted">

@@ -1,4 +1,4 @@
-/* 我的扩展的样式。前端按 manifest.json 的 "css" 载入它；在 Studio 里修改后，预览原位换上新样式，不重载。 */
+/* My Extension's styles. The frontend loads them as manifest.json's "css" says; edited in Studio, they are swapped in place in the preview, without a reload. */
 
 .my-extension-length {
   margin-inline-start: 0.5em;

@@ -14,7 +14,10 @@ import {
   TriangleAlert,
 } from 'lucide-react';
 import { useRef, useState } from 'react';
-import type { Editors } from '../editor/editors';
+import { PathTakenError, UnsavedEditsError, type Editors } from '../editor/editors';
+import { common } from '../i18n/common';
+import type { Locale } from '../i18n/locale';
+import { messagesNow, useMessages } from '../i18n/messages';
 import { mountPointsBySource, usePlacements } from '../project/mount-points';
 import { isWithin, join, nameOf, parentOf, ROOT } from '../project/paths';
 import type { Project } from '../project/project';
@@ -37,12 +40,38 @@ import { PathText } from '../ui/path-text';
 import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { FileRow, type Naming } from './file-row';
-import { buildTree, nameProblem, type TreeNode } from './tree-model';
+import { codeMessages } from './messages';
+import { buildTree, nameProblem, type NameProblem, type TreeNode } from './tree-model';
+
+/** Why a typed name was not taken: the name itself, or what creating or moving ran into. */
+type Problem =
+  NameProblem | { kind: 'unsaved'; path: string } | { kind: 'failed'; message: string };
 
 /** A name being typed: a rename, or a new file or folder. */
-type Editing = { value: string; problem: string | undefined } & (
+type Editing = { value: string; problem: Problem | undefined } & (
   { kind: 'rename'; path: string } | { kind: 'create'; parent: string; folder: boolean }
 );
+
+/** A failed create or rename as a problem with the name; an unexpected one keeps its own words. */
+function problemOf(error: unknown): Problem {
+  if (error instanceof PathTakenError) return { kind: 'taken', name: nameOf(error.path) };
+  if (error instanceof UnsavedEditsError) return { kind: 'unsaved', path: error.path };
+  return { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
+}
+
+/** A problem as a sentence in the language of `words`. */
+function describe(problem: Problem, words: (typeof codeMessages)[Locale]['nameProblem']): string {
+  switch (problem.kind) {
+    case 'taken':
+      return words.taken(problem.name);
+    case 'unsaved':
+      return words.unsaved(nameOf(problem.path));
+    case 'failed':
+      return words.failed(problem.message);
+    default:
+      return words[problem.kind];
+  }
+}
 
 export interface FileTreeProps {
   project: Project;
@@ -64,6 +93,8 @@ const TYPEAHEAD_MS = 500;
  * F2 renames; Delete asks to delete.
  */
 export function FileTree({ project, editors, active, onOpen, onClose }: FileTreeProps) {
+  const m = useMessages(codeMessages);
+  const c = useMessages(common);
   const listing = useProjectFiles(project.store);
   const mountPoints = mountPointsBySource(usePlacements());
   // Empty folders made here. The store lists files, so until a file is
@@ -77,7 +108,10 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const [opened, setOpened] = useState(false);
   const [menu] = useState(() => createMenuHandle<TreeNode>());
   const [contextTarget, setContextTarget] = useState<TreeNode>();
-  const committing = useRef(false);
+  // The typed name has gone to the editors: set while its commit runs and
+  // after it succeeds, until another name starts. The field's blur, as focus
+  // moves to the new file before the field unmounts, must not commit it again.
+  const committed = useRef(false);
   const focusAfterMenu = useRef(true);
   const typed = useRef({ text: '', at: 0 });
   const { listProps, block } = useListHighlight('[role="treeitem"]', { focusRing: true });
@@ -166,6 +200,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const startRename = (node: TreeNode) => {
     if (node.path === ROOT || node.draft) return;
     focusAfterMenu.current = false;
+    committed.current = false;
     setEditing({ kind: 'rename', path: node.path, value: node.name, problem: undefined });
   };
 
@@ -173,6 +208,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
     const parent = node.folder ? node.path : parentOf(node.path);
     if (parent !== ROOT && !expanded.includes(parent)) setExpanded([...expanded, parent]);
     focusAfterMenu.current = false;
+    committed.current = false;
     setEditing({ kind: 'create', parent, folder, value: '', problem: undefined });
   };
 
@@ -188,7 +224,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   };
 
   const commit = async () => {
-    if (!editing || committing.current) return;
+    if (!editing || committed.current) return;
     const parent = editing.kind === 'create' ? editing.parent : parentOf(editing.path);
     const self = editing.kind === 'rename' ? editing.path : undefined;
     if (self !== undefined && editing.value === nameOf(self)) {
@@ -201,7 +237,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
       return;
     }
     const target = join(parent, editing.value);
-    committing.current = true;
+    committed.current = true;
     try {
       if (editing.kind === 'rename') {
         await editors.rename(editing.path, target);
@@ -220,9 +256,8 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
         onOpen(target, true);
       }
     } catch (error) {
-      setEditing({ ...editing, problem: error instanceof Error ? error.message : String(error) });
-    } finally {
-      committing.current = false;
+      committed.current = false;
+      setEditing({ ...editing, problem: problemOf(error) });
     }
   };
 
@@ -233,7 +268,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
     } catch (error) {
       showToast({
         kind: 'error',
-        title: `没能删除 ${node.name}`,
+        title: messagesNow(codeMessages).deleteFailed(node.name),
         description: error instanceof Error ? error.message : String(error),
       });
     }
@@ -245,11 +280,11 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
     if (!editing || !matches) return undefined;
     return {
       value: editing.value,
-      problem: editing.problem,
+      problem: editing.problem && describe(editing.problem, m.nameProblem),
       onChange: (value) => setEditing({ ...editing, value, problem: undefined }),
       onCommit: () => void commit(),
       onCancel: () => {
-        if (!committing.current) {
+        if (!committed.current) {
           stopEditing(editing.kind === 'rename' ? editing.path : editing.parent);
         }
       },
@@ -259,19 +294,19 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const menuItems = (node: TreeNode) => (
     <>
       <MenuItem icon={<FilePlus />} onClick={() => startCreate(node, false)}>
-        新建文件
+        {m.newFile}
       </MenuItem>
       <MenuItem icon={<FolderPlus />} onClick={() => startCreate(node, true)}>
-        新建文件夹
+        {m.newFolder}
       </MenuItem>
       {node.path !== ROOT && (
         <>
           <MenuSeparator />
           <MenuItem icon={<PencilLine />} shortcut="F2" onClick={() => startRename(node)}>
-            重命名
+            {c.rename}
           </MenuItem>
           <MenuItem icon={<Trash2 />} shortcut="Delete" onClick={() => askRemove(node)}>
-            删除…
+            {m.deleteMenuItem}
           </MenuItem>
         </>
       )}
@@ -297,29 +332,29 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
         <h2 className="min-w-0 flex-1 truncate text-caption font-medium text-muted">
           {project.record.name}
         </h2>
-        <Tooltip content="新建文件">
+        <Tooltip content={m.newFile}>
           <Button
             variant="ghost"
             icon
-            aria-label="新建文件"
+            aria-label={m.newFile}
             onClick={() => startCreate(focused, false)}
           >
             <FilePlus />
           </Button>
         </Tooltip>
-        <Tooltip content="新建文件夹">
+        <Tooltip content={m.newFolder}>
           <Button
             variant="ghost"
             icon
-            aria-label="新建文件夹"
+            aria-label={m.newFolder}
             onClick={() => startCreate(focused, true)}
           >
             <FolderPlus />
           </Button>
         </Tooltip>
         {onClose && (
-          <Tooltip content="隐藏文件列表">
-            <Button variant="ghost" icon aria-label="隐藏文件列表" onClick={onClose}>
+          <Tooltip content={m.hideFileList}>
+            <Button variant="ghost" icon aria-label={m.hideFileList} onClick={onClose}>
               <PanelLeftClose />
             </Button>
           </Tooltip>
@@ -330,8 +365,8 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
           <Alert
             kind="error"
             icon={<TriangleAlert />}
-            title="没能列出项目文件"
-            actions={<Button onClick={() => relist(project.store)}>重试</Button>}
+            title={m.listFailed}
+            actions={<Button onClick={() => relist(project.store)}>{c.retry}</Button>}
           >
             {listing.error}
           </Alert>
@@ -341,9 +376,9 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
         <div className="flex flex-1 items-center justify-center p-6">
           <EmptyState
             icon={<FilePlus />}
-            title="项目里还没有文件"
-            description="新建一个文件开始编写，或者让 Agent 来写。"
-            action={<Button onClick={() => startCreate(nodeOf(ROOT), false)}>新建文件</Button>}
+            title={m.noFiles}
+            description={m.noFilesHint}
+            action={<Button onClick={() => startCreate(nodeOf(ROOT), false)}>{m.newFile}</Button>}
           />
         </div>
       ) : (
@@ -361,7 +396,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
             }}
           >
             <div
-              {...tree().getContainerProps('项目文件')}
+              {...tree().getContainerProps(m.projectFiles)}
               {...listProps}
               data-density="compact"
               className="relative p-1 outline-none"
@@ -405,13 +440,9 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
       >
         {removing && (
           <AlertDialogContent
-            title={`删除 ${removing.name}？`}
-            description={
-              removed.length === 0
-                ? '这个文件夹是空的。'
-                : '下列文件会从项目中删除，打开的标签随之关闭，未保存的修改一并丢弃。删除后不能撤销。'
-            }
-            action="删除"
+            title={m.deleteTitle(removing.name)}
+            description={removed.length === 0 ? m.emptyFolder : m.deleteWarning}
+            action={c.delete}
             onAction={() => void remove(removing)}
           >
             {removed.length > 0 && (

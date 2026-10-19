@@ -2,11 +2,34 @@ import { EditorState, type Extension } from '@codemirror/state';
 import { EditorView, keymap } from '@codemirror/view';
 import { sha256, type ProjectStore } from '@tavern-studio/workspace';
 import { useSyncExternalStore } from 'react';
+import { locale, subscribeLocale } from '../i18n/locale';
 import { foldersWithin, isWithin } from '../project/paths';
 import { editing } from './extensions';
 import { OpenFile, type Conflict, type OpenFileHost } from './open-file';
 
 export type { Conflict } from './open-file';
+
+/** Nothing was created or moved: `path` is taken. */
+export class PathTakenError extends Error {
+  override name = 'PathTakenError';
+  readonly path: string;
+
+  constructor(path: string) {
+    super(`${path} already exists`);
+    this.path = path;
+  }
+}
+
+/** Nothing was moved: the open file at `path` has edits that could not be saved. */
+export class UnsavedEditsError extends Error {
+  override name = 'UnsavedEditsError';
+  readonly path: string;
+
+  constructor(path: string) {
+    super(`${path} has edits that are not saved yet, so nothing was moved`);
+    this.path = path;
+  }
+}
 
 /** What a tab shows of an open file. */
 export interface Tab {
@@ -46,7 +69,10 @@ export class Editors implements OpenFileHost {
   #snapshot: EditorsSnapshot = { tabs: [], active: undefined };
   readonly #listeners = new Set<() => void>();
   readonly #extensions: Extension;
+  /** The language the buffers speak CodeMirror's own words in. */
+  #locale = locale();
   readonly #stop: () => void;
+  readonly #stopLocale: () => void;
 
   constructor(store: ProjectStore) {
     this.#store = store;
@@ -70,6 +96,7 @@ export class Editors implements OpenFileHost {
     this.#stop = store.subscribe((paths) => {
       for (const path of paths) void this.#file(path)?.changedInStore();
     });
+    this.#stopLocale = subscribeLocale(this.#relocalize);
     addEventListener('beforeunload', this.#guard);
   }
 
@@ -103,8 +130,7 @@ export class Editors implements OpenFileHost {
   activate(path: string): void {
     const file = this.#file(path);
     if (!file || file === this.#active) return;
-    const view = this.#active && this.viewOf(this.#active);
-    if (this.#active && view) this.#active.scroll = view.scrollSnapshot();
+    this.#keepScroll();
     this.#active = file;
     this.#show();
     this.changed();
@@ -155,22 +181,20 @@ export class Editors implements OpenFileHost {
 
   /** Creates an empty file and opens it. */
   async create(path: string): Promise<void> {
-    if (await this.#store.kind(path)) throw new Error(`${path} already exists`);
+    if (await this.#store.kind(path)) throw new PathTakenError(path);
     await this.#store.write(path, new Uint8Array(), null);
     await this.open(path);
   }
 
   /** Renames a file or a folder. Open buffers are saved first and move along. */
   async rename(from: string, to: string): Promise<void> {
-    if (await this.#store.kind(to)) throw new Error(`${to} already exists`);
+    if (await this.#store.kind(to)) throw new PathTakenError(to);
     const sources = (await this.#store.files('')).filter((path) => isWithin(path, from));
     for (const source of sources) {
       const file = this.#file(source);
       if (!file) continue;
       await file.save();
-      if (file.dirty || file.conflict) {
-        throw new Error(`${source} has edits that are not saved yet, so nothing was moved`);
-      }
+      if (file.dirty || file.conflict) throw new UnsavedEditsError(source);
     }
     for (const source of sources) {
       const target = `${to}${source.slice(from.length)}`;
@@ -202,6 +226,7 @@ export class Editors implements OpenFileHost {
   /** Stops following the project; unsaved edits get one last save. */
   dispose(): void {
     this.#stop();
+    this.#stopLocale();
     removeEventListener('beforeunload', this.#guard);
     for (const file of this.#files) void file.save();
     this.#view?.destroy();
@@ -251,6 +276,37 @@ export class Editors implements OpenFileHost {
     view.setState(file.state);
     if (file.scroll) view.dispatch({ effects: file.scroll });
   }
+
+  /** Remembers where the view is scrolled in the active buffer, before it shows another state. */
+  #keepScroll(): void {
+    const view = this.#active && this.viewOf(this.#active);
+    if (this.#active && view) this.#active.scroll = view.scrollSnapshot();
+  }
+
+  /**
+   * Studio speaks another language: every buffer takes CodeMirror's words in
+   * it, and the view shows the active one again, as a tab switch does. A
+   * dispatch would not do: CodeMirror redraws a view whose phrases change
+   * without telling update listeners, so the buffer would miss the new state.
+   *
+   * Showing the state again remounts an open search panel, which selects its
+   * field; focus goes back to where the language was chosen.
+   */
+  #relocalize = () => {
+    if (locale() === this.#locale) return;
+    this.#locale = locale();
+    const focused = document.activeElement;
+    this.#keepScroll();
+    for (const file of this.#files) file.rephrase();
+    this.#show();
+    if (
+      focused instanceof HTMLElement &&
+      focused.isConnected &&
+      focused !== document.activeElement
+    ) {
+      focused.focus({ preventScroll: true });
+    }
+  };
 
   /** Leaving the page with unsaved edits asks first. */
   #guard = (event: BeforeUnloadEvent) => {

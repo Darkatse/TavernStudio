@@ -1,10 +1,10 @@
-# 主题项目
+# Theme project
 
-这是一个 SillyTavern 主题。`studio.json` 把项目文件挂到 SillyTavern 启动时读取的设置上：
+This is a SillyTavern theme. `studio.json` mounts the project's files onto the settings SillyTavern reads when it starts:
 
-- `theme.json` 是 `power_user` 中属于主题外观的字段。改动会在预览里驱动 SillyTavern 自己的主题控件。
-- `theme.css` 是主题的自定义 CSS，即 `power_user.custom_css`。
+- `theme.json` holds the fields of `power_user` that make up the theme's look. Changing them drives SillyTavern's own theme controls in the preview.
+- `theme.css` is the theme's custom CSS, `power_user.custom_css`.
 
-主题名就是项目名。不要在 `theme.json` 里加 `theme` 键：它表示用户选中了哪个已保存的主题，不属于主题本身。
+The theme takes the project's name. Don't add a `theme` key to `theme.json`: it records which saved theme the user selected, and isn't part of the theme itself.
 
-导出时，两者组装成 SillyTavern 能导入的主题 JSON。
+On export, the two make one theme JSON that SillyTavern can import.

@@ -1,5 +1,7 @@
 import type { JsonValue, Pointer } from '@tavern-studio/workspace';
 import { clsx } from 'clsx';
+import { useMessages } from '../i18n/messages';
+import { adoptionMessages } from './messages';
 
 export interface ValueRow {
   /** The field, relative to the mount point. */
@@ -8,9 +10,9 @@ export interface ValueRow {
   session: JsonValue | undefined;
 }
 
-/** A field's path for reading: its tokens joined by `/`. */
-export function fieldName(pointer: Pointer): string {
-  return pointer.length === 0 ? '（整个值）' : pointer.join('/');
+/** A field's path for reading: its tokens joined by `/`; `whole` when it is the whole value. */
+export function fieldName(pointer: Pointer, whole: string): string {
+  return pointer.length === 0 ? whole : pointer.join('/');
 }
 
 /**
@@ -19,13 +21,14 @@ export function fieldName(pointer: Pointer): string {
  * and the session's as added. A narrow panel stacks each field.
  */
 export function ValueTable({ rows }: { rows: readonly ValueRow[] }) {
+  const m = useMessages(adoptionMessages);
   return (
     <table className="w-full border-separate border-spacing-0 text-caption @max-sm:block">
       <thead className="text-left text-muted @max-sm:sr-only">
         <tr>
-          <th className="pb-1 font-normal">路径</th>
-          <th className="pb-1 font-normal">项目</th>
-          <th className="pb-1 font-normal">会话</th>
+          <th className="pb-1 font-normal">{m.path}</th>
+          <th className="pb-1 font-normal">{m.project}</th>
+          <th className="pb-1 font-normal">{m.session}</th>
         </tr>
       </thead>
       <tbody className="@max-sm:flex @max-sm:flex-col @max-sm:gap-2">
@@ -35,7 +38,7 @@ export function ValueTable({ rows }: { rows: readonly ValueRow[] }) {
               scope="row"
               className="py-0.5 pr-3 text-left align-top font-mono font-normal break-all"
             >
-              {fieldName(row.pointer)}
+              {fieldName(row.pointer, m.wholeValue)}
             </th>
             <td className="py-0.5 pr-1 align-top">
               <Value value={row.project} side="project" />
@@ -51,6 +54,7 @@ export function ValueTable({ rows }: { rows: readonly ValueRow[] }) {
 }
 
 function Value({ value, side }: { value: JsonValue | undefined; side: 'project' | 'session' }) {
+  const m = useMessages(adoptionMessages);
   const removed = side === 'project';
   const text =
     value === undefined ? undefined : typeof value === 'string' ? value : JSON.stringify(value);
@@ -62,10 +66,10 @@ function Value({ value, side }: { value: JsonValue | undefined; side: 'project' 
       )}
     >
       <span aria-hidden="true">{removed ? '−' : '+'}</span>
-      <span className="sr-only">{removed ? '项目：' : '会话：'}</span>
+      <span className="sr-only">{removed ? m.projectValue : m.sessionValue}</span>
       {typeof value === 'string' && isColor(value) && <Swatch color={value} />}
       {text === undefined ? (
-        <span className="font-sans italic">无</span>
+        <span className="font-sans italic">{m.none}</span>
       ) : (
         <span className={clsx('min-w-0 break-all', removed && 'line-through')}>{text}</span>
       )}

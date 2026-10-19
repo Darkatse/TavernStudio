@@ -63,17 +63,25 @@ export function buildTree(
   return nodes;
 }
 
+/** Why a name cannot be used; the tree says it in Studio's language. */
+export type NameProblem =
+  | { kind: 'empty' }
+  | { kind: 'separator' }
+  | { kind: 'dots' }
+  | { kind: 'spaces' }
+  | { kind: 'taken'; name: string };
+
 /** Why `name` cannot be used in `parent`, or undefined when it can. */
 export function nameProblem(
   nodes: ReadonlyMap<string, TreeNode>,
   parent: string,
   name: string,
   self?: string,
-): string | undefined {
-  if (name.trim() === '') return '名称不能为空';
-  if (/[/\\]/.test(name)) return '名称里不能有 / 或 \\';
-  if (name === '.' || name === '..') return '不能用 . 或 .. 作名称';
-  if (name.trim() !== name) return '名称不能以空格开头或结尾';
+): NameProblem | undefined {
+  if (name.trim() === '') return { kind: 'empty' };
+  if (/[/\\]/.test(name)) return { kind: 'separator' };
+  if (name === '.' || name === '..') return { kind: 'dots' };
+  if (name.trim() !== name) return { kind: 'spaces' };
   // Folded case, since a local folder may live on a case-insensitive file system.
   const folded = name.toLowerCase();
   const taken = nodes
@@ -82,5 +90,5 @@ export function nameProblem(
       (child) =>
         child !== self && !nodes.get(child)?.draft && nameOf(child).toLowerCase() === folded,
     );
-  return taken ? `这里已经有名为 ${name} 的文件或文件夹` : undefined;
+  return taken ? { kind: 'taken', name } : undefined;
 }

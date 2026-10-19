@@ -16,13 +16,16 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { memo, useState } from 'react';
-import { formatDuration, useNow } from '../lib/use-now';
+import { common } from '../i18n/common';
+import { messagesNow, useMessages } from '../i18n/messages';
+import { useNow } from '../lib/use-now';
 import { previewCapture, useCaptureShared } from '../preview/capture';
 import { Button } from '../ui/button';
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible';
 import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { Markdown } from './markdown';
+import { runMessages } from './run-messages';
 import { resultsOf, textOf, type RunBlock, type RunStatus } from './runs';
 import { callDetail, callLabel, type CallState } from './tool-labels';
 
@@ -43,6 +46,7 @@ export const RunView = memo(function RunView({
   partial: AssistantMessage | undefined;
   onRollback: (block: RunBlock) => void;
 }) {
+  const m = useMessages(runMessages);
   const [open, setOpen] = useState<boolean>();
   const running = block.status === 'running';
   const expanded = open ?? (running || latest);
@@ -61,11 +65,11 @@ export const RunView = memo(function RunView({
         {/* The Checkpoint before this Run (docs/plan/P1.md): shown on hover, focus and touch. */}
         {block.restorable && (
           <div data-density="compact" className="absolute top-1 right-full mr-1.5">
-            <Tooltip content="回滚到此处" side="top">
+            <Tooltip content={m.rollBackHere} side="top">
               <Button
                 variant="ghost"
                 icon
-                aria-label="回滚到这次运行之前"
+                aria-label={m.rollBackBeforeRun}
                 className="opacity-0 transition-opacity motion-fast group-hover/run:opacity-100 focus-visible:opacity-100 pointer-coarse:opacity-100"
                 onClick={() => onRollback(block)}
               >
@@ -101,30 +105,25 @@ export const RunView = memo(function RunView({
         />
       )}
       {block.status === 'failed' && block.failure && <Failure {...block.failure} />}
-      {block.status === 'cancelled' && (
-        <p className="text-muted">已停止。已经生效的文件修改都保留着。</p>
-      )}
-      {block.status === 'interrupted' && (
-        <p className="text-muted">页面关闭时这次运行还没有结束；没有结果的工具调用不会重新执行。</p>
-      )}
+      {block.status === 'cancelled' && <p className="text-muted">{m.cancelledNote}</p>}
+      {block.status === 'interrupted' && <p className="text-muted">{m.interruptedNote}</p>}
     </section>
   );
 });
 
-/** What the author can do about a failure the Agent can explain; the rest speak for themselves. */
-const FAILURE_ADVICE: Partial<Record<string, string>> = {
-  'agent.output_truncated':
-    '回复写到单次输出上限就停了，其中的工具调用没有执行。对话越长，留给回复的空间越少：可以在「模型」设置里调高单次输出上限，或核对上下文窗口。',
-};
-
-/** A failed Run: the advice when there is one, and the failure as the Agent recorded it. */
+/**
+ * A failed Run: advice when the Agent can explain the failure, and the
+ * failure as the Agent recorded it; the rest speak for themselves.
+ */
 function Failure({ code, message }: { code: string; message: string }) {
-  const advice = FAILURE_ADVICE[code];
+  const m = useMessages(runMessages);
+  const failureAdvice: Partial<Record<string, string>> = m.failureAdvice;
+  const advice = failureAdvice[code];
   return (
     <p className="flex items-start gap-2 text-danger">
       <TriangleAlert className="mt-0.5 size-(--size-icon) shrink-0" />
       <span className="flex flex-col gap-0.5">
-        <span className="text-pretty">运行失败：{advice ?? message}</span>
+        <span className="text-pretty">{m.runFailed(advice ?? message)}</span>
         <span className="text-caption text-pretty text-muted">
           {advice && `${message} `}
           <span className="font-mono">{code}</span>
@@ -141,21 +140,21 @@ const STATUS_ICONS: Partial<Record<RunStatus, { icon: LucideIcon; className: str
   interrupted: { icon: Unplug, className: '' },
 };
 
-/** "工作了 1 分 2 秒 · 5 次调用", ticking while the Run is running. */
+/** "Worked for 1 min 2 s · 5 calls", ticking while the Run is running. */
 function RunBar({ block }: { block: RunBlock }) {
+  const m = useMessages(runMessages);
+  const c = useMessages(common);
   const running = block.status === 'running';
   const now = useNow(running);
   const start = block.startedAt;
   const end = running ? now : block.endedAt;
-  const duration =
-    start !== undefined && end !== undefined ? formatDuration(end - start) : undefined;
+  const duration = start !== undefined && end !== undefined ? c.duration(end - start) : undefined;
   const words: Record<RunStatus, string> = {
-    running: duration ? `工作中 · ${duration}` : '工作中',
-    // A space only between Chinese and a number: "工作了 8 秒", "工作了不到 1 秒".
-    completed: duration ? `工作了${/^\d/.test(duration) ? ' ' : ''}${duration}` : '已完成',
-    failed: '失败',
-    cancelled: '已停止',
-    interrupted: '已中断',
+    running: duration ? m.workingFor(duration) : m.working,
+    completed: duration ? m.workedFor(duration) : m.completed,
+    failed: m.failedStatus,
+    cancelled: m.cancelled,
+    interrupted: m.interrupted,
   };
   const status = STATUS_ICONS[block.status];
   return (
@@ -164,8 +163,8 @@ function RunBar({ block }: { block: RunBlock }) {
       {status && <status.icon className={clsx('size-3.5 shrink-0', status.className)} />}
       <span className="tabular-nums">
         {words[block.status]}
-        {block.toolCalls > 0 && ` · ${block.toolCalls} 次调用`}
-        {block.undone && ' · 已回滚'}
+        {block.toolCalls > 0 && ` · ${m.toolCalls(block.toolCalls)}`}
+        {block.undone && ` · ${m.runUndone}`}
       </span>
       <span className="h-px flex-1 bg-line" />
     </CollapsibleTrigger>
@@ -241,15 +240,16 @@ function Reply({
 }
 
 function Thinking({ text, redacted, live }: { text: string; redacted: boolean; live: boolean }) {
+  const m = useMessages(runMessages);
   return (
     <Collapsible>
       <CollapsibleTrigger className="group flex cursor-pointer items-center gap-1.5 self-start text-caption text-muted transition-colors motion-fast hover:text-fg">
         <ChevronRight className="size-3.5 transition-transform motion-moderate group-data-panel-open:rotate-90 motion-reduce:transition-none" />
-        {live ? '思考中' : '思考过程'}
+        {live ? m.thinking : m.thoughts}
         {live && <LoaderCircle className="size-3 animate-spin" />}
       </CollapsibleTrigger>
       <CollapsiblePanel keepMounted={false} className="pt-1.5 pl-5 text-muted">
-        {redacted ? <p>（思考内容已由服务方加密）</p> : <Markdown text={text} streaming={live} />}
+        {redacted ? <p>{m.thinkingRedacted}</p> : <Markdown text={text} streaming={live} />}
       </CollapsiblePanel>
     </Collapsible>
   );
@@ -272,6 +272,8 @@ function ToolCallRow({
   result: ToolResultMessage | undefined;
   running: boolean;
 }) {
+  const m = useMessages(runMessages);
+  const c = useMessages(common);
   const state: CallState = result
     ? result.isError
       ? 'failed'
@@ -286,7 +288,7 @@ function ToolCallRow({
       <CollapsibleTrigger className="group -mx-1.5 flex h-7 w-[calc(100%+0.75rem)] cursor-pointer items-center gap-2 rounded-md px-1.5 text-left transition-colors motion-fast hover:bg-hover">
         <Icon className={clsx('size-3.5 shrink-0', className)} />
         <span className={clsx('shrink-0', state === 'failed' && 'text-danger')}>
-          {callLabel(call, state)}
+          {callLabel(call, state, m)}
         </span>
         {detail && (
           <span className="min-w-0 truncate font-mono text-caption text-muted">{detail}</span>
@@ -295,14 +297,14 @@ function ToolCallRow({
           {/* Most calls take milliseconds; only a slow one is worth a duration. */}
           {result?.durationMs !== undefined &&
             result.durationMs >= 1000 &&
-            formatDuration(result.durationMs)}
+            c.duration(result.durationMs)}
         </span>
         <ChevronRight className="size-3.5 shrink-0 text-muted transition-transform motion-moderate group-data-panel-open:rotate-90 motion-reduce:transition-none" />
       </CollapsibleTrigger>
       <CollapsiblePanel keepMounted={false} className="flex flex-col gap-2 pt-1.5 pb-1">
-        <Detail label="参数" text={JSON.stringify(call.arguments, null, 2)} />
+        <Detail label={m.arguments} text={JSON.stringify(call.arguments, null, 2)} />
         {result && (
-          <Detail label={result.isError ? '错误' : '结果'} text={textOf(result.content)} />
+          <Detail label={result.isError ? m.error : m.result} text={textOf(result.content)} />
         )}
       </CollapsiblePanel>
       {result && <Screenshots result={result} />}
@@ -315,6 +317,7 @@ function ToolCallRow({
  * from the DOM says so, and offers the author the accurate way.
  */
 function Screenshots({ result }: { result: ToolResultMessage }) {
+  const m = useMessages(runMessages);
   const [enlarged, setEnlarged] = useState(false);
   const shared = useCaptureShared();
   const images = result.content.filter((part) => part.type === 'image');
@@ -322,7 +325,7 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
   if (images.length === 0) {
     // Only the latest Runs keep their screenshots (docs/Agent.md §1).
     return method === undefined ? null : (
-      <p className="pt-1 pb-1 pl-5 text-caption text-muted">截图已清理，较早的运行不保留截图。</p>
+      <p className="pt-1 pb-1 pl-5 text-caption text-muted">{m.screenshotsCleared}</p>
     );
   }
   const fromDom = method === 'snapdom';
@@ -333,7 +336,7 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
           // oxlint-disable-next-line react/no-array-index-key -- a result's images never change.
           key={index}
           type="button"
-          aria-label={enlarged ? '缩小截图' : '放大截图'}
+          aria-label={enlarged ? m.shrinkScreenshot : m.enlargeScreenshot}
           onClick={() => setEnlarged(!enlarged)}
           className="cursor-zoom-in overflow-hidden rounded-lg shadow-control data-[enlarged]:cursor-zoom-out"
           data-enlarged={enlarged || undefined}
@@ -341,14 +344,14 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
           {/* Studio took this image; it is not model output, so it may load. */}
           <img
             src={`data:${image.mimeType};base64,${image.data}`}
-            alt="预览截图"
+            alt={m.screenshot}
             className={clsx('block w-auto', enlarged ? 'max-w-full' : 'max-h-40')}
           />
         </button>
       ))}
       {fromDom && !shared && previewCapture.supported && (
         <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted">
-          这张截图由页面结构渲染，背景和排版可能失真。
+          {m.renderedScreenshot}
           <Button
             variant="ghost"
             className="h-6 px-1.5 text-caption text-fg"
@@ -358,13 +361,13 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
                 if (error instanceof DOMException && error.name === 'NotAllowedError') return;
                 showToast({
                   kind: 'error',
-                  title: '没能开启精确截图',
+                  title: messagesNow(runMessages).shareCaptureFailed,
                   description: error instanceof Error ? error.message : String(error),
                 });
               });
             }}
           >
-            开启精确截图
+            {m.shareCapture}
           </Button>
         </p>
       )}

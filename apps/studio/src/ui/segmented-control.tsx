@@ -17,6 +17,8 @@ export interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   /** Stretch to the container and split it evenly between options. */
   fill?: boolean;
+  /** On narrow screens, options show only their icons; screen readers still read the labels. */
+  iconsWhenNarrow?: boolean;
   /** Shows the current choice but takes no input, for example while it is being applied. */
   disabled?: boolean;
 }
@@ -28,6 +30,7 @@ export function SegmentedControl<T extends string>({
   options,
   onChange,
   fill = false,
+  iconsWhenNarrow = false,
   disabled = false,
 }: SegmentedControlProps<T>) {
   const group = useRef<HTMLDivElement>(null);
@@ -61,7 +64,7 @@ export function SegmentedControl<T extends string>({
           className={clsx(segmented.item, 'data-checked:text-fg', fill && 'flex-1')}
         >
           {option.icon}
-          {option.label}
+          {iconsWhenNarrow ? <span className="max-md:sr-only">{option.label}</span> : option.label}
         </Radio.Root>
       ))}
     </RadioGroup>

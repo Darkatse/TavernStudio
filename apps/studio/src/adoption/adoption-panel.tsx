@@ -1,6 +1,8 @@
 import { unfence, type Difference, type JsonValue, type Placement } from '@tavern-studio/workspace';
 import { CircleCheck, TriangleAlert, X } from 'lucide-react';
 import { useState } from 'react';
+import { common } from '../i18n/common';
+import { useMessages } from '../i18n/messages';
 import { mountPoint } from '../project/mount-points';
 import type { Project } from '../project/project';
 import { Alert } from '../ui/alert';
@@ -9,6 +11,7 @@ import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
 import { PathText } from '../ui/path-text';
 import { PopoverClose, PopoverTitle } from '../ui/popover';
+import { adoptionMessages } from './messages';
 import { TextDiff } from './text-diff';
 import { fieldName, ValueTable, type ValueRow } from './value-table';
 
@@ -24,6 +27,8 @@ export interface AdoptionPanelProps {
  * again, and the group goes away by itself.
  */
 export function AdoptionPanel({ project, differences }: AdoptionPanelProps) {
+  const m = useMessages(adoptionMessages);
+  const c = useMessages(common);
   const groups = [...Map.groupBy(differences, (difference) => difference.placement)];
 
   return (
@@ -32,20 +37,18 @@ export function AdoptionPanel({ project, differences }: AdoptionPanelProps) {
         data-density="compact"
         className="sticky top-0 z-10 flex items-center gap-2 bg-raised py-2.5 pr-2.5 pl-4"
       >
-        <PopoverTitle className="flex-1 text-subtitle">待采纳的修改</PopoverTitle>
-        <PopoverClose render={<Button variant="ghost" icon aria-label="关闭" />}>
+        <PopoverTitle className="flex-1 text-subtitle">{m.title}</PopoverTitle>
+        <PopoverClose render={<Button variant="ghost" icon aria-label={c.close} />}>
           <X />
         </PopoverClose>
       </header>
       {groups.length === 0 ? (
         <div className="px-4 py-8">
-          <EmptyState icon={<CircleCheck />} title="都处理完了" description="项目与预览一致。" />
+          <EmptyState icon={<CircleCheck />} title={m.allDone} description={m.inSync} />
         </div>
       ) : (
         <>
-          <p className="px-4 pb-3 text-pretty text-muted">
-            这些修改是在预览里做的，目前只在会话中。采纳会写回项目文件；丢弃会让预览回到项目里的内容。
-          </p>
+          <p className="px-4 pb-3 text-pretty text-muted">{m.intro}</p>
           {groups.map(([placement, group]) => (
             <MountPointGroup
               key={mountPoint(placement)}
@@ -69,6 +72,8 @@ function MountPointGroup({
   placement: Placement;
   differences: readonly Difference[];
 }) {
+  const m = useMessages(adoptionMessages);
+  const c = useMessages(common);
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState<{ error: string; retry: () => void }>();
   const [confirming, setConfirming] = useState(false);
@@ -94,17 +99,17 @@ function MountPointGroup({
           <h3 className="font-mono text-caption break-words">
             <PathText path={point} />
           </h3>
-          <p className="text-caption text-muted">来自 {placement.source}</p>
+          <p className="text-caption text-muted">{m.from(placement.source)}</p>
         </div>
         <Button disabled={busy} onClick={() => setConfirming(true)}>
-          丢弃
+          {m.discard}
         </Button>
         <Button
           variant="primary"
           disabled={busy}
           onClick={() => run(() => project.adopt(placement))}
         >
-          采纳
+          {m.adopt}
         </Button>
       </header>
       <Changes placement={placement} differences={differences} />
@@ -112,21 +117,21 @@ function MountPointGroup({
         <Alert
           kind="error"
           icon={<TriangleAlert />}
-          title="没能完成"
-          actions={<Button onClick={failure.retry}>重试</Button>}
+          title={m.failed}
+          actions={<Button onClick={failure.retry}>{c.retry}</Button>}
         >
           {failure.error}
         </Alert>
       )}
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         <AlertDialogContent
-          title="丢弃会话里的修改？"
-          description={`预览会回到 ${placement.source} 的内容，下列修改随之丢失，不能撤销。`}
-          action="丢弃"
+          title={m.discardTitle}
+          description={m.discardWarning(placement.source)}
+          action={m.discard}
           onAction={() => run(() => project.discard(placement))}
         >
           <ul className="flex flex-col gap-1 font-mono text-caption break-words">
-            {lost(placement, differences).map((item) => (
+            {lost(placement, differences, m.wholeValue).map((item) => (
               <li key={item}>
                 <PathText path={item} />
               </li>
@@ -138,12 +143,15 @@ function MountPointGroup({
   );
 }
 
-/** What a discard throws away: the fields of a JSON mount, or the whole text or file. */
-function lost(placement: Placement, differences: readonly Difference[]): string[] {
+/**
+ * What a discard throws away: the fields of a JSON mount, or the whole text
+ * or file. `whole` names a field that is the mount's whole value.
+ */
+function lost(placement: Placement, differences: readonly Difference[], whole: string): string[] {
   if (placement.kind === 'value' && placement.format === 'json') {
     return differences.flatMap((difference) =>
       difference.kind === 'value'
-        ? [fieldName(difference.pointer.slice(placement.pointer.length))]
+        ? [fieldName(difference.pointer.slice(placement.pointer.length), whole)]
         : [],
     );
   }
@@ -159,14 +167,15 @@ function Changes({
   placement: Placement;
   differences: readonly Difference[];
 }) {
+  const m = useMessages(adoptionMessages);
   const [first] = differences;
   if (!first) return null;
 
   if (first.kind === 'file') {
-    if (!first.session) return <Note>预览删除了这个文件。</Note>;
+    if (!first.session) return <Note>{m.fileDeleted}</Note>;
     const original = textOf(first.placement.bytes);
     const changed = textOf(first.session);
-    if (original === undefined || changed === undefined) return <Note>内容不同。</Note>;
+    if (original === undefined || changed === undefined) return <Note>{m.contentsDiffer}</Note>;
     return <TextDiff original={original} changed={changed} path={placement.source} />;
   }
 
@@ -174,7 +183,7 @@ function Changes({
     const { fence } = first.placement;
     const original = valueText(first.project, fence);
     const changed = valueText(first.session, fence);
-    if (changed === undefined) return <Note>预览删除了这个值。</Note>;
+    if (changed === undefined) return <Note>{m.valueDeleted}</Note>;
     return <TextDiff original={original ?? ''} changed={changed} path={placement.source} />;
   }
 

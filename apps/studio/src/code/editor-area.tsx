@@ -1,6 +1,8 @@
 import { Check, FileCode2, FileX2, GitCompareArrows, Link2, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Editors, Tab } from '../editor/editors';
+import { common } from '../i18n/common';
+import { useMessages } from '../i18n/messages';
 import { Alert } from '../ui/alert';
 import { Button } from '../ui/button';
 import { Collapsible, CollapsiblePanel } from '../ui/collapsible';
@@ -8,6 +10,7 @@ import { EmptyState } from '../ui/empty-state';
 import { Tooltip } from '../ui/tooltip';
 import { FileTabs } from './file-tabs';
 import { MountPointList } from './file-row';
+import { codeMessages } from './messages';
 import { nameOf, parentOf } from '../project/paths';
 
 export interface EditorAreaProps {
@@ -35,6 +38,7 @@ export function EditorArea({
   emptyAction,
   panelId,
 }: EditorAreaProps) {
+  const m = useMessages(codeMessages);
   const tab = tabs.find((open) => open.path === active);
 
   return (
@@ -54,12 +58,12 @@ export function EditorArea({
             <SaveStatus tab={tab} />
           </>
         ) : (
-          <span className="text-caption text-muted">未打开文件</span>
+          <span className="text-caption text-muted">{m.noFileOpen}</span>
         )}
       </div>
       <Folding>
         {projectError && (
-          <Alert kind="error" icon={<TriangleAlert />} title="预览没能更新">
+          <Alert kind="error" icon={<TriangleAlert />} title={m.previewFailed}>
             <span className="font-mono text-caption">{projectError}</span>
           </Alert>
         )}
@@ -78,19 +82,15 @@ export function EditorArea({
           <div className="absolute inset-0 grid place-items-center p-6">
             <EmptyState
               icon={<FileCode2 />}
-              title="没有打开的文件"
-              description="从文件列表打开一个文件。改动会自动保存，并即时出现在预览里。"
+              title={m.noOpenFiles}
+              description={m.noOpenFilesHint}
               action={emptyAction}
             />
           </div>
         )}
         {tab && !tab.text && (
           <div className="absolute inset-0 grid place-items-center p-6">
-            <EmptyState
-              icon={<FileX2 />}
-              title="不能以文本打开"
-              description="编辑器只打开 UTF-8 文本文件。这个文件仍会照常挂载到预览里。"
-            />
+            <EmptyState icon={<FileX2 />} title={m.notText} description={m.notTextHint} />
           </div>
         )}
       </div>
@@ -120,13 +120,14 @@ function FilePath({ path }: { path: string }) {
 
 /** Where the file is mounted. In a narrow toolbar it gives way first, down to its icon. */
 function MountPoints({ points }: { points: readonly string[] | undefined }) {
+  const m = useMessages(codeMessages);
   const [first, ...rest] = points ?? [];
   if (first === undefined) return null;
   return (
     <Tooltip content={<MountPointList points={points ?? []} />}>
       <span className="flex min-w-6 shrink-[100] items-center gap-1 overflow-hidden rounded-md bg-sunken py-0.5 pr-1.5 pl-1 text-caption text-muted">
         <Link2 aria-hidden="true" className="size-3.5 shrink-0" />
-        <span className="sr-only">挂载到</span>
+        <span className="sr-only">{m.mountedAt}</span>
         <span className="truncate font-mono">{first}</span>
         {rest.length > 0 && <span className="shrink-0">+{rest.length}</span>}
       </span>
@@ -139,21 +140,22 @@ function MountPoints({ points }: { points: readonly string[] | undefined }) {
  * never show as saving, and while typing it says nothing: the tab's dot does.
  */
 function SaveStatus({ tab }: { tab: Tab }) {
+  const { saveStatus } = useMessages(codeMessages);
   const status = tab.conflict
-    ? { key: 'conflict', icon: <GitCompareArrows />, text: '冲突' }
+    ? { key: 'conflict', icon: <GitCompareArrows />, text: saveStatus.conflict }
     : tab.error
-      ? { key: 'failed', icon: <TriangleAlert className="text-danger" />, text: '保存失败' }
+      ? { key: 'failed', icon: <TriangleAlert className="text-danger" />, text: saveStatus.failed }
       : tab.saving
         ? {
             key: 'saving',
             icon: (
               <span className="size-3 animate-spin rounded-full border-[1.5px] border-line-strong border-t-fg" />
             ),
-            text: '保存中',
+            text: saveStatus.saving,
           }
         : tab.dirty || !tab.text
           ? undefined
-          : { key: 'saved', icon: <Check />, text: '已保存' };
+          : { key: 'saved', icon: <Check />, text: saveStatus.saved };
   return (
     <span className="ml-auto flex shrink-0 items-center text-caption text-muted">
       {status && (
@@ -171,25 +173,25 @@ function SaveStatus({ tab }: { tab: Tab }) {
 
 /** A conflict or a failed save of the shown file, with the ways out. */
 function TabNotice({ editors, tab }: { editors: Editors; tab: Tab }) {
+  const m = useMessages(codeMessages);
+  const c = useMessages(common);
   const name = nameOf(tab.path);
   if (tab.conflict) {
     const removed = tab.conflict.kind === 'removed';
     return (
       <Alert
         icon={<GitCompareArrows />}
-        title={removed ? `${name} 已在别处删除` : `${name} 已在别处修改`}
+        title={removed ? m.deletedElsewhere(name) : m.changedElsewhere(name)}
         actions={
           <>
             <Button onClick={() => editors.takeTheirs(tab.path)}>
-              {removed ? '关闭文件' : '载入新版本'}
+              {removed ? m.closeFile : m.takeTheirs}
             </Button>
-            <Button onClick={() => void editors.keepMine(tab.path)}>保留我的修改</Button>
+            <Button onClick={() => void editors.keepMine(tab.path)}>{m.keepMine}</Button>
           </>
         }
       >
-        {removed
-          ? '编辑器里还有没保存的修改。保留它们会重新创建这个文件。'
-          : '编辑器里还有没保存的修改。载入新版本会替换它们，可以撤销；保留我的修改会覆盖另一处的改动。'}
+        {removed ? m.deletedElsewhereHint : m.changedElsewhereHint}
       </Alert>
     );
   }
@@ -198,8 +200,8 @@ function TabNotice({ editors, tab }: { editors: Editors; tab: Tab }) {
       <Alert
         kind="error"
         icon={<TriangleAlert />}
-        title={`没能保存 ${name}`}
-        actions={<Button onClick={() => void editors.retry(tab.path)}>重试</Button>}
+        title={m.saveFailed(name)}
+        actions={<Button onClick={() => void editors.retry(tab.path)}>{c.retry}</Button>}
       >
         <span className="font-mono text-caption">{tab.error}</span>
       </Alert>

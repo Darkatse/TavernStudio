@@ -8,6 +8,8 @@
  */
 import { AlertDialog as BaseAlertDialog } from '@base-ui/react/alert-dialog';
 import type { ReactNode } from 'react';
+import { common } from '../i18n/common';
+import { useMessages } from '../i18n/messages';
 import { Button } from './button';
 
 export const AlertDialog = BaseAlertDialog.Root;
@@ -19,9 +21,10 @@ export interface AlertDialogContentProps {
   description?: string;
   /** What the action will affect, for example the files a rollback changes. */
   children?: ReactNode;
-  /** The action, named for what it does: "回滚到此处", "丢弃". */
+  /** The action, named for what it does: "Roll back to here", "Discard". */
   action: string;
   onAction: () => void;
+  /** The safe choice; "Cancel" unless the dialog names it otherwise. */
   cancel?: string;
 }
 
@@ -36,8 +39,9 @@ export function AlertDialogContent({
   children,
   action,
   onAction,
-  cancel = '取消',
+  cancel,
 }: AlertDialogContentProps) {
+  const text = useMessages(common);
   return (
     <BaseAlertDialog.Portal>
       {/* iOS Safari: a fixed backdrop leaves a gap under the collapsing toolbar. */}
@@ -58,7 +62,9 @@ export function AlertDialogContent({
             </div>
           )}
           <div className="flex justify-end gap-2">
-            <BaseAlertDialog.Close render={<Button />}>{cancel}</BaseAlertDialog.Close>
+            <BaseAlertDialog.Close render={<Button />}>
+              {cancel ?? text.cancel}
+            </BaseAlertDialog.Close>
             <BaseAlertDialog.Close render={<Button variant="primary" />} onClick={onAction}>
               {action}
             </BaseAlertDialog.Close>
