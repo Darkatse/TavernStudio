@@ -37,5 +37,6 @@
 | 浏览器端状态不进入 Session，换用 vendor 镜像时清理 | 以 vendor 后端契约为界，与真实部署和 PureTavern 一致。同源先后运行不同镜像是 Studio 带来的情况，而状态格式由镜像代码定义：ST 1.19.0 的缩略图缓存是裸 Blob，TT 是对象 | 归 Session 所有、随重置清理，并让 Fixture 携带 storage：要求比真实部署更强的确定性，多出一套机制。在预览 realm 中包装 Storage 与 `indexedDB`、按 vendor 加前缀：改写浏览器 API，偏离生产路径 |
 | Studio 不使用 localStorage 和 sessionStorage | 同源代码随时可能清空它们 | 把密钥放在 sessionStorage |
 | IndexedDB 经 idb（约 1 kB）访问 | Studio 的状态以内存为准，界面经各自 store 订阅，用不到 Dexie 的 `liveQuery`。Dexie 在首屏 JS 中占约 30.5 kB（gzip），是首屏预算 200 kB 的六分之一 | Dexie：原先的选择，冲着 `liveQuery` 去的，而这一订阅方式最终没有用上 |
+| zip 用 fflate，按需加载 | 压缩与解压都有，项目归档和扩展 zip 共用一份。归档所在的按需 chunk 约 7.2 kB（gzip），不进首屏 | JSZip：体积大数倍。在浏览器自带的 `CompressionStream('deflate-raw')` 上自写 zip 容器：中央目录、UTF-8 文件名标志和各家压缩工具的变体都要自己处理 |
 | 手动深浅色设置存在 cookie 里，`index.html` 的内联脚本在首帧之前读出 | 它是唯一需要在首帧之前读到的偏好，而 IndexedDB 是异步的，读到之前页面已经按系统配色画了一帧。cookie 是它唯一的存储位置，丢失时只会回到跟随系统 | 存在 IndexedDB，接受首帧闪一下。同时存在 IndexedDB 与 cookie：同一个设置有两份 |
 | 部署用 Workers Static Assets | Cloudflare 对新项目的推荐方案 | Pages |

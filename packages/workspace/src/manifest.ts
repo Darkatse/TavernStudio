@@ -79,11 +79,16 @@ function parseMount(value: JsonValue, index: number): Mount {
   };
 }
 
-/** A POSIX path below some root: no leading slash, no empty, `.` or `..` segments. */
+/**
+ * A POSIX path below some root: no leading slash, no empty, `.` or `..`
+ * segments, and no control characters, which no file system names a file by.
+ */
 export function isRelativePath(path: string): boolean {
   return (
     path !== '' &&
     !path.includes('\\') &&
+    // oxlint-disable-next-line no-control-regex -- control characters are what this refuses.
+    !/[\u0000-\u001f\u007f]/.test(path) &&
     path.split('/').every((segment) => segment !== '' && segment !== '.' && segment !== '..')
   );
 }

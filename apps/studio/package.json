@@ -32,6 +32,7 @@
     "@tavern-studio/st-data": "workspace:*",
     "@tavern-studio/workspace": "workspace:*",
     "clsx": "^2.1.1",
+    "fflate": "^0.8.3",
     "idb": "^8.0.4",
     "lucide-react": "^1.59.0",
     "marked": "^18.1.1",

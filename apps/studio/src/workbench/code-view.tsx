@@ -1,6 +1,6 @@
 import { FileCode2, Plus } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
-import { createProject, openProject } from '../project/projects';
+import { createFromTemplate, openProject } from '../project/projects';
 import { useCurrentProject } from '../project/use-project';
 import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
@@ -33,7 +33,7 @@ export function CodeView({ shown }: { shown: boolean }) {
               disabled={creating}
               onClick={() => {
                 setCreating(true);
-                void createProject('theme', '我的主题')
+                void createFromTemplate('theme', '我的主题')
                   .then(openProject)
                   .finally(() => setCreating(false));
               }}

@@ -5,7 +5,7 @@ export type { Applied, DataChange, DataReader } from './apply';
 export { bytesEqual, fence, unfence } from './documents';
 export { formatPointer, jsonEqual, parsePointer } from './json';
 export type { JsonValue, Pointer } from './json';
-export { MANIFEST, MountError, parseManifest } from './manifest';
+export { isRelativePath, MANIFEST, MountError, parseManifest } from './manifest';
 export type { Mount, MountPoint, ProjectManifest } from './manifest';
 export { resolveMounts } from './placements';
 export type { FilePlacement, Placement, ProjectReader, ValuePlacement } from './placements';

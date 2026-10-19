@@ -8,8 +8,8 @@ export const DATABASE = 'tavern-studio';
 export interface ProjectRecord {
   id: string;
   name: string;
-  /** The template the project started from. */
-  template: string;
+  /** Where the project's first files came from: a template's name, or `archive` for an imported project. */
+  origin: string;
   createdAt: number;
   openedAt: number;
 }

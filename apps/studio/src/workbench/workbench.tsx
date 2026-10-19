@@ -1,6 +1,6 @@
 import type { VendorKind } from '@tavern-studio/preview';
 import { Code2, Eye, Monitor, RotateCw, Smartphone } from 'lucide-react';
-import { useEffect, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, type ReactNode } from 'react';
 import { previewSession, type SessionStatus } from '../preview/session';
 import {
   useDevice,
@@ -16,7 +16,14 @@ import { AdoptionButton } from './adoption-button';
 import { CodeView } from './code-view';
 import { DeviceStage } from './device-stage';
 import { ExportButton } from './export-button';
+import { ProjectButton } from './project-button';
 import { devices, type DeviceId } from '../preview/devices';
+
+// The menu brings Base UI's Menu, which nothing else on the first screen
+// needs; it loads right after, behind a button that looks the same.
+const ProjectMenu = lazy(() =>
+  import('./project-menu').then((module) => ({ default: module.ProjectMenu })),
+);
 
 export type WorkbenchView = 'preview' | 'code';
 
@@ -75,6 +82,9 @@ export function Workbench({
           className="flex h-12 shrink-0 items-center gap-2 border-b border-line px-2.5"
         >
           {leading}
+          <Suspense fallback={<ProjectButton />}>
+            <ProjectMenu />
+          </Suspense>
           {showViewTabs && (
             <TabsList label="视图">
               <Tab value="preview">
