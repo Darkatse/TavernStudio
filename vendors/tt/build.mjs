@@ -8,13 +8,15 @@
 // Attach, then the module that installs TauriTavern's Web Host.
 //
 // Usage: node vendors/tt/build.mjs <checkout> <commit>
-// Output: vendors/out/__vendor/tt@<version>+<commit>/ and its .json; index.json
-// lists every built image. Exports and installs are cached in vendors/.work/.
+// Output: vendors/out/__vendor/tt@<version>+<commit>/ and its .json, and its
+// anatomy in anatomy/tt@<version>+<commit>/; index.json lists every built
+// image. Exports and installs are cached in vendors/.work/.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { writeAnatomy } from '../lib/anatomy.mjs';
 import { describe, injectAfterBase, OUT, run, shell, WORK, writeIndex } from '../lib/image.mjs';
 
 /** What `pnpm web:build` needs from the repository. */
@@ -68,6 +70,7 @@ async function assemble() {
 await exportCommit();
 buildBundles();
 await assemble();
+await writeAnatomy(image, id);
 const metadata = await describe(image, {
   id,
   kind: 'tt',

@@ -15,6 +15,11 @@ export interface ThemeControl {
   write: { property: string } | { attribute: string };
   /** The event the vendor's handler listens for; null when writing raises it already. */
   dispatch: string | null;
+  /**
+   * The event the handler waits for before it applies the value, such as a
+   * slider's `mouseup`; without it the value is stored but not shown yet.
+   */
+  commit: string | null;
 }
 
 const SETTINGS = 'default-user/settings.json';
@@ -62,8 +67,9 @@ export function hotApply(
           control.write.property === 'checked' ? Boolean(value) : String(value),
       });
     }
-    if (control.dispatch)
-      element.dispatchEvent(new (page as typeof window).Event(control.dispatch, { bubbles: true }));
+    for (const type of [control.dispatch, control.commit]) {
+      if (type) element.dispatchEvent(new (page as typeof window).Event(type, { bubbles: true }));
+    }
   }
   const settings = vendorSettings(page);
   return changes.filter((change) => !jsonEqual(settings?.[themeField(change) ?? ''], change.value));

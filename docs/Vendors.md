@@ -11,7 +11,7 @@ Vendor 镜像是一个前端发行版本的不可变静态文件集，部署在 
 | 注入 | Attach | Attach，加上 Web Host 安装脚本 |
 | API 接入 | ST 接入 | TT host kernel + Web Host |
 
-每个镜像都保留原始文件的 hash 清单，并生成 Vendor 解剖图（见 [Knowledge §1](Knowledge.md#1-内容)）。
+每个镜像都保留原始文件的 hash 清单，并生成 Vendor 解剖图（见 [Knowledge §1](Knowledge.md#1-内容)）。解剖图在 `out/__vendor/anatomy/<id>/`，由镜像构建写出；`pnpm vendor:anatomy [<id>]` 可以不重建镜像而单独重新生成。
 
 ## 2. Session Backend
 

@@ -115,7 +115,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 | 数据路径 | 热应用入口 |
 |---|---|
-| `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• 其余字段用各自的控件 |
+| `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• `font_scale` 等滑块在 `input` 之后还要派发 `mouseup`，否则 CSS 变量等到松手才更新；<br>• 其余字段用各自的控件。<br>之后读回 vendor 内存中的 `power_user` 核对，不一致就报告并重载 |
 | 扩展的 CSS 文件 | 原位替换 `<link id="third-party_<name>-css">` 的 href。不重新插入，以保持层叠顺序 |
 | 扩展的 JS 文件 | 重载 View（ESM 无法卸载） |
 | 酒馆助手脚本：`settings.json` 与角色卡中的 `tavern_helper` 脚本 | TavernHelper 的公开 API `replaceScriptTrees`，只作用于当前角色或预设 |

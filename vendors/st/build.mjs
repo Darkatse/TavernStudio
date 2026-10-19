@@ -6,12 +6,14 @@
 // - Attach is injected once into index.html, right after <base href="/">.
 //
 // Usage: node vendors/st/build.mjs <version>
-// Output: vendors/out/__vendor/st@<version>/ and st@<version>.json; index.json
-// lists every built image. Downloads and installs are cached in vendors/.work/.
+// Output: vendors/out/__vendor/st@<version>/ and st@<version>.json, and its
+// anatomy in anatomy/st@<version>/; index.json lists every built image.
+// Downloads and installs are cached in vendors/.work/.
 
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { writeAnatomy } from '../lib/anatomy.mjs';
 import { describe, injectAfterBase, OUT, run, shell, WORK, writeIndex } from '../lib/image.mjs';
 
 const version = process.argv[2];
@@ -65,6 +67,7 @@ async function assemble(libraryDir) {
 
 await fetchRelease();
 await assemble(await buildLibrary());
+await writeAnatomy(image, id);
 const metadata = await describe(image, {
   id,
   kind: 'st',

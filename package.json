@@ -10,11 +10,12 @@
     "dev": "pnpm --filter @tavern-studio/studio dev",
     "build": "pnpm --filter @tavern-studio/studio build",
     "check": "pnpm run check:types && pnpm run check:lint && pnpm run check:format && pnpm run test && pnpm run build",
-    "check:types": "tsc -p apps/studio && tsc -p apps/studio/tsconfig.node.json && tsc -p packages/st-data && tsc -p packages/backend && tsc -p packages/preview && tsc -p packages/preview/tsconfig.sw.json && tsc -p packages/workspace",
+    "check:types": "tsc -p apps/studio && tsc -p apps/studio/tsconfig.node.json && tsc -p packages/st-data && tsc -p packages/backend && tsc -p packages/preview && tsc -p packages/preview/tsconfig.sw.json && tsc -p packages/workspace && tsc -p packages/agent",
     "check:lint": "oxlint --type-aware --deny-warnings",
     "check:format": "prettier --check .",
     "format": "prettier --write .",
     "test": "rstest run",
+    "vendor:anatomy": "node vendors/anatomy/build.mjs",
     "vendor:st": "node vendors/st/build.mjs",
     "vendor:tt": "node vendors/tt/build.mjs"
   },

@@ -11,9 +11,17 @@ Agent 依据的知识按可靠性排序：与 vendor 版本对应的生成物 > 
 | Skill | 维护者编写，`SKILL.md` 格式 | `skills/` |
 | 知识包 | 上游文档与类型定义，由 CI 打包 | `knowledge/` |
 
-**Vendor 解剖图**按版本生成，是结构化条目，包括：
-- CSS 变量：名称、默认值、所属主题字段、对应的控件 id、说明（取自 i18n 的 `zh-cn.json`）；
-- DOM 地标：主要区域的 id 与类名，以及 body class；
+**Vendor 解剖图**按版本从镜像源码生成（`vendors/lib/anatomy.mjs`），是结构化条目，包括：
+- `theme.json`：`getThemeObject` 的每个主题字段，以及：
+  - 设置它的控件：选择器、写法、要派发的事件，以及处理器等到松手才应用的 `commit` 事件；
+  - 中文标签与说明，取自 i18n 的 `zh-cn.json`；
+  - 它驱动的 CSS 变量和 class。
+  
+  `control: null` 表示热应用没有入口，需要重载。
+- `css-variables.json`：核心样式表 `:root` 中的变量与默认值，经 `fields` 交叉引用到主题字段；
+- `landmarks.json`：
+  - DOM 地标：从 body 出发沿 id 链可达的区域，以及 vendor 克隆用的模板；
+  - 由 `power_user` 切换的 class（按元素）；
 - `eventSource` 事件、`getContext()` 的键；TT 镜像另含 `window.__TAURITAVERN__` ABI；
 - 已安装 JSR 版本的 `@types`；
 - API 索引：由上述类型定义与 `getContext()` 生成的名称、签名和文档，供编辑器补全与悬停使用。Agent 直接读取原始 `.d.ts`。
