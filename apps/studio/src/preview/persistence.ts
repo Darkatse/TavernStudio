@@ -60,45 +60,53 @@ export class SessionPersistence {
 
   async load(): Promise<StoredSession | undefined> {
     await this.#queue;
-    const record = await db.session.get('session');
-    return record && { record, files: await db.sessionFiles.toArray() };
+    const database = await db;
+    const record = await database.get('session', 'session');
+    return record && { record, files: await database.getAll('sessionFiles') };
   }
 
   /** Starts a new persisted Session: its record and every file that differs from the fixture. */
   begin(record: SessionRecord, files: SessionFile[]): Promise<void> {
     this.#failed = false;
-    return this.#enqueue(() =>
-      db.transaction('rw', db.session, db.sessionFiles, async () => {
-        await db.sessionFiles.clear();
-        await db.sessionFiles.bulkPut(files);
-        await db.session.put(record);
-      }),
-    );
+    return this.#enqueue(async () => {
+      const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
+      const stored = tx.objectStore('sessionFiles');
+      await stored.clear();
+      await Promise.all([
+        ...files.map((file) => stored.put(file)),
+        tx.objectStore('session').put(record),
+        tx.done,
+      ]);
+    });
   }
 
   /** A file now holds `content`, or the fixture's own content when undefined. */
   file(path: string, content: Uint8Array | null | undefined): void {
-    void this.#enqueue(() =>
-      content === undefined ? db.sessionFiles.delete(path) : db.sessionFiles.put({ path, content }),
-    );
+    void this.#enqueue(async () => {
+      const database = await db;
+      if (content === undefined) await database.delete('sessionFiles', path);
+      else await database.put('sessionFiles', { path, content });
+    });
   }
 
   placements(placements: readonly Placement[]): void {
-    void this.#enqueue(() => db.session.update('session', { placements }));
+    void this.#enqueue(() => update({ placements }));
   }
 
   webHost(state: Record<string, unknown> | null): void {
-    void this.#enqueue(() => db.session.update('session', { webHost: state }));
+    void this.#enqueue(() => update({ webHost: state }));
   }
 
   /** Discards the persisted Session, so the next one starts from the Snapshot. */
   clear(): Promise<void> {
-    return this.#enqueue(() =>
-      db.transaction('rw', db.session, db.sessionFiles, async () => {
-        await db.sessionFiles.clear();
-        await db.session.clear();
-      }),
-    );
+    return this.#enqueue(async () => {
+      const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
+      await Promise.all([
+        tx.objectStore('sessionFiles').clear(),
+        tx.objectStore('session').clear(),
+        tx.done,
+      ]);
+    });
   }
 
   /** Resolves once every queued write has landed or failed. */
@@ -106,7 +114,7 @@ export class SessionPersistence {
     return this.#queue;
   }
 
-  #enqueue(write: () => Promise<unknown>): Promise<void> {
+  #enqueue(write: () => Promise<void>): Promise<void> {
     const done = this.#queue.then(write).then(
       () => undefined,
       (error: unknown) => {
@@ -117,4 +125,12 @@ export class SessionPersistence {
     this.#queue = done;
     return done;
   }
+}
+
+/** Changes fields of the stored Session record, within one transaction. */
+async function update(change: Partial<SessionRecord>): Promise<void> {
+  const tx = (await db).transaction('session', 'readwrite');
+  const record = await tx.store.get('session');
+  if (record) await tx.store.put({ ...record, ...change });
+  await tx.done;
 }

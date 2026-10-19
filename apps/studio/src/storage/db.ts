@@ -1,8 +1,9 @@
+import type { HistoryEntry, JournalEvent } from '@tavern-studio/agent';
 import type { Placement } from '@tavern-studio/workspace';
-import { Dexie, type EntityTable } from 'dexie';
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 /** Studio's one IndexedDB database (docs/Architecture.md §7). */
-export const DATABASE = 'studio';
+export const DATABASE = 'tavern-studio';
 
 export interface ProjectRecord {
   id: string;
@@ -33,11 +34,63 @@ export interface SessionFile {
   content: Uint8Array | null;
 }
 
-export const db = new Dexie(DATABASE) as Dexie & {
-  projects: EntityTable<ProjectRecord, 'id'>;
-  session: EntityTable<SessionRecord, 'id'>;
-  sessionFiles: EntityTable<SessionFile, 'path'>;
-};
+/** A History entry of a project's conversation with the Agent, in order (docs/Agent.md §1). */
+export interface HistoryRecord extends HistoryEntry {
+  seq?: number;
+  project: string;
+}
 
-db.version(1).stores({ projects: 'id, openedAt' });
-db.version(2).stores({ session: 'id', sessionFiles: 'path' });
+/** A Journal event of a project's conversation, in order. */
+export interface JournalRecord {
+  seq?: number;
+  project: string;
+  event: JournalEvent;
+}
+
+/** A long tool result, read back through the Agent's `tool-results/` root. */
+export interface ToolResultRecord {
+  /** Its path inside `tool-results/`: `<run>/round-NNN-call_<hash>.txt`. */
+  path: string;
+  project: string;
+  text: string;
+}
+
+/** A preference, such as the Agent's model endpoints. */
+export interface PreferenceRecord {
+  key: string;
+  value: unknown;
+}
+
+interface StudioSchema extends DBSchema {
+  projects: { key: string; value: ProjectRecord; indexes: { openedAt: number } };
+  session: { key: string; value: SessionRecord };
+  sessionFiles: { key: string; value: SessionFile };
+  history: { key: number; value: HistoryRecord; indexes: { project: string } };
+  journal: { key: number; value: JournalRecord; indexes: { project: string } };
+  toolResults: { key: string; value: ToolResultRecord; indexes: { project: string } };
+  preferences: { key: string; value: PreferenceRecord };
+}
+
+export type StudioDatabase = IDBPDatabase<StudioSchema>;
+
+/**
+ * The database, opened once. Studio's state lives in memory and reaches the
+ * interface through its own stores, so a thin promise wrapper is all that
+ * IndexedDB needs here (docs/Decisions.md).
+ */
+export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 1, {
+  upgrade(database) {
+    database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
+    database.createObjectStore('session', { keyPath: 'id' });
+    database.createObjectStore('sessionFiles', { keyPath: 'path' });
+    for (const store of ['history', 'journal'] as const) {
+      database
+        .createObjectStore(store, { keyPath: 'seq', autoIncrement: true })
+        .createIndex('project', 'project');
+    }
+    database
+      .createObjectStore('toolResults', { keyPath: 'path' })
+      .createIndex('project', 'project');
+    database.createObjectStore('preferences', { keyPath: 'key' });
+  },
+});

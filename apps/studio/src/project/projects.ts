@@ -31,8 +31,12 @@ export function startStudio(): Promise<void> {
   started ??= (async () => {
     void navigator.storage.persist();
     await previewSession.own();
-    const last = await db.projects.orderBy('openedAt').last();
-    if (last) await openProject(last);
+    const database = await db;
+    const last = await database
+      .transaction('projects')
+      .store.index('openedAt')
+      .openCursor(null, 'prev');
+    if (last) await openProject(last.value);
     else await previewSession.open(DEFAULT_FIXTURE, []);
   })();
   return started;
@@ -46,7 +50,7 @@ export async function createProject(template: string, name: string): Promise<Pro
   for (const [path, bytes] of files) await store.write(path, bytes);
   const now = Date.now();
   const record: ProjectRecord = { id, name, template, createdAt: now, openedAt: now };
-  await db.projects.add(record);
+  await (await db).add('projects', record);
   return record;
 }
 
@@ -56,7 +60,7 @@ export async function openProject(record: ProjectRecord): Promise<void> {
   const project = new Project(record, new ProjectStore(await projectDirectory(record.id)));
   current = project;
   for (const listener of listeners) listener();
-  await db.projects.update(record.id, { openedAt: Date.now() });
+  await (await db).put('projects', { ...record, openedAt: Date.now() });
   await project.start();
 }
 

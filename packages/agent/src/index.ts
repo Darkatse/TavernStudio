@@ -1,6 +1,18 @@
 export { normalizeArguments } from './arguments';
 export { closeToolGroups, keepLatestImages, modelContext } from './context';
+export { ENDPOINT_PRESETS, endpointModel, endpointStreams } from './endpoints';
+export type { Endpoint, EndpointApi } from './endpoints';
 export type { HistoryEntry } from './history';
+// The message types History stores, so that the app depends on pi-ai only through this package.
+export type {
+  AssistantMessage,
+  ImageContent,
+  TextContent,
+  ThinkingContent,
+  ToolCall,
+  ToolResultMessage,
+  UserMessage,
+} from '@earendil-works/pi-ai';
 export { TERMINAL_EVENTS } from './journal';
 export type { JournalEvent } from './journal';
 export type { FileReadState, ReadState } from './read-state';

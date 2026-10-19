@@ -206,7 +206,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | 数据 | 位置 |
 |---|---|
 | 项目文件 | OPFS；本地文件夹项目留在作者的文件系统里 |
-| 项目元数据、本地文件夹的目录句柄、History、Journal、Checkpoint、偏好 | IndexedDB（Dexie，一个库） |
+| 项目元数据、本地文件夹的目录句柄、History、Journal、Checkpoint、偏好 | IndexedDB（一个库，经 idb 访问） |
 | Session 的写入覆盖层与 Web Host 文档 | IndexedDB |
 | Session 子资源 | Cache Storage |
 | vendor 镜像与知识包缓存 | Cache Storage |
@@ -237,7 +237,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - 外壳：React 19 + React Compiler。Compiler 经 Rsbuild 内置 SWC 的 `reactCompiler` 开启，不经过 Babel，与 TT 相同。界面层为 Tailwind v4 + shadcn（Base UI），组件、视觉与动效规则见 [UI](UI.md)。
 - 编辑器：CodeMirror 6，只用它自带的 JS / CSS / HTML 语言支持。补全与悬停读取解剖图里的 API 索引，诊断来自运行时（§5）。浏览器里不运行 TypeScript。
 - 编辑器缓冲区放在 CodeMirror 的 `EditorState` 里，不进 React state。重计算放到 worker。
-- 数据：Dexie，界面经 `liveQuery` 订阅。
+- 数据：IndexedDB 经 idb 访问。Studio 的状态以内存为准，界面经各自 store 的 `useSyncExternalStore` 订阅，IndexedDB 只负责保存。
 
 **框架边界**：只有 `apps/studio` 的外壳使用 React。
 - 进入 vendor 页面的代码不用框架，包括 Attach 和它打包的 ST 接入、诊断收集与 app-use 引擎；Preview SW 也不用。这与 TT 的划分相同：完整的状态型界面用 React root，接入上游 DOM 的部分用原生代码。
