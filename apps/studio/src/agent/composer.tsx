@@ -139,19 +139,16 @@ function Guidance({ items }: { items: ConversationState['guidance'] }) {
 function SendIcon({ stop }: { stop: boolean }) {
   return (
     <span className="grid">
-      <ArrowUp className={swapped(!stop)} data-ending-style={stop ? '' : undefined} />
-      <Square
-        className={clsx(swapped(stop), 'fill-current')}
-        data-ending-style={stop ? undefined : ''}
-      />
+      <ArrowUp className={swapped(!stop)} />
+      <Square className={clsx(swapped(stop), 'fill-current')} />
     </span>
   );
 }
 
 function swapped(shown: boolean): string {
   return clsx(
-    'col-start-1 row-start-1 transition-[opacity,scale] motion-fast',
-    !shown && 'opacity-0 motion-safe:scale-60',
+    'col-start-1 row-start-1 transition-[opacity,scale]',
+    shown ? 'motion-fast' : 'opacity-0 motion-fast-exit motion-safe:scale-60',
   );
 }
 

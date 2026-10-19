@@ -6,4 +6,4 @@
 
 ## theme
 
-SillyTavern 主题：`theme.json` 挂到 `power_user`，`theme.css` 挂到 `power_user.custom_css`。`theme.json` 的字段与取值来自 SillyTavern 1.19.0 的 `getThemeObject`，在 showcase 样板上运行得到，即样板当前外观的完整主题。
+SillyTavern 主题：`theme.json` 挂到 `power_user`，`theme.css` 挂到 `power_user.custom_css`。`theme.json` 的字段与取值来自 SillyTavern 1.19.0 的 `getThemeObject`，在 showcase 样板上运行得到，即样板当前外观的完整主题。只去掉了 `reduced_motion`：它是用户的无障碍偏好，ST 启动时会按系统设置改写；主题拥有它，开了"减少动态效果"的系统上就会平白多出一条待采纳。

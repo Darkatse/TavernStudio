@@ -294,22 +294,25 @@
     }
   }
 
-  [data-density='compact'] {
-    --text-display: 24px;
-    --text-display--line-height: 30px;
-    --text-title: 15px;
-    --text-title--line-height: 20px;
-    --text-subtitle: 13px;
-    --text-subtitle--line-height: 18px;
-    --text-body: 12px;
-    --text-body--line-height: 18px;
-    --text-caption: 11px;
-    --text-caption--line-height: 14px;
-    --text-micro: 10px;
-    --text-micro--line-height: 12px;
+  /* Compact only under a mouse: a finger needs the default size (docs/UI.md §3). */
+  @media (pointer: fine) {
+    [data-density='compact'] {
+      --text-display: 24px;
+      --text-display--line-height: 30px;
+      --text-title: 15px;
+      --text-title--line-height: 20px;
+      --text-subtitle: 13px;
+      --text-subtitle--line-height: 18px;
+      --text-body: 12px;
+      --text-body--line-height: 18px;
+      --text-caption: 11px;
+      --text-caption--line-height: 14px;
+      --text-micro: 10px;
+      --text-micro--line-height: 12px;
 
-    --size-control: 28px;
-    --size-icon: 14px;
+      --size-control: 28px;
+      --size-icon: 14px;
+    }
   }
 
   /* Fewer and gentler, not none: drop movement and scale, keep fades. */
@@ -503,6 +506,17 @@
     transition-duration: var(--motion-slow-exit);
     transition-timing-function: var(--ease-exit);
   }
+}
+
+/*
+ * A tier's exit step, for leaving that Base UI does not mark with
+ * `data-ending-style`, such as the hidden half of an icon swap. Put it on the
+ * state the element leaves into: a transition takes the timing of the state
+ * it goes to.
+ */
+@utility motion-fast-exit {
+  transition-duration: var(--motion-fast-exit);
+  transition-timing-function: var(--ease-exit);
 }
 
 /*

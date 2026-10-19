@@ -306,6 +306,7 @@ export class PreviewSession implements PreviewHost {
   #setPlacements(placements: readonly Placement[]): void {
     this.#placements = placements;
     this.#persistence.placements(placements);
+    for (const listener of this.#listeners) listener();
   }
 
   #write(data: DataDirectory, { writes }: Applied): void {

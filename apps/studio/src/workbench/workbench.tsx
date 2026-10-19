@@ -7,6 +7,7 @@ import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
 import { Tooltip } from '../ui/tooltip';
+import { AdoptionButton } from './adoption-button';
 import { CodeView } from './code-view';
 import { DeviceStage } from './device-stage';
 import { devices, type DeviceId } from './devices';
@@ -79,37 +80,40 @@ export function Workbench({
               </Tab>
             </TabsList>
           )}
-          {view === 'preview' && (
-            <div className="ml-auto flex items-center gap-1.5">
-              <VendorSwitch session={session} />
-              <SegmentedControl
-                label="设备"
-                value={deviceId}
-                options={deviceOptions}
-                onChange={(id) => void previewSession.retireViews().then(() => setDeviceId(id))}
-              />
-              <Tooltip content="重新载入预览">
-                <Button
-                  variant="ghost"
-                  icon
-                  aria-label="重新载入预览"
-                  disabled={session.phase !== 'open'}
-                  onClick={() => void previewSession.reload()}
-                >
-                  <RotateCw
-                    className="transition-[rotate] motion-slow motion-reduce:transition-none"
-                    style={{ rotate: `${generation * 360}deg` }}
-                  />
-                </Button>
-              </Tooltip>
-            </div>
-          )}
+          <div className="ml-auto flex items-center gap-1.5">
+            <AdoptionButton />
+            {view === 'preview' && (
+              <>
+                <VendorSwitch session={session} />
+                <SegmentedControl
+                  label="设备"
+                  value={deviceId}
+                  options={deviceOptions}
+                  onChange={(id) => void previewSession.retireViews().then(() => setDeviceId(id))}
+                />
+                <Tooltip content="重新载入预览">
+                  <Button
+                    variant="ghost"
+                    icon
+                    aria-label="重新载入预览"
+                    disabled={session.phase !== 'open'}
+                    onClick={() => void previewSession.reload()}
+                  >
+                    <RotateCw
+                      className="transition-[rotate] motion-slow motion-reduce:transition-none"
+                      style={{ rotate: `${generation * 360}deg` }}
+                    />
+                  </Button>
+                </Tooltip>
+              </>
+            )}
+          </div>
         </header>
         <TabsPanel value="preview" keepMounted className="flex min-h-0 flex-1">
           <DeviceStage device={devices[deviceId]} generation={generation} />
         </TabsPanel>
         <TabsPanel value="code" keepMounted className="flex min-h-0 flex-1">
-          <CodeView />
+          <CodeView shown={view === 'code'} />
         </TabsPanel>
       </Tabs>
     </section>

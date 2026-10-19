@@ -1,0 +1,215 @@
+import { unfence, type Difference, type JsonValue, type Placement } from '@tavern-studio/workspace';
+import { CircleCheck, TriangleAlert, X } from 'lucide-react';
+import { useState } from 'react';
+import { mountPoint } from '../project/mount-points';
+import type { Project } from '../project/project';
+import { Alert } from '../ui/alert';
+import { AlertDialog, AlertDialogContent } from '../ui/alert-dialog';
+import { Button } from '../ui/button';
+import { EmptyState } from '../ui/empty-state';
+import { PathText } from '../ui/path-text';
+import { PopoverClose, PopoverTitle } from '../ui/popover';
+import { TextDiff } from './text-diff';
+import { fieldName, ValueTable, type ValueRow } from './value-table';
+
+export interface AdoptionPanelProps {
+  project: Project;
+  differences: readonly Difference[];
+}
+
+/**
+ * Session writes on the project's mount points, one group per mount point,
+ * since that is the unit of adopting (docs/Architecture.md §5). Adopting or
+ * discarding changes the project or the Session; the project compares them
+ * again, and the group goes away by itself.
+ */
+export function AdoptionPanel({ project, differences }: AdoptionPanelProps) {
+  const groups = [...Map.groupBy(differences, (difference) => difference.placement)];
+
+  return (
+    <div className="flex flex-col pb-1">
+      <header
+        data-density="compact"
+        className="sticky top-0 z-10 flex items-center gap-2 bg-raised py-2.5 pr-2.5 pl-4"
+      >
+        <PopoverTitle className="flex-1 text-subtitle">待采纳的修改</PopoverTitle>
+        <PopoverClose render={<Button variant="ghost" icon aria-label="关闭" />}>
+          <X />
+        </PopoverClose>
+      </header>
+      {groups.length === 0 ? (
+        <div className="px-4 py-8">
+          <EmptyState icon={<CircleCheck />} title="都处理完了" description="项目与预览一致。" />
+        </div>
+      ) : (
+        <>
+          <p className="px-4 pb-3 text-pretty text-muted">
+            这些修改是在预览里做的，目前只在会话中。采纳会写回项目文件；丢弃会让预览回到项目里的内容。
+          </p>
+          {groups.map(([placement, group]) => (
+            <MountPointGroup
+              key={mountPoint(placement)}
+              project={project}
+              placement={placement}
+              differences={group}
+            />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MountPointGroup({
+  project,
+  placement,
+  differences,
+}: {
+  project: Project;
+  placement: Placement;
+  differences: readonly Difference[];
+}) {
+  const [busy, setBusy] = useState(false);
+  const [failure, setFailure] = useState<{ error: string; retry: () => void }>();
+  const [confirming, setConfirming] = useState(false);
+
+  const run = (action: () => Promise<void>) => {
+    setBusy(true);
+    setFailure(undefined);
+    action()
+      .catch((error: unknown) =>
+        setFailure({
+          error: error instanceof Error ? error.message : String(error),
+          retry: () => run(action),
+        }),
+      )
+      .finally(() => setBusy(false));
+  };
+  const point = mountPoint(placement);
+
+  return (
+    <section aria-label={point} className="flex flex-col gap-2.5 border-t border-line px-4 py-3">
+      <header data-density="compact" className="flex items-start gap-2">
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <h3 className="font-mono text-caption break-words">
+            <PathText path={point} />
+          </h3>
+          <p className="text-caption text-muted">来自 {placement.source}</p>
+        </div>
+        <Button disabled={busy} onClick={() => setConfirming(true)}>
+          丢弃
+        </Button>
+        <Button
+          variant="primary"
+          disabled={busy}
+          onClick={() => run(() => project.adopt(placement))}
+        >
+          采纳
+        </Button>
+      </header>
+      <Changes placement={placement} differences={differences} />
+      {failure && (
+        <Alert
+          kind="error"
+          icon={<TriangleAlert />}
+          title="没能完成"
+          actions={<Button onClick={failure.retry}>重试</Button>}
+        >
+          {failure.error}
+        </Alert>
+      )}
+      <AlertDialog open={confirming} onOpenChange={setConfirming}>
+        <AlertDialogContent
+          title="丢弃会话里的修改？"
+          description={`预览会回到 ${placement.source} 的内容，下列修改随之丢失，不能撤销。`}
+          action="丢弃"
+          onAction={() => run(() => project.discard(placement))}
+        >
+          <ul className="flex flex-col gap-1 font-mono text-caption break-words">
+            {lost(placement, differences).map((item) => (
+              <li key={item}>
+                <PathText path={item} />
+              </li>
+            ))}
+          </ul>
+        </AlertDialogContent>
+      </AlertDialog>
+    </section>
+  );
+}
+
+/** What a discard throws away: the fields of a JSON mount, or the whole text or file. */
+function lost(placement: Placement, differences: readonly Difference[]): string[] {
+  if (placement.kind === 'value' && placement.format === 'json') {
+    return differences.flatMap((difference) =>
+      difference.kind === 'value'
+        ? [fieldName(difference.pointer.slice(placement.pointer.length))]
+        : [],
+    );
+  }
+  return [mountPoint(placement)];
+}
+
+const utf8 = new TextDecoder('utf-8', { fatal: true });
+
+function Changes({
+  placement,
+  differences,
+}: {
+  placement: Placement;
+  differences: readonly Difference[];
+}) {
+  const [first] = differences;
+  if (!first) return null;
+
+  if (first.kind === 'file') {
+    if (!first.session) return <Note>预览删除了这个文件。</Note>;
+    const original = textOf(first.placement.bytes);
+    const changed = textOf(first.session);
+    if (original === undefined || changed === undefined) return <Note>内容不同。</Note>;
+    return <TextDiff original={original} changed={changed} path={placement.source} />;
+  }
+
+  if (first.placement.format === 'text') {
+    const { fence } = first.placement;
+    const original = valueText(first.project, fence);
+    const changed = valueText(first.session, fence);
+    if (changed === undefined) return <Note>预览删除了这个值。</Note>;
+    return <TextDiff original={original ?? ''} changed={changed} path={placement.source} />;
+  }
+
+  const rows = differences.flatMap((difference): ValueRow[] =>
+    difference.kind === 'value'
+      ? [
+          {
+            pointer: difference.pointer.slice(first.placement.pointer.length),
+            project: difference.project,
+            session: difference.session,
+          },
+        ]
+      : [],
+  );
+  return <ValueTable rows={rows} />;
+}
+
+function Note({ children }: { children: string }) {
+  return <p className="rounded-lg bg-sunken px-3 py-2 text-muted">{children}</p>;
+}
+
+function textOf(bytes: Uint8Array): string | undefined {
+  try {
+    return utf8.decode(bytes);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * A text mount's value as the author writes it: inside its code block when
+ * the Mount fences it. A value that is not such a block shows as it is.
+ */
+function valueText(value: JsonValue | undefined, fence: string | undefined): string | undefined {
+  if (value === undefined) return undefined;
+  if (typeof value !== 'string') return JSON.stringify(value, null, 2);
+  return fence === undefined ? value : (unfence(value, fence) ?? value);
+}
