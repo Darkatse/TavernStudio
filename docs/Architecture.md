@@ -25,12 +25,12 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Vendor | 一个前端发行版本，如 `st@1.19.0`、`tt@2.3.0` |
 | Vendor 镜像 | Vendor 的不可变静态文件，加上构建期注入的 Attach，见 [Vendors §1](Vendors.md#1-vendor-镜像) |
 | Device | 视口尺寸与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
-| Fixture（样板） | 一段数据目录：settings、角色、聊天、主题、世界书、扩展设置，以及 TT 的私有文件。可以附带 Replay |
+| Fixture（样板） | 一段 ST 数据目录：settings、角色、聊天、主题、世界书、扩展设置。可以附带 Replay |
 | Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条 |
 | Project | 作者的源文件，加上 `studio.json` |
 | Mount | `studio.json` 里的一条声明：把项目文件映射到数据路径。路径后可以用 `#` 接 JSON Pointer，指向文件里的某个字段 |
 | Snapshot | Fixture 与挂载后的 Project 合成的数据目录，内容寻址，不可变 |
-| Session | Vendor + Snapshot + 会话写入。一个浏览器里同时只有一个 Session |
+| Session | Vendor + Snapshot + 会话写入，以及 Web Host 的持久状态。一个浏览器里同时只有一个 Session |
 | 浏览器端状态 | vendor 及其中运行的代码写入源存储（localStorage、sessionStorage、IndexedDB）的状态。与真实部署一样属于浏览器，不属于 Session |
 | View | Session 在某个 Device 上的一个 iframe。一个 Session 可以有多个 View |
 | Session Backend | 在 Session 数据上实现 ST HTTP API 的 Studio 模块，两种 vendor 共用 |
@@ -39,7 +39,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Web Host | TauriTavern 提供的浏览器宿主实现，是 TT vendor 的 API 接入层，见 [Vendors §3](Vendors.md#3-web-host-契约) |
 | Preview SW | 预览使用的 Service Worker，负责映射 vendor 静态文件、提供数据子资源，不含业务逻辑 |
 
-数据目录布局是 SillyTavern、TauriTavern 后端与 Studio 共同遵守的契约。TT 的私有文件沿用 TT 的布局：`default-user/tauritavern-settings.json` 与 `_tauritavern/`。Studio 不另定数据格式。
+Studio 遵守的数据契约是 SillyTavern 的数据目录布局与 HTTP API：Session 按 ST 的布局保存数据，经 ST HTTP API 提供给两种 vendor。TT 设置只经 Web Host 的命令契约保存（[Vendors §3](Vendors.md#3-web-host-契约)）。TauriTavern 的磁盘布局是它的内部实现，Studio 不依赖。Studio 不另定数据格式。
 
 ## 3. 不变式
 
@@ -153,7 +153,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 **浏览器端状态**
 
-以 vendor 的后端契约为界。经 ST HTTP API 读写的数据和 TT 的私有文件属于 Session。vendor 及其中的扩展、酒馆助手、前端卡和作者脚本留在浏览器里的状态属于浏览器，例如 `language`、输入框草稿、`SillyTavern_*` 缓存库、酒馆助手的面板位置。这与真实部署和 PureTavern 的做法一致：
+以 vendor 的后端契约为界。经 ST HTTP API 读写的数据和 Web Host 的持久状态属于 Session。vendor 及其中的扩展、酒馆助手、前端卡和作者脚本留在浏览器里的状态属于浏览器，例如 `language`、输入框草稿、`SillyTavern_*` 缓存库、酒馆助手的面板位置。这与真实部署和 PureTavern 的做法一致：
 - 不进入 Fixture 和 Snapshot。重载时保留，Session 重置也不清理。
 - 状态格式由 vendor 代码定义，因此跟随 Vendor 镜像：本浏览器换用另一个镜像时，加载前先清理。例如 ST 1.19.0 把背景缩略图缓存存成裸 Blob，TT 存成对象，ST 读到 TT 写下的记录会抛错。切换 Device 和并排显示不清理，因为运行的是同一份代码。
 - 作者可以手动清理，例如给前端卡清档。真实 ST 中清除站点数据即可，Studio 中那样做会连同项目一起删除。

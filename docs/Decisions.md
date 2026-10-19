@@ -10,8 +10,9 @@
 | 热应用只走宿主的公开入口，重载结果为准 | 保证预览走的路径就是发布后的路径 | 注入 Studio 私有的 `<style>`：层叠位置与真实环境不同，而且事实来源变成了被注入的样式 |
 | Mount 是唯一的放置机制，项目类型只是模板 | 一个机制同时负责预览放置、导出组装和会话写入的采纳 | 按项目类型分别实现预览和导出 |
 | TT vendor 经 TauriTavern 自己的 Web Host 运行 | Rust 命令名属于 TT 的 Internal 契约，对它的模拟只能由 TT 维护 | 由 Studio 模拟 TT 命令；或者只加载 TT 的 CSS 再注入平台身份 |
+| Web Host 只覆盖 Studio 的三条路径：启动到聊天、会话写入、Replay 生成 | Studio 不做真实聊天，也不需要同步、agent、MCP、导出等能力。命令清单按这三条路径实测得出，范围外的命令以 `Unsupported` 拒绝，维护面最小 | 在浏览器里完整模拟 TT 的 IPC：大部分命令没有消费者，却要随 TT 的每次改动同步维护 |
 | Web Host 的 ST 数据走 ST HTTP API | 这是现成的公开契约。Session Backend 只需实现一次，两种 vendor 共用 | 为 ST 数据另定一套端口 |
-| TT 私有数据沿用 TT 的数据目录布局，存于 Session | TT 自己就把这些状态存成数据目录下的文件（`default-user/tauritavern-settings.json`、`_tauritavern/`）。进入 Session 后重载不丢失，样板也能直接取自真实的 TT 数据目录 | 由 Web Host 在内存中维护：重载即丢失，违反"重载为准"，还会与 localStorage 里的设置镜像（如 `tt:panelRuntimeProfile`）不一致。存成 ST 的 user files：路径与 TT 不同 |
+| Web Host 按命令契约保存 TT 设置，不复刻原生磁盘布局 | Web Host 必须实现的是 `get/update_tauritavern_settings` 的 DTO。它把 DTO 作为一份不透明文档经 `store` 存于 Session，重载不丢失；默认值由 Rust 生成。原生布局是 Rust 仓储的内部实现：TT 设置分成 `tauritavern-settings.json` 与 `settings/dynamic-theme.json` 两份文件，ST 设置也分段存放，并带有旧布局的迁移。导出走 Studio 自己的 UI，样板也不携带 TT 设置，原生布局在 Studio 一侧没有消费者 | 沿用 TT 的数据目录布局：要在 JS 里重写磁盘布局、迁移和 DTO 映射，TT 的内部存储也会变成跨仓库契约，原生每次存储重构都得同步。此前的理由"样板能直接取自真实 TT 数据目录"不成立，TT 的布局本来就不同于 ST。由 Web Host 在内存中维护：重载即丢失，违反"重载为准"，还会与 localStorage 里的设置镜像（如 `tt:panelRuntimeProfile`）不一致 |
 | Web Host 只模拟真实平台的身份 | 新增 `web` 平台会让每个平台分支和守卫多出一项，而且并不存在"web 版 TT"这个产品 | 新增 `web` 平台 |
 | TT 前端总是运行在宿主之上，原生全局只经 `tauri-bridge.js` 读取 | 宿主边界只剩一个接缝，Web Host 要模拟的也只有这一处。"是否在 TauriTavern 中"由仓库决定，不是运行时才知道的事实 | 各模块各自读取 `window.__TAURI__`；保留以 `__TAURI_RUNNING__` / `isTauri()` 区分 TT 与上游行为的双分支，这会带来静默降级，并让上游修改被合并进死分支 |
 | app-use 引擎运行在被观察页面的 realm 里 | 引擎只保留一种运行模型，`#chat` 滚动和 `app.evaluate` 自然就是对的 | 在父窗口里观察子窗口：会在父 realm 里再加载一份 ST 运行时 |
