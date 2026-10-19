@@ -40,7 +40,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
   - Anthropic 需要带上 `anthropic-dangerous-direct-browser-access`；
   - 基于 new-api / one-api 的中转默认放开所有源；
   - 其余不返回 CORS 的端点，经可自部署的 CORS 中继访问。
-- 图片：OpenAI 兼容格式只接受 user 消息里的图片。因此截图工具只返回文字结果，图片另作为合成的 user 消息注入。
+- 图片：截图作为工具结果里的图片返回。OpenAI 兼容格式只接受 user 消息里的图片，pi-ai 在这类接口上把工具结果里的图片移到紧随其后的 user 消息里，Studio 不另做一套。
 - History 原样保存 pi-ai 的 assistant 消息，各家签名都在里面，回放时原样交回。
   - 签名的编码属于 pi-ai 的内部格式，升级前用录制的 History 做回放测试。
   - 切换模型时，pi-ai 丢弃不能回放的推理；只有 provider、api、model 都相同才算同一模型。所以每个端点配置的 provider id 必须稳定。
@@ -72,7 +72,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 
 | 组 | 工具 | 说明 |
 |---|---|---|
-| 工作区 | `workspace.list_files` `search_files` `read_file` `write_file` `edit_file` | 与 TauriTavern 语义相同。`edit_file` 是精确替换（`old_string` / `new_string` / `replace_all`），TT 中叫 `apply_patch`；Studio 不沿用这个名字，因为它是 GPT 系模型在 Codex 中训练的补丁格式的名字。超过阈值的结果写入 `tool-results/`，模型收到开头的预览和读取指引，规则同 TT |
+| 工作区 | `workspace.list_files` `search_files` `read_file` `write_file` `edit_file` | 与 TauriTavern 语义相同。`edit_file` 是精确替换（`old_string` / `new_string` / `replace_all`），TT 中叫 `apply_patch`；Studio 不沿用这个名字，因为它是 GPT 系模型在 Codex 中训练的补丁格式的名字。所有工具的结果都套用同一个阈值，超过 100,000 字符的写入 `tool-results/`，模型收到开头的预览和读取指引，文案同 TT。阈值高于 `read_file` 单次的最大输出（80,000 字符加行号），所以读回外置的结果不会再被外置；TT 只外置外部工具的结果，阈值为 50,000 |
 | 预览 | `preview.configure` | 切换 Vendor、Device、Fixture |
 | | `preview.reload` | 重载 View |
 | | `preview.capture` | 截图。可选 set-of-marks 编号，编号与 `app.snapshot` 的 ref 对应，并附上关键的计算样式 |

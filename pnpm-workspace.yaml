@@ -1,5 +1,8 @@
 packages:
   - apps/*
   - packages/*
+allowBuilds:
+  '@google/genai': false
+  protobufjs: false
 minimumReleaseAgeExclude:
   - '@tauritavern/app-use@0.1.1'
