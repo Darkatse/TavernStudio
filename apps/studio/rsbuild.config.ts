@@ -39,6 +39,9 @@ export default defineConfig({
         pluginPublished(path.join(repo, 'fixtures'), 'fixtures'),
         pluginPublished(path.join(repo, 'templates'), 'templates'),
         pluginPublished(path.join(repo, 'skills'), 'skills'),
+        // Built by `pnpm knowledge`. A build without it, such as CI's, ships no
+        // pack, and the Agent's knowledge/ says how to build one.
+        pluginPublished(path.join(repo, 'knowledge/out'), 'knowledge'),
       ],
       source: { entry: { index: './src/main.tsx' } },
       // Dev tooling lives under `/__` and hot updates under `/_studio/`, the

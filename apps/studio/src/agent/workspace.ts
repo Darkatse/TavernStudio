@@ -6,7 +6,7 @@ import {
 } from '@tavern-studio/agent';
 import { VENDOR_IMAGES } from '@tavern-studio/preview';
 import { previewSession } from '../preview/session';
-import { getJson } from '../preview/sources';
+import { getJson, loadVendorFiles } from '../preview/sources';
 import { db } from '../storage/db';
 import { loadSkills, skillUrl } from './skills';
 
@@ -14,13 +14,15 @@ const encoder = new TextEncoder();
 
 /**
  * The Agent's view of files (docs/Agent.md §3): the project, writable through
- * the Run's Checkpoint, and read-only beside it the Skills, the frontend the
- * preview runs, and the long results of the Agent's own tool calls.
+ * the Run's Checkpoint, and read-only beside it the Skills, the knowledge
+ * pack, the frontend the preview runs, and the long results of the Agent's
+ * own tool calls.
  */
 export function agentWorkspace(project: string, projectRoot: WorkspaceRoot): AgentWorkspace {
   return {
     project: projectRoot,
     skills: skillsRoot,
+    knowledge: knowledgeRoot,
     vendor: vendorRoot,
     [TOOL_RESULTS_ROOT]: toolResultsRoot(project),
   };
@@ -84,6 +86,48 @@ const skillsRoot = listedRoot(async () => {
   return new Map(entries);
 });
 
+const KNOWLEDGE = '/_studio/knowledge/';
+let knowledge: Promise<Map<string, () => Promise<Uint8Array>>> | undefined;
+
+/**
+ * The knowledge pack (docs/Knowledge.md §1): upstream documents and types,
+ * one directory per source, whose source.json names its repository, version
+ * and license. `pnpm knowledge` builds it; it is listed once.
+ */
+const knowledgeRoot = listedRoot(() => {
+  knowledge ??= knowledgeFiles().catch((error: unknown) => {
+    // A failed load is not kept, so the next call tries again.
+    knowledge = undefined;
+    throw error;
+  });
+  return knowledge;
+});
+
+async function knowledgeFiles(): Promise<Map<string, () => Promise<Uint8Array>>> {
+  const response = await fetch(`${KNOWLEDGE}index.json`);
+  // Studio publishes no index without a pack (apps/studio/build/published.ts).
+  if (response.status === 404) {
+    throw new ToolError(
+      'workspace.knowledge_unavailable',
+      "The knowledge pack has not been built, so knowledge/ is empty: `pnpm knowledge` in Studio's repository builds it.",
+    );
+  }
+  if (!response.ok) throw new Error(`Could not load the knowledge pack: HTTP ${response.status}`);
+  const sources = (await response.json()) as string[];
+  const paths = await Promise.all(
+    sources.map(async (source) => {
+      const { files } = await getJson<{ files: Record<string, unknown> }>(
+        `${KNOWLEDGE}${encodeURIComponent(source)}/index.json`,
+        `knowledge source ${source}`,
+      );
+      return Object.keys(files).map((file) => `${source}/${file}`);
+    }),
+  );
+  return new Map(
+    paths.flat().map((path) => [path, () => fetchBytes(`${KNOWLEDGE}${encodePath(path)}`)]),
+  );
+}
+
 /**
  * The frontend the preview runs (docs/Knowledge.md §1): its anatomy under
  * `anatomy/` and its source under `src/`. It follows the preview to another
@@ -108,16 +152,13 @@ function vendorFiles(id: string): Promise<Map<string, () => Promise<Uint8Array>>
   if (!listing) {
     listing = Promise.all([
       getJson<string[]>(`${VENDOR_IMAGES}anatomy/${id}/index.json`, `the anatomy of ${id}`),
-      getJson<{ files: Record<string, string> }>(
-        `${VENDOR_IMAGES}${id}.json`,
-        `vendor image ${id}`,
-      ),
-    ]).then(([anatomy, image]) => {
+      loadVendorFiles(id),
+    ]).then(([anatomy, source]) => {
       const files = new Map<string, () => Promise<Uint8Array>>();
       for (const file of anatomy) {
         files.set(`anatomy/${file}`, () => fetchBytes(`${VENDOR_IMAGES}anatomy/${id}/${file}`));
       }
-      for (const path of Object.keys(image.files)) {
+      for (const path of source) {
         files.set(`src/${path}`, () => fetchBytes(`${VENDOR_IMAGES}${id}/${encodePath(path)}`));
       }
       return files;

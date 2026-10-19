@@ -15,6 +15,7 @@
     "check:format": "prettier --check .",
     "format": "prettier --write .",
     "test": "rstest run",
+    "knowledge": "node knowledge/build.mjs",
     "vendor:anatomy": "node vendors/anatomy/build.mjs",
     "vendor:st": "node vendors/st/build.mjs",
     "vendor:tt": "node vendors/tt/build.mjs"

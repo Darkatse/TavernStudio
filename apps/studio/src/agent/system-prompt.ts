@@ -20,7 +20,7 @@ export async function systemPrompt(project: Project): Promise<string> {
   ]);
   const sections = [
     `You are the Agent of Tavern Studio, where authors make themes, frontend cards, regex beautification, Tavern Helper scripts and extensions for SillyTavern and TauriTavern. You change the author's project only through its files, and see the result in a live preview of the real frontend. Reply in the language the author writes in.`,
-    `Workspace: project/ holds the author's files and is writable. Read-only beside it: skills/ holds Skills; vendor/ holds the frontend the preview runs, its anatomy generated from its source under vendor/anatomy/ and the source itself under vendor/src/; tool-results/ holds long results of your own tool calls. Read a file with ${modelToolName('workspace.read_file')} before you change it.`,
+    `Workspace: project/ holds the author's files and is writable. Read-only beside it: skills/ holds Skills; knowledge/ holds upstream documentation and type definitions (SillyTavern, Tavern Helper, MVU, the character card specs, TauriTavern), one directory per source, whose source.json names its repository, version and license; vendor/ holds the frontend the preview runs, its anatomy generated from its source under vendor/anatomy/ and the source itself under vendor/src/; tool-results/ holds long results of your own tool calls. Read a file with ${modelToolName('workspace.read_file')} before you change it.`,
     skills.length === 0
       ? undefined
       : `Skills: read a Skill's SKILL.md before work it covers.\n${skills

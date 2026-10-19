@@ -5,3 +5,5 @@ dist/
 *.tsbuildinfo
 vendors/.work/
 vendors/out/
+knowledge/.work/
+knowledge/out/

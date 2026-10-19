@@ -4,11 +4,15 @@ import path from 'node:path';
 import type { RsbuildPlugin } from '@rsbuild/core';
 
 /**
- * Serves every directory under `root` (fixtures/, templates/, skills/) at
- * /_studio/<base>/<name>/, plus an index.json listing each file with its size
- * and SHA-256, and /_studio/<base>/index.json listing the directories. Studio
- * loads such a directory through its index; for a fixture the hash is the
- * file's identity in a Snapshot.
+ * Serves every directory under `root` (fixtures/, templates/, skills/,
+ * knowledge/out/) at /_studio/<base>/<name>/, plus an index.json listing each
+ * file with its size and SHA-256, and /_studio/<base>/index.json listing the
+ * directories. Studio loads such a directory through its index; for a fixture
+ * the hash is the file's identity in a Snapshot.
+ *
+ * A root that does not exist publishes nothing, not even its index, so Studio
+ * fails where it loads it: knowledge/out/ exists once `pnpm knowledge` has
+ * built it, and is published from then on.
  */
 export function pluginPublished(root: string, base: string): RsbuildPlugin {
   return {
@@ -17,6 +21,11 @@ export function pluginPublished(root: string, base: string): RsbuildPlugin {
       api.processAssets(
         { stage: 'additional', environments: ['studio'] },
         ({ compilation, sources }) => {
+          if (!fs.existsSync(root)) {
+            // Compiled again once it appears.
+            compilation.missingDependencies.add(root);
+            return;
+          }
           // The directory for added and removed files, each file for its content.
           compilation.contextDependencies.add(root);
           const directories = fs
