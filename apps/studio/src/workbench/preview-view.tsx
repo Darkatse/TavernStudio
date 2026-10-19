@@ -30,12 +30,13 @@ export function PreviewView({ device, scale }: { device: Device; scale: number }
           style={{ width, height, scale: String(scale) }}
         >
           {/* Unsandboxed on purpose: the vendor page shares Studio's origin (docs/Decisions.md). */}
+          {/* `isolate`: Element Capture only delivers frames for an element with its own stacking context. */}
           {/* oxlint-disable-next-line react/iframe-missing-sandbox */}
           <iframe
             ref={attach}
             title="预览"
             className={clsx(
-              'block size-full border-0 transition-opacity motion-slow',
+              'isolate block size-full border-0 transition-opacity motion-slow',
               booted ? 'opacity-100' : 'pointer-events-none opacity-0',
             )}
           />

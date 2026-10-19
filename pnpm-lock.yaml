@@ -8,6 +8,9 @@ importers:
 
   .:
     devDependencies:
+      '@zumer/snapdom':
+        specifier: ^3.3.5
+        version: 3.3.5
       oxlint:
         specifier: ^1.88.0
         version: 1.88.0(oxlint-tsgolint@7.0.2004)
@@ -684,6 +687,9 @@ packages:
     cpu: [x64]
     os: [win32]
 
+  '@zumer/snapdom@3.3.5':
+    resolution: {integrity: sha512-ACq+jJUArjoOEA36A5Ck0f9UQZ+K2Sty4CRX2LXd1TZHVZTvjISvXg/PTb54Fujjq8EgzjpoTR1s79zKm/TB/A==}
+
   clsx@2.1.1:
     resolution: {integrity: sha512-eYm0QWBtUrBWZWG0d386OGAw16Z995PiOVo2B7bjWSbHedGl5e0ZWaq65kOGgUSNesEIDkB9ISbTg/JK9dhCZA==}
     engines: {node: '>=6'}
@@ -1350,6 +1356,8 @@ snapshots:
 
   '@typescript/typescript-win32-x64@7.0.2':
     optional: true
+
+  '@zumer/snapdom@3.3.5': {}
 
   clsx@2.1.1: {}
 

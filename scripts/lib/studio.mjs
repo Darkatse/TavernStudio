@@ -9,8 +9,8 @@ const DEVICE_LABELS = { desktop: '桌面', mobile: '移动' };
  * Launches a browser and collects what goes wrong across every page: API
  * requests reaching the network, same-origin error responses, page errors.
  */
-export async function launch({ url, browser: channel = 'chrome' }) {
-  const browser = await chromium.launch({ channel, headless: true });
+export async function launch({ url, browser: channel = 'chrome', args = [], headless = true }) {
+  const browser = await chromium.launch({ channel, headless, args });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const origin = new URL(url).origin;
   const problems = [];
