@@ -2,7 +2,6 @@ import { clsx } from 'clsx';
 import { Check, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { previewSession, type SessionStatus } from '../preview/session';
-import { DEFAULT_FIXTURE } from '../preview/use-session';
 import { Button } from '../ui/button';
 
 type StepState = 'pending' | 'active' | 'done';
@@ -98,7 +97,7 @@ function Failure({ error }: { error: string }) {
         <h2 className="text-subtitle">预览启动失败</h2>
         <p className="font-mono text-caption break-words text-muted">{error}</p>
       </div>
-      <Button onClick={() => void previewSession.reopen(DEFAULT_FIXTURE)}>重试</Button>
+      <Button onClick={() => void previewSession.retry()}>重试</Button>
     </div>
   );
 }

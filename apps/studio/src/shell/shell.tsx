@@ -1,10 +1,11 @@
 import { clsx } from 'clsx';
 import { Bot, Code2, Eye, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { AgentPanel } from '../agent/agent-panel';
 import { BrandMark } from '../brand/brand-mark';
 import { useMediaQuery } from '../lib/use-media-query';
+import { startStudio } from '../project/projects';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tooltip } from '../ui/tooltip';
@@ -18,6 +19,9 @@ import { Workbench, type WorkbenchView } from '../workbench/workbench';
 export function Shell() {
   const wide = useMediaQuery('(min-width: 768px)');
   const [view, setView] = useState<WorkbenchView>('preview');
+  useEffect(() => {
+    void startStudio();
+  }, []);
 
   return wide ? (
     <WideShell view={view} onViewChange={setView} />

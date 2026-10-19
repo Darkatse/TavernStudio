@@ -4,22 +4,23 @@ import path from 'node:path';
 import type { RsbuildPlugin } from '@rsbuild/core';
 
 /**
- * Serves every fixture under fixtures/ at /_studio/fixtures/<name>/, plus an
- * index.json listing each file with its size and SHA-256. Studio loads a
- * fixture through the index; the hash is the file's identity in a Snapshot.
+ * Serves every directory under `root` (fixtures/, templates/) at
+ * /_studio/<base>/<name>/, plus an index.json listing each file with its size
+ * and SHA-256. Studio loads such a directory through its index; for a fixture
+ * the hash is the file's identity in a Snapshot.
  */
-export function pluginFixtures(root: string): RsbuildPlugin {
+export function pluginPublished(root: string, base: string): RsbuildPlugin {
   return {
-    name: 'tavern-studio:fixtures',
+    name: `tavern-studio:published:${base}`,
     setup(api) {
       api.processAssets(
         { stage: 'additional', environments: ['studio'] },
         ({ compilation, sources }) => {
           // The directory for added and removed files, each file for its content.
           compilation.contextDependencies.add(root);
-          for (const fixture of fs.readdirSync(root, { withFileTypes: true })) {
-            if (!fixture.isDirectory()) continue;
-            const dir = path.join(root, fixture.name);
+          for (const entry of fs.readdirSync(root, { withFileTypes: true })) {
+            if (!entry.isDirectory()) continue;
+            const dir = path.join(root, entry.name);
             const files: Record<string, { size: number; sha256: string }> = {};
             for (const file of walk(dir)) {
               const full = path.join(dir, file);
@@ -30,12 +31,12 @@ export function pluginFixtures(root: string): RsbuildPlugin {
                 sha256: createHash('sha256').update(bytes).digest('hex'),
               };
               compilation.emitAsset(
-                `_studio/fixtures/${fixture.name}/${file}`,
+                `_studio/${base}/${entry.name}/${file}`,
                 new sources.RawSource(bytes),
               );
             }
             compilation.emitAsset(
-              `_studio/fixtures/${fixture.name}/index.json`,
+              `_studio/${base}/${entry.name}/index.json`,
               new sources.RawSource(JSON.stringify({ files })),
             );
           }

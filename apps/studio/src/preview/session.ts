@@ -1,25 +1,34 @@
+import { createSessionBackend, DataDirectory, type SessionBackend } from '@tavern-studio/backend';
 import {
-  createSessionBackend,
-  DataDirectory,
-  type BackendRequest,
-  type BackendResponse,
-  type SessionBackend,
-} from '@tavern-studio/backend';
-import {
+  canHotApply,
+  hotApply,
   HOST_KEY,
   type DeviceIdentity,
   type DiagnosticEntry,
   type PageAgent,
   type PreviewHost,
+  type ThemeAnatomy,
   type ViewConnection,
   type WebHostOptions,
-  type WebHostRequest,
-  type WebHostResponse,
 } from '@tavern-studio/preview';
+import {
+  applyPlacements,
+  formatPointer,
+  type Applied,
+  type Placement,
+} from '@tavern-studio/workspace';
+import { answer, answerSync, reportFailure } from './backend-port';
 import { clearBrowserState } from './browser-state';
 import { EXTENSIONS, installExtension } from './extensions';
 import { publishChange, publishSession, readSessionState } from './publish';
-import { loadFixture, loadVendorImages, loadVendorInfo, type VendorImage } from './sources';
+import {
+  loadAnatomy,
+  loadFixture,
+  loadVendorImages,
+  loadVendorInfo,
+  type VendorImage,
+} from './sources';
+import { registerWorker, reportUnansweredRequests } from './worker';
 
 export type OpeningStep = 'worker' | 'data';
 
@@ -55,18 +64,28 @@ const EXIT_TIMEOUT_MS = 5000;
 
 interface Opened {
   vendor: VendorImage;
+  anatomy: ThemeAnatomy;
+  /** The fixture with its installed extensions: the Snapshot before the project is mounted. */
+  fixture: DataDirectory;
+  /** The Session's data: the Snapshot and every session write since. */
   data: DataDirectory;
   backend: SessionBackend;
 }
 
 /**
  * The one preview Session of this browser (docs/Architecture.md §2): the
- * Session Backend over the fixture's data, published for the Preview SW, and
- * the host every View's vendor page connects to.
+ * Session Backend over the Snapshot, the fixture with the project's
+ * placements, published for the Preview SW, and the host every View's vendor
+ * page connects to.
  */
 export class PreviewSession implements PreviewHost {
   #status: SessionStatus = { phase: 'opening', step: 'worker' };
   #fixture: string | undefined;
+  #placements: readonly Placement[] = [];
+  /** Moves between placements, one at a time. */
+  #placing: Promise<void> = Promise.resolve();
+  /** Each reload creates new Views: reloading is the authoritative path. */
+  #generation = 0;
   /** `selected` is the image the next Session opens: the first built one until the user picks. */
   #vendors: VendorChoice = { images: [], selected: undefined };
   #opened: Opened | undefined;
@@ -75,16 +94,26 @@ export class PreviewSession implements PreviewHost {
   #published: Promise<void> = Promise.resolve();
   /** The Web Host's own document for a TauriTavern Session (docs/Vendors.md §3). */
   #webHostState: Record<string, unknown> | null = null;
-  #listeningToWorker = false;
   /** Keyed by frame, which is how a connecting page finds its View. */
   readonly #views = new Map<Element, View>();
   readonly #viewsClosed = new Set<() => void>();
   readonly #listeners = new Set<() => void>();
+  readonly #dataListeners = new Set<(path: string) => void>();
   readonly #diagnostics: DiagnosticEntry[] = [];
   readonly #diagnosticListeners = new Set<() => void>();
 
   get status(): SessionStatus {
     return this.#status;
+  }
+
+  /** Views of an older generation have been reloaded away. */
+  get generation(): number {
+    return this.#generation;
+  }
+
+  /** The placements the Session's data reflects. */
+  get placements(): readonly Placement[] {
+    return this.#placements;
   }
 
   /** The built images and the one selected; a new object whenever either changes. */
@@ -106,10 +135,16 @@ export class PreviewSession implements PreviewHost {
     return () => this.#diagnosticListeners.delete(listener);
   };
 
-  /** Opens the Session once; later calls share the first. */
-  open(fixture: string): Promise<void> {
+  /**
+   * Opens the Session on a fixture with a project's placements. The same
+   * fixture again only moves the placements; another fixture is a new Session.
+   * Opening and moving placements run one at a time, in call order.
+   */
+  open(fixture: string, placements: readonly Placement[]): Promise<void> {
+    if (this.#opening && this.#fixture === fixture) return this.place(placements);
+    if (this.#opening) return this.#restart(fixture, placements);
     this.#fixture = fixture;
-    this.#opening ??= this.#open(fixture).catch((error: unknown) => {
+    this.#opening = this.#queue(() => this.#open(fixture, placements)).catch((error: unknown) => {
       this.#setStatus({
         phase: 'failed',
         error: error instanceof Error ? error.message : String(error),
@@ -119,28 +154,120 @@ export class PreviewSession implements PreviewHost {
   }
 
   /** Retries after a failure. */
-  reopen(fixture: string): Promise<void> {
+  retry(): Promise<void> {
+    const fixture = this.#fixture;
+    if (fixture === undefined) throw new Error('The preview Session has not been opened');
     this.#opening = undefined;
     this.#setStatus({ phase: 'opening', step: 'worker' });
-    return this.open(fixture);
+    return this.open(fixture, this.#placements);
   }
 
   /**
-   * Switches to another vendor image: a new Session on the same fixture. The
-   * Views close first, because clearing the previous image's browser state
-   * needs every vendor page gone (docs/Architecture.md §7).
+   * Switches to another vendor image: a new Session on the same Snapshot.
+   * Clearing the previous image's browser state needs every vendor page gone
+   * (docs/Architecture.md §7).
    */
   async selectVendor(id: string): Promise<void> {
     const fixture = this.#fixture;
     if (fixture === undefined) throw new Error('The preview Session has not been opened');
     if (this.#vendors.selected === id) return;
-    await this.retireViews();
     this.#vendors = { ...this.#vendors, selected: id };
+    await this.#restart(fixture, this.#placements);
+  }
+
+  /**
+   * Moves the Session to new placements (docs/Architecture.md §5). When every
+   * View is running and every change has a hot-apply entry, the data and the
+   * vendor pages change in one task, so no stale save of a vendor can come in
+   * between. Otherwise the Views unload first, letting TauriTavern save on
+   * exit, and the data changes before they load again.
+   */
+  place(placements: readonly Placement[]): Promise<void> {
+    return this.#queue(async () => {
+      const opened = this.#opened;
+      const previous = this.#placements;
+      if (!opened) {
+        // A Session that failed to open retries with the latest placements.
+        this.#placements = placements;
+        return;
+      }
+      const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
+      const pages = [...this.#views.values()].map((view) => view.agent && view.frame.contentWindow);
+      if (applied.writes.size === 0) {
+        this.#placements = placements;
+      } else if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
+        this.#write(opened.data, applied);
+        this.#placements = placements;
+        const missed = pages.flatMap((page) =>
+          page ? hotApply(page, opened.anatomy, applied.changes) : [],
+        );
+        if (missed.length === 0) return;
+        const positions = missed.map(
+          (change) => `${change.path}#${formatPointer(change.pointer ?? [])}`,
+        );
+        this.#report({
+          level: 'warning',
+          kind: 'hot-apply',
+          message: `The vendor did not take ${[...new Set(positions)].join(', ')} through its controls; the preview reloaded instead`,
+          frame: 'page',
+          time: Date.now(),
+        });
+        await this.reload();
+      } else {
+        await this.retireViews();
+        this.#write(
+          opened.data,
+          applyPlacements(opened.fixture, opened.data, previous, placements),
+        );
+        this.#placements = placements;
+        this.#bumpGeneration();
+      }
+    });
+  }
+
+  /** Reloads every View: the authoritative way to show the Session's data. */
+  async reload(): Promise<void> {
+    await this.retireViews();
+    this.#bumpGeneration();
+  }
+
+  /** Reads the Session's data, session writes included. */
+  readData(path: string): Uint8Array | undefined {
+    return this.#opened?.data.read(path);
+  }
+
+  /** Listens for every change to the Session's data, across Sessions. */
+  subscribeData = (listener: (path: string) => void) => {
+    this.#dataListeners.add(listener);
+    return () => this.#dataListeners.delete(listener);
+  };
+
+  /** Closes the current Session and opens a new one. */
+  async #restart(fixture: string, placements: readonly Placement[]): Promise<void> {
+    await this.retireViews();
     this.#opened = undefined;
     this.#opening = undefined;
     this.#setStatus({ phase: 'opening', step: 'worker' });
     await this.#closedViews();
-    await this.open(fixture);
+    await this.open(fixture, placements);
+  }
+
+  #queue(task: () => Promise<void>): Promise<void> {
+    const run = this.#placing.then(task);
+    this.#placing = run.catch(() => undefined);
+    return run;
+  }
+
+  #write(data: DataDirectory, { writes }: Applied): void {
+    for (const [path, content] of writes) {
+      if (content === null) data.delete(path);
+      else data.write(path, content);
+    }
+  }
+
+  #bumpGeneration(): void {
+    this.#generation += 1;
+    for (const listener of this.#listeners) listener();
   }
 
   /**
@@ -209,8 +336,9 @@ export class PreviewSession implements PreviewHost {
   }
 
   /**
-   * Writes a file of the Session's data, for example when a mounted project
-   * file changes. Resolves once the Preview SW serves the new content.
+   * Writes a file of the Session's data directly, the way a vendor's save
+   * lands; the experiment scripts stage their scenes with it. Project changes
+   * go through `place`. Resolves once the Preview SW serves the new content.
    */
   updateData(path: string, content: Uint8Array | string): Promise<void> {
     if (!this.#opened) throw new Error('The preview Session is not open');
@@ -232,9 +360,9 @@ export class PreviewSession implements PreviewHost {
       vendorId: opened.vendor.id,
       vendorKind: opened.vendor.kind,
       device: view.device,
-      handle: (request) => this.#handle(opened.backend, request),
+      handle: (request) => answer(opened.backend, request, this.#report),
       readData: (path) => opened.data.read(path),
-      report: (entry) => this.#report(entry),
+      report: this.#report,
       ready: () => {
         view.agent = agent;
         view.onReady();
@@ -254,7 +382,7 @@ export class PreviewSession implements PreviewHost {
     }
     return {
       identity: view.device.host,
-      backend: { handle: (request) => this.#handleSync(opened.backend, request) },
+      backend: { handle: (request) => answerSync(opened.backend, request, this.#report) },
       store: {
         load: () => this.#webHostState && page.structuredClone(this.#webHostState),
         save: (value) => {
@@ -275,10 +403,11 @@ export class PreviewSession implements PreviewHost {
     return { view, opened };
   }
 
-  async #open(fixture: string): Promise<void> {
+  async #open(fixture: string, placements: readonly Placement[]): Promise<void> {
+    this.#placements = placements;
     const started = performance.now();
     const worker = await registerWorker();
-    this.#listenToWorker();
+    reportUnansweredRequests(this.#report);
     const workerReady = performance.now();
 
     this.#setStatus({ phase: 'opening', step: 'data' });
@@ -294,55 +423,49 @@ export class PreviewSession implements PreviewHost {
       );
     }
     this.#vendors = { images, selected: vendor.id };
-    const [info, files, extensions, previous] = await Promise.all([
+    const [info, anatomy, files, extensions, previous] = await Promise.all([
       loadVendorInfo(vendor.id),
+      loadAnatomy(vendor.id),
       loadFixture(fixture),
       Promise.all(EXTENSIONS.map(installExtension)).then((installed) => installed.flat()),
       readSessionState(),
     ]);
     // Browser-side state follows the vendor image that wrote it (docs/Architecture.md §7).
     if (previous && previous.vendor !== vendor.id) await clearBrowserState();
-    const data = new DataDirectory([
+    const base: [string, Uint8Array][] = [
       ...files.files,
       ...extensions.map((file): [string, Uint8Array] => [file.path, file.bytes]),
-    ]);
+    ];
     const hashes = new Map([
       ...files.hashes,
       ...extensions.map((file): [string, string] => [file.path, file.sha256]),
     ]);
+    // The data starts as the Snapshot: the fixture with the project mounted (docs/Architecture.md §2).
+    const fixtureData = new DataDirectory(base);
+    const data = new DataDirectory(base);
+    const { writes } = applyPlacements(fixtureData, fixtureData, [], placements);
+    for (const path of writes.keys()) hashes.delete(path);
+    this.#write(data, { writes, changes: [] });
     await publishSession(data, hashes, { vendor: vendor.id }, worker);
     data.onChange((path) => {
       this.#published = this.#published
         .then(() => publishChange(data, path))
-        .catch((error: unknown) => this.#reportFailure(`Publishing ${path}`, error));
+        .catch((error: unknown) => reportFailure(this.#report, `Publishing ${path}`, error));
+      for (const listener of this.#dataListeners) listener(path);
     });
 
     this.#webHostState = null;
-    this.#opened = { vendor, data, backend: createSessionBackend(data, info) };
+    this.#opened = {
+      vendor,
+      anatomy,
+      fixture: fixtureData,
+      data,
+      backend: createSessionBackend(data, info),
+    };
     (window as Window & { [HOST_KEY]?: PreviewHost })[HOST_KEY] = this;
     performance.measure('studio:session-worker', { start: started, end: workerReady });
     performance.measure('studio:session-data', { start: workerReady });
     this.#setStatus({ phase: 'open', vendor });
-  }
-
-  /** API requests that reach the Preview SW come from a context without an API layer. */
-  #listenToWorker(): void {
-    if (this.#listeningToWorker) return;
-    this.#listeningToWorker = true;
-    navigator.serviceWorker.addEventListener(
-      'message',
-      (event: MessageEvent<{ type?: string; message?: string; url?: string }>) => {
-        if (event.data.type !== 'unanswered-request') return;
-        this.#report({
-          level: 'error',
-          kind: 'request',
-          message: event.data.message ?? '',
-          ...(event.data.url ? { url: event.data.url } : {}),
-          frame: 'worker',
-          time: Date.now(),
-        });
-      },
-    );
   }
 
   #closedViews(): Promise<void> {
@@ -350,100 +473,15 @@ export class PreviewSession implements PreviewHost {
     return new Promise((resolve) => this.#viewsClosed.add(resolve));
   }
 
-  /** Server semantics: a handler that throws answers 500, and every failure is reported. */
-  #handle(
-    backend: SessionBackend,
-    request: BackendRequest,
-  ): BackendResponse | Promise<BackendResponse> {
-    const failed = (error: unknown): BackendResponse => {
-      this.#reportFailure(`${request.method} ${request.url}`, error);
-      return {
-        status: 500,
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ error: String(error) }),
-      };
-    };
-    const inspect = (response: BackendResponse): BackendResponse => {
-      if (response.status === 501) {
-        this.#report({
-          level: 'warning',
-          kind: 'request',
-          message: `${request.method} ${request.url} is not implemented`,
-          frame: 'backend',
-          time: Date.now(),
-        });
-      }
-      return response;
-    };
-    try {
-      const result = backend.handle(request);
-      return result instanceof Promise ? result.then(inspect, failed) : inspect(result);
-    } catch (error) {
-      return failed(error);
-    }
-  }
-
-  /**
-   * The Web Host's backend port: synchronous, answered with text or, for
-   * streamed generation, a stream. A response without a body reads as empty
-   * text, since an error status needs text for its message.
-   */
-  #handleSync(backend: SessionBackend, request: WebHostRequest): WebHostResponse {
-    const { method, url, headers } = request;
-    const body =
-      typeof request.body === 'object' && request.body !== null
-        ? {
-            kind: 'form' as const,
-            entries: request.body.entries.map(([name, value]) => [name, value] as [string, string]),
-          }
-        : request.body;
-    const response = this.#handle(backend, { method, url, headers: { ...headers }, body });
-    if (response instanceof Promise) {
-      throw new Error(`${method} ${url} has no synchronous handler for the Web Host`);
-    }
-    if (response.body instanceof Uint8Array) {
-      throw new Error(`${method} ${url} answered with bytes; the Web Host takes text or a stream`);
-    }
-    return { status: response.status, headers: response.headers, body: response.body ?? '' };
-  }
-
-  #report(entry: DiagnosticEntry): void {
+  #report = (entry: DiagnosticEntry): void => {
     this.#diagnostics.push(entry);
     for (const listener of this.#diagnosticListeners) listener();
-  }
-
-  #reportFailure(what: string, error: unknown): void {
-    this.#report({
-      level: 'error',
-      kind: 'request',
-      message: `${what} failed: ${error instanceof Error ? error.message : String(error)}`,
-      ...(error instanceof Error && error.stack ? { stack: error.stack } : {}),
-      frame: 'backend',
-      time: Date.now(),
-    });
-  }
+  };
 
   #setStatus(status: SessionStatus): void {
     this.#status = status;
     for (const listener of this.#listeners) listener();
   }
-}
-
-const WORKER = '/_studio/preview-sw.js';
-
-/**
- * Registers the Preview SW unless it already is. Registering again would wait
- * behind the update checks every navigation starts (1.6 s after a few preview
- * reloads); those checks keep an existing registration current by themselves.
- */
-async function registerWorker(): Promise<ServiceWorker> {
-  const existing = await navigator.serviceWorker.getRegistration('/');
-  if (!existing?.active?.scriptURL.endsWith(WORKER)) {
-    await navigator.serviceWorker.register(WORKER, { scope: '/', updateViaCache: 'none' });
-  }
-  const worker = (await navigator.serviceWorker.ready).active;
-  if (!worker) throw new Error('The Preview SW did not activate');
-  return worker;
 }
 
 export const previewSession = new PreviewSession();

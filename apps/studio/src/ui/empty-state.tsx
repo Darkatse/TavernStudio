@@ -4,9 +4,11 @@ export interface EmptyStateProps {
   icon: ReactNode;
   title: string;
   description?: string;
+  /** The next step, when there is one to take from here (docs/UI.md §5). */
+  action?: ReactNode;
 }
 
-export function EmptyState({ icon, title, description }: EmptyStateProps) {
+export function EmptyState({ icon, title, description, action }: EmptyStateProps) {
   return (
     <div className="flex flex-col items-center gap-3 text-center">
       <span className="grid size-10 place-items-center rounded-xl bg-sunken text-muted shadow-[inset_0_0_0_1px_var(--color-line)] [&_svg]:size-5">
@@ -16,6 +18,7 @@ export function EmptyState({ icon, title, description }: EmptyStateProps) {
         <h2 className="text-subtitle">{title}</h2>
         {description && <p className="text-pretty text-muted">{description}</p>}
       </div>
+      {action}
     </div>
   );
 }

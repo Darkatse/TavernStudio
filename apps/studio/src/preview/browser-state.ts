@@ -1,4 +1,5 @@
 import { SESSION_CACHE } from '@tavern-studio/preview';
+import { DATABASE } from '../storage/db';
 import { EXTENSION_CACHE } from './extensions';
 
 /**
@@ -6,7 +7,7 @@ import { EXTENSION_CACHE } from './extensions';
  * written by the vendor and the code it runs (docs/Architecture.md §7).
  */
 const STUDIO_CACHES = new Set([SESSION_CACHE, EXTENSION_CACHE]);
-const STUDIO_DATABASES = new Set<string>();
+const STUDIO_DATABASES = new Set([DATABASE]);
 /** app-use's snapshot counter belongs to the Agent: refs must never repeat within a Run. */
 const AGENT_KEYS = new Set(['tauritavern:in_app_agent_snapshot_sequence']);
 

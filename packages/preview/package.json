@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@tauritavern/app-use": "0.1.1",
-    "@tavern-studio/backend": "workspace:*"
+    "@tavern-studio/backend": "workspace:*",
+    "@tavern-studio/workspace": "workspace:*"
   }
 }

@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { defineConfig } from '@rsbuild/core';
 import { pluginReact } from '@rsbuild/plugin-react';
-import { pluginFixtures } from './build/fixtures';
+import { pluginPublished } from './build/published';
 
 // Studio serves only `/`; everything else it ships lives under `/_studio/`, so
 // vendor and data paths stay free for the preview (docs/Architecture.md §4).
@@ -34,7 +34,11 @@ export default defineConfig({
   },
   environments: {
     studio: {
-      plugins: [pluginReact({ reactCompiler: true }), pluginFixtures(path.join(repo, 'fixtures'))],
+      plugins: [
+        pluginReact({ reactCompiler: true }),
+        pluginPublished(path.join(repo, 'fixtures'), 'fixtures'),
+        pluginPublished(path.join(repo, 'templates'), 'templates'),
+      ],
       source: { entry: { index: './src/main.tsx' } },
       html: {
         template: './src/index.html',

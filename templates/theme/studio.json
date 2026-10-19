@@ -1,0 +1,7 @@
+{
+  "fixture": "showcase",
+  "mounts": [
+    { "from": "theme.json", "to": "default-user/settings.json#/power_user" },
+    { "from": "theme.css", "to": "default-user/settings.json#/power_user/custom_css" }
+  ]
+}

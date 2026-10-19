@@ -2,7 +2,7 @@ import type { VendorKind } from '@tavern-studio/preview';
 import { Code2, Eye, Monitor, RotateCw, Smartphone } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
 import { previewSession, type SessionStatus } from '../preview/session';
-import { useSessionStatus, useVendorChoice } from '../preview/use-session';
+import { useSessionStatus, useVendorChoice, useViewGeneration } from '../preview/use-session';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
@@ -47,8 +47,7 @@ export function Workbench({
   initialDevice = 'desktop',
 }: WorkbenchProps) {
   const [deviceId, setDeviceId] = useState(initialDevice);
-  // Each reload creates a new View: reloading is the authoritative path.
-  const [generation, setGeneration] = useState(0);
+  const generation = useViewGeneration();
   const session = useSessionStatus();
 
   return (
@@ -95,11 +94,7 @@ export function Workbench({
                   icon
                   aria-label="重新载入预览"
                   disabled={session.phase !== 'open'}
-                  onClick={() =>
-                    void previewSession
-                      .retireViews()
-                      .then(() => setGeneration((count) => count + 1))
-                  }
+                  onClick={() => void previewSession.reload()}
                 >
                   <RotateCw
                     className="transition-[rotate] motion-slow motion-reduce:transition-none"

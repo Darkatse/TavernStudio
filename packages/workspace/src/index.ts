@@ -3,7 +3,7 @@ export type { Difference } from './adopt';
 export { applyPlacements } from './apply';
 export type { Applied, DataChange, DataReader } from './apply';
 export { fence, unfence } from './documents';
-export { formatPointer, parsePointer } from './json';
+export { formatPointer, jsonEqual, parsePointer } from './json';
 export type { JsonValue, Pointer } from './json';
 export { MANIFEST, MountError, parseManifest } from './manifest';
 export type { Mount, MountPoint, ProjectManifest } from './manifest';

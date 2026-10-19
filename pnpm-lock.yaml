@@ -53,9 +53,15 @@ importers:
       '@tavern-studio/preview':
         specifier: workspace:*
         version: link:../../packages/preview
+      '@tavern-studio/workspace':
+        specifier: workspace:*
+        version: link:../../packages/workspace
       clsx:
         specifier: ^2.1.1
         version: 2.1.1
+      dexie:
+        specifier: ^4.4.6
+        version: 4.4.6
       lucide-react:
         specifier: ^1.59.0
         version: 1.59.0(@types/react@19.3.0)(react@19.3.1)
@@ -105,6 +111,9 @@ importers:
       '@tavern-studio/backend':
         specifier: workspace:*
         version: link:../backend
+      '@tavern-studio/workspace':
+        specifier: workspace:*
+        version: link:../workspace
 
   packages/st-data: {}
 
@@ -750,6 +759,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dexie@4.4.6:
+    resolution: {integrity: sha512-hJP/BO6mjB+tX6hToIO1kmxYLNmun90wYbfcoAoLpKEyDYal/k33dg0TAfoUe2TDsbbLoVIzljJ3BN2UbR5EOg==}
 
   dom-accessibility-api@0.7.1:
     resolution: {integrity: sha512-vdnCeZD+3wZ+8h8xXL/ZtBlvvoobOFyPzSiIfO6sGOZDqjFx4aLMAjZhl4rawj5xYz3UwP6Tgvyh0iH4IOCVnQ==}
@@ -1440,6 +1452,8 @@ snapshots:
   csstype@3.2.3: {}
 
   detect-libc@2.1.2: {}
+
+  dexie@4.4.6: {}
 
   dom-accessibility-api@0.7.1: {}
 

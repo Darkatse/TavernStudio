@@ -12,4 +12,5 @@ export {
   type WebHostRequest,
   type WebHostResponse,
 } from './host';
+export { canHotApply, hotApply, type ThemeAnatomy } from './hot-apply';
 export { dataPathForUrl, isApiPath, urlPathForData, VENDOR_IMAGES } from './routes';
