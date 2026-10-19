@@ -1,4 +1,4 @@
-import type { JsonValue, ToolArguments } from '@tauritavern/app-use';
+import type { ElementTarget, JsonValue, ToolArguments } from '@tauritavern/app-use';
 import type { BackendRequest, BackendResponse } from '@tavern-studio/backend';
 
 /**
@@ -27,8 +27,16 @@ export interface PageAgent {
   interact(runId: string, args: ToolArguments): JsonValue;
   /** Runs an async function body in the page's realm; the result is the page's own value. */
   evaluate(runId: string, code: string): Promise<unknown>;
-  /** Renders the page, or the element `selector` matches, from its DOM: the screenshot fallback. */
-  capture(selector: string | undefined): Promise<PageCapture>;
+  /**
+   * The element a target names, by the rule `app.interact` addresses one by:
+   * a ref of the Run's latest snapshot, or a selector matching exactly one
+   * observable element. Throws the engine's error otherwise.
+   */
+  resolve(runId: string, target: ElementTarget): Element;
+  /** The refs of the Run's latest snapshot page, in its order; none before its first snapshot. */
+  refs(runId: string): string[];
+  /** Renders the page, or one element of it, from its DOM: the screenshot fallback. */
+  capture(element: Element | undefined): Promise<PageCapture>;
 }
 
 /** A screenshot rendered in the page, with the degradations snapdom recorded. */

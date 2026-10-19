@@ -85,12 +85,25 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 | 工作区 | `workspace.list_files` `search_files` `read_file` `write_file` `edit_file` | 与 TauriTavern 语义相同。`edit_file` 是精确替换（`old_string` / `new_string` / `replace_all`），TT 中叫 `apply_patch`；Studio 不沿用这个名字，因为它是 GPT 系模型在 Codex 中训练的补丁格式的名字。所有工具的结果都套用同一个阈值，超过 100,000 字符的写入 `tool-results/`，模型收到开头的预览和读取指引，文案同 TT。阈值高于 `read_file` 单次的最大输出（80,000 字符加行号），所以读回外置的结果不会再被外置；TT 只外置外部工具的结果，阈值为 50,000 |
 | 预览 | `preview.configure` | 切换 Vendor、Device、Fixture |
 | | `preview.reload` | 重载 View |
-| | `preview.capture` | 截图。可选 set-of-marks 编号，编号与 `app.snapshot` 的 ref 对应，并附上关键的计算样式 |
+| | `preview.capture` | 截图。可选 set-of-marks：把最新快照页的 ref 框出并标号，标签是 ref 冒号后的部分。Studio 把标记画在图上，不往页面里插节点；框住整张图的（如快照根）不画。ref 由 app-use 的 `refs()` 列出，经 `resolve` 找到元素 |
 | 页面 | `app.snapshot` `app.interact` `app.evaluate` `app.read_logs` | 来自 `@tauritavern/app-use`，引擎注入到预览页内运行，契约与 TauriTavern 应用内助手相同。`app.read_logs` 读取 Attach 收集的运行时记录，见 [Architecture §5](Architecture.md#5-编辑与预览) |
 | 检查 | `inspect.styles` | 列出命中的规则和来源（vendor CSS / 主题 / 扩展 / 消息里的 `<style>`），经 Mount 映射到项目文件的行号 |
 | | `inspect.audit` | 确定性检查：对比度、溢出与裁切、元素重叠、零尺寸 |
 
 能用确定性检查的地方不靠视觉判断。`inspect.audit` 给出数值；截图负责整体审美和布局上的直觉判断。
+
+**元素寻址**：`preview.capture` 与 `inspect.*` 指定元素的方式与 `app.interact` 相同，都经 app-use 的 `resolve`：最新快照页里的 ref，或者只匹配一个可观察元素的选择器，可以用 `root` 限定范围。同一个元素在几个工具里是同一个名字，失败时的报错也相同。
+
+**`inspect.styles` 的来源**：
+- 规则从页面的 CSSOM 读取，层叠顺序按 CSS Cascade 5：重要性、style 属性、层、特异性、出现顺序。属性没有声明而可以继承时，指出提供它的祖先。值里用到的自定义属性一并解释。
+- 样式表先对应到数据路径，再沿 Mount 对应到项目文件：
+  - 主题的自定义 CSS 所在的 `<style>` 由解剖图给出（字段的 `element`），对应 `power_user.custom_css`；
+  - `<link>` 按 URL 对应数据路径，例如扩展的 CSS；
+  - 其余是 vendor 文件，写成 `vendor/src/` 下的路径。
+- Mount 逐字放置文本，所以样式表里的行号就是项目文件的行号，带 `fence` 的加一行。CSSOM 不保留源码位置，行号靠按顺序比对规则的前缀（选择器或 at 规则）找出。
+- ST 写在 `<html>` style 属性上的主题变量，经解剖图的 `cssVariables` 对应到主题字段，再对应到项目里的 `theme.json`。
+- 消息里的 `<style>` 被 ST 改写过（选择器加 `.mes_text` 前缀，类名改为 `custom-*`），只标明所在的消息。
+- 不涉及伪元素、`@container`、`@scope`、动画和浏览器默认样式。
 
 ## 5. 视觉
 
@@ -101,7 +114,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 - **退回方式**：未开启、浏览器不支持、或预览此刻不在屏幕上（作者在看代码，或窄屏上在看 Agent）时，在预览页面内用 snapdom 截图。
   - snapdom 体积较大，单独构建为 `/_studio/capture.js`，第一次需要时才在页面的 realm 里加载，不进 Attach。
   - 它在 ST 上有已知失真：背景层缺失或变暗、`<q>` 引号重复、文本重新折行（见 [P0 报告 V7](plan/P0-Report.md#v7-截图方式)）。
-- 两种方式都编码为 JPEG（质量 0.85），宽度超过 1280 像素时缩小。可以只截一个元素（CSS 选择器）。
+- 两种方式都编码为 JPEG（质量 0.85），宽度超过 1280 像素时缩小。可以只截一个元素，寻址方式见 §4；元素在前端卡等页内 iframe 里时，按外层 iframe 的位置换算。
 - 截图结果会标注所用方式，snapdom 的结果附上已知失真。只在模型能看图时提供 `preview.capture`。上下文中只保留最近 3 张图片。
 
 ## 6. 上下文

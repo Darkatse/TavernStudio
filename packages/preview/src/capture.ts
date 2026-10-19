@@ -10,11 +10,9 @@
 import { snapdom } from '@zumer/snapdom';
 import { CAPTURE_IMAGE, type PageCapture } from './host';
 
-export async function capture(selector: string | undefined): Promise<PageCapture> {
+export async function capture(element: Element | undefined): Promise<PageCapture> {
   // The page background is painted through the root element, so the whole page captures from it.
-  const target =
-    selector === undefined ? document.documentElement : document.querySelector(selector);
-  if (!target) throw new Error(`No element matches ${selector}`);
+  const target = element ?? document.documentElement;
   const { width } = target.getBoundingClientRect();
   const result = await snapdom(target, { cache: 'disabled', dpr: 1 });
   let blob: Blob;

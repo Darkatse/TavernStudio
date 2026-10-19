@@ -163,8 +163,8 @@ importers:
         specifier: 1.3.0
         version: 1.3.0(@aws-sdk/credential-provider-node@3.972.86)(@smithy/signature-v4@5.7.4)(ws@8.22.0)
       '@tauritavern/app-use':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.3
+        version: 0.1.3
       '@tavern-studio/workspace':
         specifier: workspace:*
         version: link:../workspace
@@ -178,8 +178,8 @@ importers:
   packages/preview:
     dependencies:
       '@tauritavern/app-use':
-        specifier: 0.1.1
-        version: 0.1.1
+        specifier: 0.1.3
+        version: 0.1.3
       '@tavern-studio/backend':
         specifier: workspace:*
         version: link:../backend
@@ -906,8 +906,8 @@ packages:
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
 
-  '@tauritavern/app-use@0.1.1':
-    resolution: {integrity: sha512-ScISMwK5DY/X0pgfZBGJsWS4xigs4miA7yGYjBa++iP0QP6BWSN5+VMu1Xf1RsF86IKsRdkx6V50FDWMDHltAA==}
+  '@tauritavern/app-use@0.1.3':
+    resolution: {integrity: sha512-+cZ3ywBeg8EOwVJNQdaYbZmgqh4k1X4T6vm2tlNnFSbmTmg+Ad7Tp36lKi2eudrwzQst0r04D49w8tCYxN5teg==}
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -2301,7 +2301,7 @@ snapshots:
       postcss: 8.5.30
       tailwindcss: 4.3.3
 
-  '@tauritavern/app-use@0.1.1':
+  '@tauritavern/app-use@0.1.3':
     dependencies:
       dom-accessibility-api: 0.7.1
 

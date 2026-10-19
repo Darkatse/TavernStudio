@@ -25,7 +25,9 @@ const SAME_SET = new Set(['on', 'off']);
  *   it runs (`later`), such as a slider's `mouseup` that applies the value;
  * - `variables`: CSS variable → power_user keys its written value derives from;
  * - `classes`: element selector → class → power_user keys deciding whether
- *   the element has it.
+ *   the element has it;
+ * - `texts`: power_user key → the selector of the element whose content it
+ *   becomes, such as custom_css → `#custom-style`.
  */
 export function readThemeModule(source) {
   const program = parse(source, { ecmaVersion: 'latest', sourceType: 'module' });
@@ -110,12 +112,40 @@ export function readThemeModule(source) {
   if (!getThemeObject) throw new Error(`${THEME_MODULE}: no getThemeObject function`);
   const fields = themeFields(getThemeObject);
 
+  /** The id of the element a value is, when the source names it: `document.getElementById(id)`. */
+  function elementId(node, scopes) {
+    if (node?.type === 'Identifier') {
+      const bound = lookup(node.name, scopes);
+      return bound ? elementId(bound.init, bound.scopes) : null;
+    }
+    if (node?.type !== 'CallExpression' || memberName(node.callee) !== 'getElementById')
+      return null;
+    return stringValue(node.arguments[0], scopes);
+  }
+
+  /** A string literal, or a variable bound to one. */
+  function stringValue(node, scopes) {
+    if (isString(node)) return node.value;
+    if (node?.type !== 'Identifier') return null;
+    const bound = lookup(node.name, scopes);
+    return bound ? stringValue(bound.init, bound.scopes) : null;
+  }
+
   const handlers = [];
   // Every `.on` binding on a named element, with the functions it is made in.
   const listened = [];
   const variables = new Map();
   const classes = new Map();
+  const texts = new Map();
   walk.ancestor(program, {
+    AssignmentExpression({ left, right }, _, ancestors) {
+      const property = memberName(left);
+      if (property !== 'innerHTML' && property !== 'textContent') return;
+      const scopes = scopesOf(ancestors);
+      const id = elementId(left.object, scopes);
+      if (!id) return;
+      for (const key of readsOf(right, scopes)) texts.set(key, `#${id}`);
+    },
     CallExpression(call, _, ancestors) {
       const method = memberName(call.callee);
       const [first, second] = call.arguments;
@@ -160,7 +190,7 @@ export function readThemeModule(source) {
       )
       .map(({ selector, event }) => ({ selector, event }));
   }
-  return { fields, handlers, variables, classes };
+  return { fields, handlers, variables, classes, texts };
 }
 
 function themeFields(getThemeObject) {

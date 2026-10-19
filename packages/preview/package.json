@@ -6,11 +6,12 @@
     ".": "./src/index.ts",
     "./attach": "./src/attach.ts",
     "./capture": "./src/capture.ts",
+    "./inspect": "./src/inspect/index.ts",
     "./web-host": "./src/web-host.ts",
     "./sw": "./src/sw.ts"
   },
   "dependencies": {
-    "@tauritavern/app-use": "0.1.1",
+    "@tauritavern/app-use": "0.1.3",
     "@tavern-studio/backend": "workspace:*",
     "@tavern-studio/workspace": "workspace:*",
     "@zumer/snapdom": "3.3.5"

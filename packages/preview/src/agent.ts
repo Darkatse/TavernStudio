@@ -30,12 +30,20 @@ export function createPageAgent(): PageAgent {
       observation.clearCursor();
       return new AsyncFunction(code)();
     },
-    async capture(selector) {
+    resolve(runId, target) {
+      observation.enterRun(runId);
+      return observation.resolve(target).element;
+    },
+    refs(runId) {
+      observation.enterRun(runId);
+      return observation.refs();
+    },
+    async capture(element) {
       // Loaded in this realm on first use; see capture.ts.
       const module = (await import(/* webpackIgnore: true */ CAPTURE_MODULE)) as {
         capture: PageAgent['capture'];
       };
-      return module.capture(selector);
+      return module.capture(element);
     },
   };
 }

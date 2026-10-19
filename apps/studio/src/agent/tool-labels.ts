@@ -19,6 +19,8 @@ const LABELS: Record<string, { running: string; done: string; action: string }> 
   preview_capture: { running: '正在截图', done: '截了图', action: '截图' },
   preview_reload: { running: '正在重载预览', done: '重载了预览', action: '重载预览' },
   preview_configure: { running: '正在切换预览', done: '切换了预览', action: '切换预览' },
+  inspect_styles: { running: '正在查看样式来源', done: '查看了样式来源', action: '查看样式来源' },
+  inspect_audit: { running: '正在检查页面', done: '检查了页面', action: '检查页面' },
 };
 
 export type CallState = 'running' | 'done' | 'failed' | 'unanswered';

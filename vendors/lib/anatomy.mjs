@@ -5,7 +5,8 @@
 // Output: vendors/out/__vendor/anatomy/<id>/, served as /__vendor/anatomy/<id>/
 // and mounted read-only for the Agent as vendor/anatomy/.
 // - theme.json: each field of getThemeObject, the control whose input or
-//   change handler sets it, and the CSS variables and classes it drives.
+//   change handler sets it, the CSS variables and classes it drives, and the
+//   element whose content it becomes.
 //   `control: null` means hot-apply has no entry for the field: reload.
 // - css-variables.json: the custom properties of the core stylesheet's :root
 //   and those theme fields set, with defaults and the fields setting them.
@@ -67,6 +68,8 @@ async function readAnatomy(image, id) {
       control: control ? describeControl(control, locale) : null,
       cssVariables: drives(module.variables, key),
       classes: Object.fromEntries(targets.filter(([, names]) => names.length)),
+      // The element whose content the value becomes, such as the <style> of custom_css.
+      element: module.texts.get(key) ?? null,
     };
   }
 

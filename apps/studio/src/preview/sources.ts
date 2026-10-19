@@ -31,6 +31,22 @@ export async function loadVendorInfo(id: string): Promise<VendorInfo> {
   return { id, version, extensions };
 }
 
+const imageFiles = new Map<string, Promise<ReadonlySet<string>>>();
+
+/** The files of a vendor image, by their path below its root; listed once, as an id never changes. */
+export function loadVendorFiles(id: string): Promise<ReadonlySet<string>> {
+  let files = imageFiles.get(id);
+  if (!files) {
+    files = getJson<{ files: Record<string, string> }>(
+      `${VENDOR_IMAGES}${id}.json`,
+      `vendor image ${id}`,
+    ).then((image) => new Set(Object.keys(image.files)));
+    files.catch(() => imageFiles.delete(id));
+    imageFiles.set(id, files);
+  }
+  return files;
+}
+
 /** The image's anatomy of its theme controls (vendors/lib/anatomy.mjs). */
 export function loadAnatomy(id: string): Promise<ThemeAnatomy> {
   return getJson<ThemeAnatomy>(

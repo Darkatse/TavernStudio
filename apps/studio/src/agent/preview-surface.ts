@@ -1,9 +1,26 @@
-import type { AppLogEntry, AppSurface, PreviewControl, Screenshot } from '@tavern-studio/agent';
+import {
+  DEFAULT_STYLE_PROPERTIES,
+  modelToolName,
+  type AppLogEntry,
+  type AppSurface,
+  type InspectSurface,
+  type PreviewControl,
+  type Screenshot,
+} from '@tavern-studio/agent';
 import { CAPTURE_IMAGE, type DiagnosticEntry } from '@tavern-studio/preview';
-import { previewCapture } from '../preview/capture';
+import { auditRegion } from '@tavern-studio/preview/inspect';
+import { sourceNamer } from '../inspect/sources';
+import { inspectStyles } from '../inspect/styles';
+import {
+  drawMarks,
+  previewCapture,
+  rectInPage,
+  type Mark,
+  type PreviewShot,
+} from '../preview/capture';
 import { devices, isDeviceId } from '../preview/devices';
 import { previewSession, type PreviewPage } from '../preview/session';
-import type { VendorImage } from '../preview/sources';
+import { loadVendorFiles, type VendorImage } from '../preview/sources';
 import type { Project } from '../project/project';
 
 /** How long the preview may take to start before a tool gives up on it. */
@@ -24,7 +41,11 @@ export function describePreview(): string {
  * looks at the page first waits for the preview to show the project as it is
  * now, since the Run's own writes may still be reaching it.
  */
-export function agentPreview(project: Project): { surface: AppSurface; control: PreviewControl } {
+export function agentPreview(project: Project): {
+  surface: AppSurface;
+  control: PreviewControl;
+  inspect: InspectSurface;
+} {
   const caughtUp = async (signal: AbortSignal) => {
     await project.placed();
     return started(signal);
@@ -63,26 +84,89 @@ export function agentPreview(project: Project): { surface: AppSurface; control: 
       await previewSession.reload();
       await caughtUp(signal);
     },
-    capture: async (selector, signal) => {
-      await caughtUp(signal);
-      return screenshot(selector);
+    capture: async (run, target, { marks }, signal) => {
+      const page = await caughtUp(signal);
+      const element = target && page.agent.resolve(run, target);
+      const marked = marks ? snapshotMarks(page, run) : undefined;
+      return screenshot(await previewCapture.take(element), marked);
     },
   };
-  return { surface, control };
+  const inspect: InspectSurface = {
+    async styles(run, target, properties, signal) {
+      const page = await caughtUp(signal);
+      const element = page.agent.resolve(run, target);
+      const { anatomy, placements, status } = previewSession;
+      const pageWindow = page.frame.contentWindow;
+      if (!anatomy || !pageWindow || status.phase !== 'open') {
+        throw new Error('The preview is still starting');
+      }
+      const namer = sourceNamer({
+        anatomy,
+        placements,
+        vendorFiles: await loadVendorFiles(status.vendor.id),
+      });
+      return inspectStyles(pageWindow, element, properties ?? DEFAULT_STYLE_PROPERTIES, namer);
+    },
+    async audit(run, target, signal) {
+      const page = await caughtUp(signal);
+      const pageWindow = page.frame.contentWindow;
+      if (!pageWindow) throw new Error('The preview frame has no page');
+      const root = target ? page.agent.resolve(run, target) : pageWindow.document.documentElement;
+      return auditRegion(pageWindow, root);
+    },
+  };
+  return { surface, control, inspect };
 }
 
-async function screenshot(selector: string | undefined): Promise<Screenshot> {
-  const shot = await previewCapture.take(selector);
-  const bitmap = await createImageBitmap(shot.blob);
+/**
+ * The refs of the Run's latest snapshot page as marks, each at its element's
+ * box. A ref whose element is gone or hidden since the snapshot has no mark.
+ */
+function snapshotMarks(
+  page: PreviewPage,
+  run: string,
+): { page: string; refs: number; marks: Mark[] } {
+  const refs = page.agent.refs(run);
+  const [first] = refs;
+  if (first === undefined) {
+    throw new Error(
+      `Marks number the refs of the latest ${modelToolName('app.snapshot')} page, and this Run has none yet. Call ${modelToolName('app.snapshot')} first.`,
+    );
+  }
+  const view = page.frame.contentWindow;
+  if (!view) throw new Error('The preview frame has no page');
+  const marks = refs.flatMap((ref) => {
+    let element: Element;
+    try {
+      element = page.agent.resolve(run, { ref });
+    } catch {
+      // Removed or hidden since the snapshot: the result counts it as not shown.
+      return [];
+    }
+    return [{ label: ref.slice(ref.indexOf(':') + 1), rect: rectInPage(element, view) }];
+  });
+  return { page: first.slice(0, first.indexOf(':')), refs: refs.length, marks };
+}
+
+async function screenshot(
+  shot: PreviewShot,
+  marked?: { page: string; refs: number; marks: Mark[] },
+): Promise<Screenshot> {
+  const drawn = marked ? await drawMarks(shot, marked.marks) : undefined;
+  const blob = drawn?.blob ?? shot.blob;
+  const bitmap = await createImageBitmap(blob);
   const { width, height } = bitmap;
   bitmap.close();
   return {
     // Both ways of taking a screenshot encode it the same way.
-    image: { type: 'image', data: await base64(shot.blob), mimeType: CAPTURE_IMAGE.mimeType },
+    image: { type: 'image', data: await base64(blob), mimeType: CAPTURE_IMAGE.mimeType },
     width,
     height,
     method: shot.method,
     warnings: shot.warnings,
+    ...(marked && drawn
+      ? { marks: { page: marked.page, refs: marked.refs, drawn: drawn.drawn } }
+      : {}),
   };
 }
 

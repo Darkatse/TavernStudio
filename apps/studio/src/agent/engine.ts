@@ -2,6 +2,7 @@ import {
   appTools,
   endpointModel,
   endpointStreams,
+  inspectTools,
   previewTools,
   runAgent,
   workspaceTools,
@@ -46,6 +47,7 @@ export async function runInProject(
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
       ...previewTools(preview.control, { images: model.endpoint.images }),
       ...appTools(preview.surface),
+      ...inspectTools(preview.inspect),
     ],
     ...hooks,
   });
