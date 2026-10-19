@@ -177,46 +177,59 @@ export class PreviewSession implements PreviewHost {
    * exit, and the data changes before they load again.
    */
   place(placements: readonly Placement[]): Promise<void> {
-    return this.#queue(async () => {
-      const opened = this.#opened;
-      const previous = this.#placements;
-      if (!opened) {
-        // A Session that failed to open retries with the latest placements.
-        this.#placements = placements;
-        return;
-      }
-      const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
-      const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
-      if (applied.writes.size === 0) {
-        this.#setPlacements(placements);
-      } else if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
-        this.#write(opened.data, applied);
-        this.#setPlacements(placements);
-        const missed = pages.flatMap((page) =>
-          page ? hotApply(page, opened.anatomy, applied.changes) : [],
-        );
-        if (missed.length === 0) return;
-        const positions = missed.map(
-          (change) => `${change.path}#${formatPointer(change.pointer ?? [])}`,
-        );
-        this.#report({
-          level: 'warning',
-          kind: 'hot-apply',
-          message: `The vendor did not take ${[...new Set(positions)].join(', ')} through its controls; the preview reloaded instead`,
-          frame: 'page',
-          time: Date.now(),
-        });
-        await this.reload();
-      } else {
-        await this.retireViews();
-        this.#write(
-          opened.data,
-          applyPlacements(opened.fixture, opened.data, previous, placements),
-        );
-        this.#setPlacements(placements);
-        this.#bumpGeneration();
-      }
-    });
+    return this.#queue(() => this.#move((current) => current, placements));
+  }
+
+  /**
+   * Discards the session writes on one mount point: the project's content is
+   * placed there again, as if the Session had never held it.
+   */
+  discard(placement: Placement): Promise<void> {
+    return this.#queue(() =>
+      this.#move((current) => current.filter((placed) => placed !== placement), this.#placements),
+    );
+  }
+
+  /** Moves the data from the placements `previousOf` makes of the current ones to `placements`. */
+  async #move(
+    previousOf: (current: readonly Placement[]) => readonly Placement[],
+    placements: readonly Placement[],
+  ): Promise<void> {
+    const opened = this.#opened;
+    const previous = previousOf(this.#placements);
+    if (!opened) {
+      // A Session that failed to open retries with the latest placements.
+      this.#placements = placements;
+      return;
+    }
+    const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
+    const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
+    if (applied.writes.size === 0) {
+      this.#setPlacements(placements);
+    } else if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
+      this.#write(opened.data, applied);
+      this.#setPlacements(placements);
+      const missed = pages.flatMap((page) =>
+        page ? hotApply(page, opened.anatomy, applied.changes) : [],
+      );
+      if (missed.length === 0) return;
+      const positions = missed.map(
+        (change) => `${change.path}#${formatPointer(change.pointer ?? [])}`,
+      );
+      this.#report({
+        level: 'warning',
+        kind: 'hot-apply',
+        message: `The vendor did not take ${[...new Set(positions)].join(', ')} through its controls; the preview reloaded instead`,
+        frame: 'page',
+        time: Date.now(),
+      });
+      await this.reload();
+    } else {
+      await this.retireViews();
+      this.#write(opened.data, applyPlacements(opened.fixture, opened.data, previous, placements));
+      this.#setPlacements(placements);
+      this.#bumpGeneration();
+    }
   }
 
   /** Reloads every View: the authoritative way to show the Session's data. */

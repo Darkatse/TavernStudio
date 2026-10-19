@@ -78,6 +78,11 @@ export class Project {
     else await this.store.write(placement.source, content);
   }
 
+  /** Throws one mount point's session writes away: the project's content goes back there. */
+  discard(placement: Placement): Promise<void> {
+    return previewSession.discard(placement);
+  }
+
   /** Changes arrive in bursts: one resolve runs at a time and then picks up the latest files. */
   #schedule(): void {
     if (this.#resolving) {
