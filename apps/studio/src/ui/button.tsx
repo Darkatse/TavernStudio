@@ -3,7 +3,9 @@ import { clsx } from 'clsx';
 
 const variants = {
   primary: 'bg-primary text-primary-fg not-data-disabled:hover:bg-primary/85',
-  secondary: 'bg-surface text-fg shadow-control not-data-disabled:hover:bg-hover',
+  // Raised, as a popover is: dark mode lightens each layer, and a button on a
+  // popover painted in the panel's color would look sunk into it.
+  secondary: 'bg-raised text-fg shadow-control not-data-disabled:hover:bg-hover',
   ghost: 'text-muted not-data-disabled:hover:bg-hover not-data-disabled:hover:text-fg',
 };
 
