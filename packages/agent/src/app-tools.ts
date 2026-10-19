@@ -1,6 +1,6 @@
 import { evaluateTool, interactTool, readLogsTool, snapshotTool } from '@tauritavern/app-use';
 import type { JsonValue } from '@tavern-studio/workspace';
-import { ToolError, type JsonObject, type Tool, type ToolResult } from './tool';
+import { modelToolName, ToolError, type JsonObject, type Tool, type ToolResult } from './tool';
 
 /** The preview page the `app.*` tools act on, with app-use running in its realm. */
 export interface AppPage {
@@ -33,6 +33,8 @@ export interface AppSurface {
 }
 
 const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
+const EVALUATE = modelToolName(evaluateTool.name);
+const READ_LOGS = modelToolName(readLogsTool.name);
 
 /**
  * The page tools of TauriTavern's in-app assistant (docs/Agent.md §4), with
@@ -48,7 +50,7 @@ export function appTools(surface: AppSurface): Tool[] {
       if (signal.aborted) throw error;
       throw new ToolError(
         'app.page_not_ready',
-        `The preview did not start: ${messageOf(error)}. No UI action was performed; app.read_logs may show why.`,
+        `The preview did not start: ${messageOf(error)}. No UI action was performed; ${READ_LOGS} may show why.`,
       );
     }
   };
@@ -83,7 +85,7 @@ The page is SillyTavern or TauriTavern: SillyTavern.getContext() is the frontend
         if (typeof code !== 'string' || code.trim() === '') {
           throw new ToolError(
             'tool.invalid_arguments',
-            'app.evaluate: code must be a non-empty string',
+            `${EVALUATE}: code must be a non-empty string`,
           );
         }
         const current = await page(signal);
@@ -100,7 +102,7 @@ Returns entries with timestampMs, level, message, the source position when known
         if (typeof limit !== 'number' || !Number.isSafeInteger(limit) || limit < 1 || limit > 100) {
           throw new ToolError(
             'tool.invalid_arguments',
-            'app.read_logs: limit must be an integer between 1 and 100',
+            `${READ_LOGS}: limit must be an integer between 1 and 100`,
           );
         }
         const levels = input['levels'];
@@ -111,7 +113,7 @@ Returns entries with timestampMs, level, message, the source position when known
         ) {
           throw new ToolError(
             'tool.invalid_arguments',
-            'app.read_logs: levels must contain only debug, info, warn or error',
+            `${READ_LOGS}: levels must contain only debug, info, warn or error`,
           );
         }
         const wanted = levels === undefined ? undefined : new Set(levels);

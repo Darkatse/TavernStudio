@@ -52,6 +52,8 @@ const STYLES = modelToolName('inspect.styles');
 const AUDIT = modelToolName('inspect.audit');
 const SNAPSHOT = modelToolName('app.snapshot');
 const INTERACT = modelToolName('app.interact');
+const READ_LOGS = modelToolName('app.read_logs');
+const CONFIGURE = modelToolName('preview.configure');
 
 const SNAPDOM_DISTORTIONS = `It was rendered from the DOM (snapdom), not taken from the screen: background layers may be missing or darker, <q> quotes may appear twice and text may wrap differently. Judge those with ${STYLES} and ${AUDIT}, not from this image.`;
 
@@ -147,7 +149,7 @@ With marks, the refs of your latest ${SNAPSHOT} page are boxed and labelled on t
         if (vendor === undefined && device === undefined) {
           throw new ToolError(
             'tool.invalid_arguments',
-            'preview.configure: give vendor, device or both',
+            `${CONFIGURE}: give vendor, device or both`,
           );
         }
         const started = performance.now();
@@ -175,7 +177,7 @@ async function untilStarted(start: () => Promise<void>, signal: AbortSignal): Pr
     if (signal.aborted) throw error;
     throw new ToolError(
       'preview.not_started',
-      `The preview did not start: ${error instanceof Error ? error.message : String(error)}. app.read_logs may show why.`,
+      `The preview did not start: ${error instanceof Error ? error.message : String(error)}. ${READ_LOGS} may show why.`,
     );
   }
 }
@@ -185,7 +187,7 @@ function choice(value: unknown, allowed: readonly string[], name: string): strin
   if (typeof value !== 'string' || !allowed.includes(value)) {
     throw new ToolError(
       'tool.invalid_arguments',
-      `preview.configure: ${name} must be one of ${allowed.join(', ')}`,
+      `${CONFIGURE}: ${name} must be one of ${allowed.join(', ')}`,
     );
   }
   return value;

@@ -26,17 +26,21 @@ export const TARGET_PROPERTIES: JsonObject = {
   },
 };
 
-/** The element a call names, or undefined when it names none and `optional` allows that. */
+/**
+ * The element a call of the tool `tool` (its id) names, or undefined when it
+ * names none and `optional` allows that.
+ */
 export function elementTarget(
   input: JsonObject,
   tool: string,
   { optional }: { optional: boolean },
 ): ElementTarget | undefined {
+  const name = modelToolName(tool);
   const text = (key: string) => {
     const value = input[key];
     if (value === undefined) return undefined;
     if (typeof value !== 'string' || value.trim() === '') {
-      throw new ToolError('tool.invalid_arguments', `${tool}: ${key} must be a non-empty string`);
+      throw new ToolError('tool.invalid_arguments', `${name}: ${key} must be a non-empty string`);
     }
     return value.trim();
   };
@@ -46,17 +50,17 @@ export function elementTarget(
   if (ref !== undefined && (selector !== undefined || root !== undefined)) {
     throw new ToolError(
       'tool.invalid_arguments',
-      `${tool}: give ref alone, or selector with an optional root`,
+      `${name}: give ref alone, or selector with an optional root`,
     );
   }
   if (root !== undefined && selector === undefined) {
     throw new ToolError(
       'tool.invalid_arguments',
-      `${tool}: root scopes a selector; give selector too`,
+      `${name}: root scopes a selector; give selector too`,
     );
   }
   if (ref !== undefined) return { ref };
   if (selector !== undefined) return root === undefined ? { selector } : { selector, root };
   if (optional) return undefined;
-  throw new ToolError('tool.invalid_arguments', `${tool}: name the element by ref or selector`);
+  throw new ToolError('tool.invalid_arguments', `${name}: name the element by ref or selector`);
 }

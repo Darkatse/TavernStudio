@@ -64,7 +64,7 @@ Use it to find the rule to change and the line it is on before editing CSS. Sill
         ) {
           throw new ToolError(
             'tool.invalid_arguments',
-            'inspect.styles: properties must be a non-empty list of CSS property names',
+            `${STYLES}: properties must be a non-empty list of CSS property names`,
           );
         }
         const names = (properties as string[] | undefined)?.map((property) =>
