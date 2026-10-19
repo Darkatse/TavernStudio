@@ -15,6 +15,7 @@ import { Tooltip } from '../ui/tooltip';
 import { AdoptionButton } from './adoption-button';
 import { CodeView } from './code-view';
 import { DeviceStage } from './device-stage';
+import { ExportButton } from './export-button';
 import { devices, type DeviceId } from '../preview/devices';
 
 export type WorkbenchView = 'preview' | 'code';
@@ -88,6 +89,7 @@ export function Workbench({
           )}
           <div className="ml-auto flex items-center gap-1.5">
             <AdoptionButton />
+            <ExportButton />
             {view === 'preview' && (
               <>
                 <VendorSwitch session={session} />

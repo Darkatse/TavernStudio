@@ -132,6 +132,25 @@ export class PreviewSession implements PreviewHost {
     return this.#diagnostics;
   }
 
+  /** The anatomy of the frontend the Session runs; undefined until it is open. */
+  get anatomy(): ThemeAnatomy | undefined {
+    return this.#opened?.anatomy;
+  }
+
+  /**
+   * A data file of the Snapshot (docs/Architecture.md §2): the fixture with
+   * the project placed, without the Session's own writes. Exports assemble
+   * from it. Undefined where the Snapshot has no such file.
+   */
+  readSnapshot(path: string): Uint8Array | undefined {
+    const opened = this.#opened;
+    if (!opened) throw new Error('The preview Session is not open');
+    const { writes } = applyPlacements(opened.fixture, opened.fixture, [], this.#placements);
+    const placed = writes.get(path);
+    if (placed === undefined) return opened.fixture.read(path);
+    return placed ?? undefined;
+  }
+
   subscribe = (listener: () => void) => {
     this.#listeners.add(listener);
     return () => this.#listeners.delete(listener);
@@ -227,7 +246,10 @@ export class PreviewSession implements PreviewHost {
     const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
     if (applied.writes.size === 0) {
       this.#setPlacements(placements);
-    } else if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
+    } else if (
+      pages.every(Boolean) &&
+      canHotApply(opened.anatomy, opened.vendor.kind, applied.changes)
+    ) {
       this.#write(opened.data, applied);
       this.#setPlacements(placements);
       const missed = pages.flatMap((page) =>

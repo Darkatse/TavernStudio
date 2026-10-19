@@ -1,7 +1,7 @@
 import { modelToolName } from '@tavern-studio/agent';
 import { MANIFEST } from '@tavern-studio/workspace';
 import type { Project } from '../project/project';
-import { previewControl } from './preview-surface';
+import { describePreview } from './preview-surface';
 import { loadSkills } from './skills';
 
 const decoder = new TextDecoder();
@@ -26,7 +26,7 @@ export async function systemPrompt(project: Project): Promise<string> {
       : `Skills: read a Skill's SKILL.md before work it covers.\n${skills
           .map((skill) => `- ${skill.name} (skills/${skill.folder}/SKILL.md): ${skill.description}`)
           .join('\n')}`,
-    `Preview: ${previewControl.describe()}. ${MANIFEST} mounts project files into the frontend's data, so a saved change reaches the preview by itself.`,
+    `Preview: ${describePreview()}. ${MANIFEST} mounts project files into the frontend's data, so a saved change reaches the preview by itself.`,
     manifest === undefined ? undefined : `project/${MANIFEST}:\n${manifest}`,
     notes === undefined
       ? undefined

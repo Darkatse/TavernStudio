@@ -104,6 +104,9 @@ importers:
       '@tavern-studio/preview':
         specifier: workspace:*
         version: link:../../packages/preview
+      '@tavern-studio/st-data':
+        specifier: workspace:*
+        version: link:../../packages/st-data
       '@tavern-studio/workspace':
         specifier: workspace:*
         version: link:../../packages/workspace

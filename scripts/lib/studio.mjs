@@ -92,12 +92,61 @@ export function vendorFrame(page) {
   return page.frameLocator('iframe[title="预览"]');
 }
 
-/** The vendor page's playwright Frame, for evaluate(). */
+/**
+ * The vendor page's playwright Frame, for evaluate(), once the View is ready:
+ * a change can reload it, and its frame is then a new one.
+ */
 export async function vendorPage(page) {
-  const handle = await page.locator('iframe[title="预览"]').elementHandle();
-  return handle.contentFrame();
+  await page.waitForFunction(() => window.__TAVERN_STUDIO__?.page() !== undefined, undefined, {
+    timeout: 60_000,
+  });
+  const frame = await page.evaluateHandle(() => window.__TAVERN_STUDIO__.page().frame);
+  return frame.asElement().contentFrame();
 }
 
 export async function diagnostics(page) {
   return page.evaluate(() => window.__TAVERN_STUDIO__.diagnostics);
+}
+
+/** Creates a project from the theme template through the code view, then shows the preview again. */
+export async function createThemeProject(page) {
+  await page.getByRole('tab', { name: '代码' }).click();
+  await page.getByRole('button', { name: '新建主题项目' }).click();
+  await page.getByRole('treeitem', { name: /theme\.css/ }).waitFor();
+  await page.getByRole('tab', { name: '预览' }).click();
+}
+
+/** Points the Agent at an OpenAI-compatible endpoint, such as a scripted model, through the settings dialog. */
+export async function useModel(page, baseUrl, model = 'scripted') {
+  await page.getByRole('button', { name: '模型设置' }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('服务', { exact: true }).selectOption('custom');
+  await dialog.getByLabel('地址', { exact: true }).fill(baseUrl);
+  await dialog.getByLabel('模型', { exact: true }).fill(model);
+  await dialog.getByLabel('API Key', { exact: true }).fill('scripted');
+  await dialog.getByRole('button', { name: '保存' }).click();
+  await page.keyboard.press('Escape');
+  await dialog.waitFor({ state: 'detached' });
+}
+
+/** The Runs the Transcript shows, counted in the page. */
+const runCount = () => document.querySelectorAll('[role=log] section').length;
+
+/** Sends the author's message, waits for its Run to end, and returns how it ended, as announced. */
+export async function askAgent(page, message, timeout = 60_000) {
+  const before = await page.evaluate(runCount);
+  const composer = page.getByLabel('给 Agent 的消息');
+  await composer.fill(message);
+  await composer.press('Enter');
+  await page.waitForFunction(
+    (count) => {
+      const log = document.querySelector('[role=log]');
+      return (
+        log?.getAttribute('aria-busy') === 'false' && log.querySelectorAll('section').length > count
+      );
+    },
+    before,
+    { timeout },
+  );
+  return page.locator('[role=log] ~ [aria-live=polite]').textContent();
 }

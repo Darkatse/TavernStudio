@@ -66,6 +66,15 @@ export class Project {
   }
 
   /**
+   * Resolves once the preview Session has the project's latest files placed.
+   * A write schedules its placing before it resolves, so whatever waits here
+   * after writing sees the preview move on, reload included.
+   */
+  async placed(): Promise<void> {
+    while (this.#resolving) await this.#resolving;
+  }
+
+  /**
    * Takes one mount point's session writes back into its source file. The
    * project then matches the Session there, so the differences go away.
    */

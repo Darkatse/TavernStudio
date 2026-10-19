@@ -12,7 +12,7 @@ import {
   type WorkspaceRoot,
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
-import { previewControl, previewSurface } from './preview-surface';
+import { agentPreview } from './preview-surface';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
@@ -34,6 +34,7 @@ export async function runInProject(
   model: { endpoint: Endpoint; apiKey: string },
   hooks: RunHooks,
 ): Promise<void> {
+  const preview = agentPreview(project);
   await runAgent(run, history, message, {
     agent: {
       model: endpointModel(model.endpoint),
@@ -43,8 +44,8 @@ export async function runInProject(
     systemPrompt: await systemPrompt(project),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
-      ...previewTools(previewControl, { images: model.endpoint.images }),
-      ...appTools(previewSurface),
+      ...previewTools(preview.control, { images: model.endpoint.images }),
+      ...appTools(preview.surface),
     ],
     ...hooks,
   });

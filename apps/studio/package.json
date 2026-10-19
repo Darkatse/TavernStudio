@@ -29,6 +29,7 @@
     "@tavern-studio/agent": "workspace:*",
     "@tavern-studio/backend": "workspace:*",
     "@tavern-studio/preview": "workspace:*",
+    "@tavern-studio/st-data": "workspace:*",
     "@tavern-studio/workspace": "workspace:*",
     "clsx": "^2.1.1",
     "idb": "^8.0.4",

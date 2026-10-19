@@ -21,10 +21,14 @@ export interface AppLogEntry {
   frame: string;
 }
 
-/** What the app gives the `app.*` tools: the page as it is at each call, and its records. */
+/** What the app gives the `app.*` tools: the page, and what was recorded in it. */
 export interface AppSurface {
-  /** Undefined while the preview starts or reloads. */
-  page(): AppPage | undefined;
+  /**
+   * The page once the preview shows the project as it is now: a change the
+   * Run just wrote may still be reaching it, through a reload even. Rejects
+   * when the preview does not start.
+   */
+  page(signal: AbortSignal): Promise<AppPage>;
   logs(): readonly AppLogEntry[];
 }
 
@@ -37,15 +41,16 @@ const LOG_LEVELS = ['debug', 'info', 'warn', 'error'];
  * report it.
  */
 export function appTools(surface: AppSurface): Tool[] {
-  const page = (): AppPage => {
-    const current = surface.page();
-    if (!current) {
+  const page = async (signal: AbortSignal): Promise<AppPage> => {
+    try {
+      return await surface.page(signal);
+    } catch (error) {
+      if (signal.aborted) throw error;
       throw new ToolError(
         'app.page_not_ready',
-        'The preview is still starting. No UI action was performed. Call app.snapshot once it has loaded.',
+        `The preview did not start: ${messageOf(error)}. No UI action was performed; app.read_logs may show why.`,
       );
     }
-    return current;
   };
 
   return [
@@ -54,20 +59,26 @@ export function appTools(surface: AppSurface): Tool[] {
       description: `${snapshotTool.description}
 This is the live preview of the author's project in the real frontend. Studio's own interface is not part of it.`,
       inputSchema: snapshotTool.inputSchema,
-      run: (input, { run }) => fromPage(() => page().snapshot(run, input)),
+      run: async (input, { run, signal }) => {
+        const current = await page(signal);
+        return fromPage(() => current.snapshot(run, input));
+      },
     },
     {
       id: interactTool.name,
       description: interactTool.description,
       inputSchema: interactTool.inputSchema,
-      run: (input, { run }) => fromPage(() => page().interact(run, input)),
+      run: async (input, { run, signal }) => {
+        const current = await page(signal);
+        return fromPage(() => current.interact(run, input));
+      },
     },
     {
       id: evaluateTool.name,
       description: `${evaluateTool.description}
 The page is SillyTavern or TauriTavern: SillyTavern.getContext() is the frontend's context, and on TauriTavern window.__TAURITAVERN__.api is its public API. What the code changes lands in the preview Session, not in the project; to keep a change, write it to the project's files.`,
       inputSchema: evaluateTool.inputSchema,
-      run: (input, { run }) => {
+      run: async (input, { run, signal }) => {
         const code = input['code'];
         if (typeof code !== 'string' || code.trim() === '') {
           throw new ToolError(
@@ -75,7 +86,8 @@ The page is SillyTavern or TauriTavern: SillyTavern.getContext() is the frontend
             'app.evaluate: code must be a non-empty string',
           );
         }
-        return fromPage(() => page().evaluate(run, code));
+        const current = await page(signal);
+        return fromPage(() => current.evaluate(run, code));
       },
     },
     {

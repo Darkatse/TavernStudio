@@ -16,8 +16,11 @@ export interface PreviewControl {
   configure(change: { vendor?: string; device?: string }, signal: AbortSignal): Promise<void>;
   /** Reloads the View and resolves once it is ready again. */
   reload(signal: AbortSignal): Promise<void>;
-  /** A screenshot of the View, or of the element `selector` matches. */
-  capture(selector: string | undefined): Promise<Screenshot>;
+  /**
+   * A screenshot of the View, or of the element `selector` matches, once the
+   * preview shows the project as it is now.
+   */
+  capture(selector: string | undefined, signal: AbortSignal): Promise<Screenshot>;
 }
 
 /** A screenshot, and how it was taken (docs/Agent.md §5). */
@@ -58,7 +61,7 @@ export function previewTools(preview: PreviewControl, { images }: { images: bool
       },
       additionalProperties: false,
     },
-    async run(input) {
+    async run(input, { signal }) {
       const selector = input['selector'];
       if (selector !== undefined && (typeof selector !== 'string' || selector.trim() === '')) {
         throw new ToolError(
@@ -68,8 +71,9 @@ export function previewTools(preview: PreviewControl, { images }: { images: bool
       }
       let shot: Screenshot;
       try {
-        shot = await preview.capture(selector);
+        shot = await preview.capture(selector, signal);
       } catch (error) {
+        if (signal.aborted) throw error;
         throw new ToolError(
           'preview.capture_failed',
           error instanceof Error ? error.message : String(error),
