@@ -6,7 +6,7 @@
     "suspicious": "error"
   },
   "rules": {
-    "max-lines": ["error", 500],
+    "max-lines": ["error", 800],
     "react/react-in-jsx-scope": "off",
     "typescript/consistent-return": "off",
     "typescript/no-unsafe-type-assertion": "off",

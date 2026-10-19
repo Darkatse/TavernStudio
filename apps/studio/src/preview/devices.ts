@@ -42,6 +42,10 @@ export const devices: Record<DeviceId, Device> = {
   },
 };
 
+export function isDeviceId(value: string): value is DeviceId {
+  return Object.hasOwn(devices, value);
+}
+
 /** The desktop platform of the browser Studio runs in. */
 function desktopPlatform(): HostIdentity['platform'] {
   const platform = navigator.platform.toLowerCase();

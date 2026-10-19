@@ -22,8 +22,7 @@ const BUTTON = 'Rest by the spring';
 const call = (page, tool, args) =>
   page.evaluate(
     (request) => {
-      const frame = document.querySelector('iframe[title="预览"]');
-      const agent = window.__TAVERN_STUDIO__.pageAgent(frame);
+      const { agent } = window.__TAVERN_STUDIO__.page();
       const started = performance.now();
       const output = agent[request.tool]('v6', request.args);
       return { output, ms: Math.round((performance.now() - started) * 10) / 10 };

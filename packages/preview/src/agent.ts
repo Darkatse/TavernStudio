@@ -18,8 +18,17 @@ export function createPageAgent(): PageAgent {
       observation.enterRun(runId);
       return interact(args, observation, options);
     },
+    evaluate(runId, code) {
+      observation.enterRun(runId);
+      // The code may change the page, so a snapshot's pagination no longer holds.
+      observation.clearCursor();
+      return new AsyncFunction(code)();
+    },
   };
 }
+
+/** An async function body compiled in this page's realm, as TauriTavern's `app.evaluate` does. */
+const AsyncFunction = (async () => {}).constructor as new (code: string) => () => Promise<unknown>;
 
 interface ChatSurfaceContext {
   scrollChatSurfaceTo?: (options: ScrollToOptions) => void;

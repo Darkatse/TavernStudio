@@ -1,6 +1,8 @@
 import {
+  appTools,
   endpointModel,
   endpointStreams,
+  previewTools,
   runAgent,
   workspaceTools,
   type Endpoint,
@@ -10,6 +12,7 @@ import {
   type WorkspaceRoot,
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
+import { previewControl, previewSurface } from './preview-surface';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
@@ -38,7 +41,11 @@ export async function runInProject(
       options: { apiKey: model.apiKey },
     },
     systemPrompt: await systemPrompt(project),
-    tools: workspaceTools(agentWorkspace(project.record.id, projectRoot)),
+    tools: [
+      ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
+      ...previewTools(previewControl),
+      ...appTools(previewSurface),
+    ],
     ...hooks,
   });
 }

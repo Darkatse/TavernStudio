@@ -1,3 +1,4 @@
+import type { ImageContent } from '@earendil-works/pi-ai';
 import type { JsonValue } from '@tavern-studio/workspace';
 import type { ReadState } from './read-state';
 
@@ -20,6 +21,8 @@ export interface Tool {
 }
 
 export interface ToolContext {
+  /** The Run the call belongs to. */
+  run: string;
   /** Aborts when the Run is cancelled. */
   signal: AbortSignal;
   /** What this Run has read and written, for compare-and-swap writes. */
@@ -29,6 +32,11 @@ export interface ToolContext {
 /** What a tool returns to the model. */
 export interface ToolResult {
   text: string;
+  /**
+   * Screenshots, after the text. pi-ai moves them into a user message for
+   * APIs that take images only there (docs/Agent.md §2).
+   */
+  images?: ImageContent[];
 }
 
 /**

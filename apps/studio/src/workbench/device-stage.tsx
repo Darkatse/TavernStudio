@@ -1,6 +1,6 @@
 import { useElementSize } from '../lib/use-element-size';
 import { useSessionStatus } from '../preview/use-session';
-import type { Device } from './devices';
+import type { Device } from '../preview/devices';
 import { PreviewView } from './preview-view';
 
 /** Height of the caption line plus its gap to the frame. */

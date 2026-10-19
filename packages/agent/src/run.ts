@@ -1,6 +1,7 @@
 import type {
   Api,
   AssistantMessage,
+  ImageContent,
   Model,
   ProviderStreams,
   SimpleStreamOptions,
@@ -161,14 +162,25 @@ export async function runAgent(
       journal({ type: 'tool_call_started', round, callId: call.id, tool: tool.id });
       const started = performance.now();
       calls += 1;
-      const outcome = await callTool(tool, call, calls, { signal, reads });
+      let outcome: Awaited<ReturnType<typeof callTool>>;
+      try {
+        outcome = await callTool(tool, call, calls, { run: id, signal, reads });
+      } catch (error) {
+        // A tool cut short by cancelling ends the Run as cancelled; its call stays unanswered.
+        if (signal.aborted) return end({ status: 'cancelled' });
+        throw error;
+      }
       const result = await resultForModel(
         outcome.text,
         { runId: id, round, callId: call.id },
         environment.toolResults,
       );
       const durationMs = Math.round(performance.now() - started);
-      record({ run: id, round, message: toolResult(call, result.text, outcome.error, durationMs) });
+      record({
+        run: id,
+        round,
+        message: toolResult(call, result.text, outcome.images, outcome.error, durationMs),
+      });
       journal({
         type: 'tool_call_completed',
         round,
@@ -196,7 +208,7 @@ async function callTool(
   call: ToolCall,
   calls: number,
   context: ToolContext,
-): Promise<{ text: string; error?: string }> {
+): Promise<{ text: string; images?: ImageContent[]; error?: string }> {
   try {
     if (calls > MAX_TOOL_CALLS) {
       throw new ToolError(
@@ -207,8 +219,7 @@ async function callTool(
     if (call.argumentsError !== undefined) {
       throw new ToolError('tool.invalid_arguments', call.argumentsError);
     }
-    const result = await tool.run(normalizeArguments(call.arguments), context);
-    return { text: result.text };
+    return await tool.run(normalizeArguments(call.arguments), context);
   } catch (error) {
     if (!(error instanceof ToolError)) throw error;
     // OpenAI's formats carry no error flag, so the text says it, as in TauriTavern.
@@ -219,6 +230,7 @@ async function callTool(
 function toolResult(
   call: ToolCall,
   text: string,
+  images: readonly ImageContent[] | undefined,
   error: string | undefined,
   durationMs: number,
 ): ToolResultMessage {
@@ -226,7 +238,7 @@ function toolResult(
     role: 'toolResult',
     toolCallId: call.id,
     toolName: call.name,
-    content: [{ type: 'text', text }],
+    content: [{ type: 'text', text }, ...(images ?? [])],
     isError: error !== undefined,
     timestamp: Date.now(),
     durationMs,

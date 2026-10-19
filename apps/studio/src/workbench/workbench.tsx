@@ -1,8 +1,13 @@
 import type { VendorKind } from '@tavern-studio/preview';
 import { Code2, Eye, Monitor, RotateCw, Smartphone } from 'lucide-react';
-import { useState, type ReactNode } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { previewSession, type SessionStatus } from '../preview/session';
-import { useSessionStatus, useVendorChoice, useViewGeneration } from '../preview/use-session';
+import {
+  useDevice,
+  useSessionStatus,
+  useVendorChoice,
+  useViewGeneration,
+} from '../preview/use-session';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
@@ -10,7 +15,7 @@ import { Tooltip } from '../ui/tooltip';
 import { AdoptionButton } from './adoption-button';
 import { CodeView } from './code-view';
 import { DeviceStage } from './device-stage';
-import { devices, type DeviceId } from './devices';
+import { devices, type DeviceId } from '../preview/devices';
 
 export type WorkbenchView = 'preview' | 'code';
 
@@ -32,7 +37,7 @@ export interface WorkbenchProps {
   leading?: ReactNode;
   /** Hidden where the shell switches views itself (mobile navigation). */
   showViewTabs?: boolean;
-  /** Device shown first; the shell matches it to the screen Studio runs on. */
+  /** The device to present when this layout appears; the shell matches it to the screen. */
   initialDevice?: DeviceId;
 }
 
@@ -47,7 +52,8 @@ export function Workbench({
   showViewTabs = true,
   initialDevice = 'desktop',
 }: WorkbenchProps) {
-  const [deviceId, setDeviceId] = useState(initialDevice);
+  const deviceId = useDevice();
+  useEffect(() => void previewSession.selectDevice(initialDevice), [initialDevice]);
   const generation = useViewGeneration();
   const session = useSessionStatus();
 
@@ -89,7 +95,7 @@ export function Workbench({
                   label="设备"
                   value={deviceId}
                   options={deviceOptions}
-                  onChange={(id) => void previewSession.retireViews().then(() => setDeviceId(id))}
+                  onChange={(id) => void previewSession.selectDevice(id)}
                 />
                 <Tooltip content="重新载入预览">
                   <Button

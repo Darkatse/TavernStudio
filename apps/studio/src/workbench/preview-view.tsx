@@ -2,7 +2,7 @@ import { clsx } from 'clsx';
 import { useState } from 'react';
 import { previewSession } from '../preview/session';
 import { useSessionStatus } from '../preview/use-session';
-import type { Device } from './devices';
+import type { Device } from '../preview/devices';
 import { StartupOverlay } from './startup-overlay';
 
 /**

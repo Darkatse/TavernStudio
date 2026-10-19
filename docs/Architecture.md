@@ -165,7 +165,9 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   - 文本挂到 Pointer 时，成为该位置的字符串值。
   - 不带 Pointer 时，整个文件替换。
   - 两条 Mount 写到同一个位置时报错，不按先后顺序覆盖。
-- **所有权。** 项目只拥有它写出的键，采纳和导出都只看这些键。示例中的 `theme.json` 是 `power_user` 里属于主题的字段，主题名写在 `theme` 键里，即 `power_user.theme`。
+- **所有权。** 项目只拥有它写出的键，采纳和导出都只看这些键。示例中的 `theme.json` 是 `power_user` 里属于主题外观的字段。
+  - 选中哪个已保存的主题（`power_user.theme`）和无障碍偏好（`reduced_motion`）属于用户，不属于主题，项目不拥有它们。
+  - 原因：TT 启动时按名字解析主题文件。项目拥有 `power_user.theme`，样板里又没有同名文件时，TT 会报错并改用另一个主题，项目的外观随之被覆盖。不拥有这个键时，选中的是样板里真实存在的主题，外观字段仍来自项目，这正是作者在 ST 里调过外观、尚未另存主题时的状态。
 - **结构化文档。** Pointer 可以指向 JSON 文件，也可以指向角色卡 PNG 里嵌的卡片 JSON，读写规则与 ST 相同。
 - **目录。** `from` 可以是目录，整棵子树原样挂到 `to` 下。
   - 扩展通常写两条 Mount：一条挂 `manifest.json`，一条挂 `dist/`。
@@ -181,7 +183,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   
   Pointer 里带数组下标时，作者在 ST 界面里调整顺序后会错位，这时以整体差异呈现。
 - **导出**沿 Mount 读取合成后的数据，组装为 ST 能导入的格式：
-  - 主题 JSON：照 ST 的 `getThemeObject` 组装，`name` 取 `power_user.theme`；
+  - 主题 JSON：照 ST 的 `getThemeObject` 组装，`name` 取项目名；
   - `user.css`；
   - 角色卡 PNG；
   - 扩展 zip；

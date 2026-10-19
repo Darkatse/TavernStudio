@@ -73,6 +73,8 @@ export class Views {
   async retire(): Promise<void> {
     await Promise.all(
       this.all().map(async (view) => {
+        // An unloading page is no longer one to observe or act on.
+        delete view.agent;
         view.onRetire();
         await this.#exit(view);
         await new Promise<void>((resolve) => {

@@ -25,6 +25,8 @@ export interface PreviewHost {
 export interface PageAgent {
   snapshot(runId: string, args: ToolArguments): JsonValue;
   interact(runId: string, args: ToolArguments): JsonValue;
+  /** Runs an async function body in the page's realm; the result is the page's own value. */
+  evaluate(runId: string, code: string): Promise<unknown>;
 }
 
 /** The frontend a vendor image ships. It decides how the page reaches the API. */

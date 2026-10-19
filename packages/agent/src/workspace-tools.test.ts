@@ -79,7 +79,7 @@ function run(workspace: AgentWorkspace) {
   return async (id: string, input: unknown): Promise<string> => {
     const tool = tools.get(id);
     if (!tool) throw new Error(`No tool ${id}`);
-    const context = { signal: new AbortController().signal, reads };
+    const context = { run: 'test', signal: new AbortController().signal, reads };
     return (await tool.run(normalizeArguments(input), context)).text;
   };
 }

@@ -29,6 +29,7 @@ import {
   loadVendorInfo,
   type VendorImage,
 } from './sources';
+import type { DeviceId } from './devices';
 import { Views, type View, type ViewHooks } from './views';
 import { registerWorker, reportUnansweredRequests } from './worker';
 
@@ -42,6 +43,12 @@ export type SessionStatus =
   | { phase: 'failed'; error: string }
   /** Another Studio tab holds the Session now (docs/Architecture.md §4). */
   | { phase: 'elsewhere' };
+
+/** A View's vendor page that has started, with the app-use engine in its realm. */
+export interface PreviewPage {
+  frame: HTMLIFrameElement;
+  agent: PageAgent;
+}
 
 export interface VendorChoice {
   images: readonly VendorImage[];
@@ -74,6 +81,8 @@ export class PreviewSession implements PreviewHost {
   #generation = 0;
   /** `selected` is the image the next Session opens: the first built one until the user picks. */
   #vendors: VendorChoice = { images: [], selected: undefined };
+  /** The device the Views present (docs/Architecture.md §2). */
+  #device: DeviceId = 'desktop';
   #opened: Opened | undefined;
   #opening: Promise<void> | undefined;
   /** Publishing of session writes, in write order. */
@@ -88,7 +97,7 @@ export class PreviewSession implements PreviewHost {
       frame: 'backend',
       time: Date.now(),
     });
-    for (const listener of this.#listeners) listener();
+    this.#notify();
   });
   readonly #views = new Views((entry) => this.#report(entry));
   readonly #listeners = new Set<() => void>();
@@ -113,6 +122,10 @@ export class PreviewSession implements PreviewHost {
   /** The built images and the one selected; a new object whenever either changes. */
   get vendors(): VendorChoice {
     return this.#vendors;
+  }
+
+  get device(): DeviceId {
+    return this.#device;
   }
 
   get diagnostics(): readonly DiagnosticEntry[] {
@@ -167,6 +180,14 @@ export class PreviewSession implements PreviewHost {
     if (this.#vendors.selected === id) return;
     this.#vendors = { ...this.#vendors, selected: id };
     await this.#restart(fixture, this.#placements);
+  }
+
+  /** Presents another device: the Views unload and come back as that device. */
+  async selectDevice(id: DeviceId): Promise<void> {
+    if (this.#device === id) return;
+    await this.retireViews();
+    this.#device = id;
+    this.#notify();
   }
 
   /**
@@ -306,7 +327,7 @@ export class PreviewSession implements PreviewHost {
   #setPlacements(placements: readonly Placement[]): void {
     this.#placements = placements;
     this.#persistence.placements(placements);
-    for (const listener of this.#listeners) listener();
+    this.#notify();
   }
 
   #write(data: DataDirectory, { writes }: Applied): void {
@@ -318,7 +339,7 @@ export class PreviewSession implements PreviewHost {
 
   #bumpGeneration(): void {
     this.#generation += 1;
-    for (const listener of this.#listeners) listener();
+    this.#notify();
   }
 
   /**
@@ -348,12 +369,39 @@ export class PreviewSession implements PreviewHost {
     return this.#published;
   }
 
-  /** The app-use engine of a View's vendor page, for the Agent's `app.*` tools. */
-  pageAgent(frame: HTMLIFrameElement): PageAgent {
-    const agent = this.#views.get(frame)?.agent;
-    if (!agent)
-      throw new Error('The vendor page is still starting. Wait until the preview is ready.');
-    return agent;
+  /**
+   * The vendor page the author is looking at: the newest View that is ready,
+   * with its app-use engine, for the Agent's `app.*` tools and screenshots.
+   * Undefined while the preview starts or reloads.
+   */
+  page(): PreviewPage | undefined {
+    const view = this.#views.all().findLast((candidate) => candidate.agent !== undefined);
+    return view?.agent && { frame: view.frame, agent: view.agent };
+  }
+
+  /**
+   * The page once a View is ready, for whatever waits on a reload or a
+   * switch. Rejects when the Session cannot open here, or on `signal`.
+   */
+  whenPage(signal?: AbortSignal): Promise<PreviewPage> {
+    return new Promise((resolve, reject) => {
+      const settle = () => {
+        const page = this.page();
+        const status = this.#status;
+        if (page) resolve(page);
+        else if (signal?.aborted) reject(signal.reason);
+        else if (status.phase === 'failed')
+          reject(new Error(`The preview failed to open: ${status.error}`));
+        else if (status.phase === 'elsewhere')
+          reject(new Error('Another Studio tab holds the preview now'));
+        else return;
+        unsubscribe();
+        signal?.removeEventListener('abort', settle);
+      };
+      const unsubscribe = this.subscribe(settle);
+      signal?.addEventListener('abort', settle);
+      settle();
+    });
   }
 
   connect(page: Window, agent: PageAgent): ViewConnection {
@@ -368,6 +416,7 @@ export class PreviewSession implements PreviewHost {
       ready: () => {
         view.agent = agent;
         view.onReady();
+        this.#notify();
       },
     };
   }
@@ -491,6 +540,10 @@ export class PreviewSession implements PreviewHost {
 
   #setStatus(status: SessionStatus): void {
     this.#status = status;
+    this.#notify();
+  }
+
+  #notify(): void {
     for (const listener of this.#listeners) listener();
   }
 }

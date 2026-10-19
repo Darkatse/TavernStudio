@@ -1,3 +1,5 @@
+export { appTools } from './app-tools';
+export type { AppLogEntry, AppPage, AppSurface } from './app-tools';
 export { normalizeArguments } from './arguments';
 export { operations, restorePlan, undoneOperations } from './checkpoint';
 export type { CheckpointFile, RestoreStep } from './checkpoint';
@@ -5,6 +7,8 @@ export { closeToolGroups, keepLatestImages, modelContext } from './context';
 export { ENDPOINT_PRESETS, endpointModel, endpointStreams, probeEndpoint } from './endpoints';
 export type { Endpoint, EndpointApi } from './endpoints';
 export type { HistoryEntry } from './history';
+export { previewTools } from './preview-tools';
+export type { PreviewControl } from './preview-tools';
 // The message types History stores, so that the app depends on pi-ai only through this package.
 export type {
   AssistantMessage,
