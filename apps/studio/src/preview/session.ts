@@ -46,7 +46,12 @@ interface View extends ViewHooks {
   frame: HTMLIFrameElement;
   /** Set once the vendor page has connected and emitted APP_READY. */
   agent?: PageAgent;
+  /** The page's own way to save and close, when it has one (TauriTavern). */
+  exit?: () => Promise<void>;
 }
+
+/** How long a page may take to save on exit before its View is removed anyway. */
+const EXIT_TIMEOUT_MS = 5000;
 
 interface Opened {
   vendor: VendorImage;
@@ -169,15 +174,38 @@ export class PreviewSession implements PreviewHost {
    */
   async retireViews(): Promise<void> {
     await Promise.all(
-      [...this.#views.values()].map(
-        (view) =>
-          new Promise<void>((resolve) => {
-            view.onRetire();
-            view.frame.addEventListener('load', () => resolve(), { once: true });
-            view.frame.src = 'about:blank';
-          }),
-      ),
+      [...this.#views.values()].map(async (view) => {
+        view.onRetire();
+        await this.#exit(view);
+        await new Promise<void>((resolve) => {
+          view.frame.addEventListener('load', () => resolve(), { once: true });
+          view.frame.src = 'about:blank';
+        });
+      }),
     );
+  }
+
+  /**
+   * Lets a page that can say when it has saved (TauriTavern) close through
+   * its own path first. A save that fails keeps such a page open; the View
+   * is removed anyway, since the user asked for it, and the loss is reported.
+   */
+  async #exit(view: View): Promise<void> {
+    if (!view.exit) return;
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timedOut = new Promise<true>((resolve) => {
+      timer = setTimeout(() => resolve(true), EXIT_TIMEOUT_MS);
+    });
+    const late = await Promise.race([view.exit().then(() => false), timedOut]);
+    clearTimeout(timer);
+    if (!late) return;
+    this.#report({
+      level: 'error',
+      kind: 'error',
+      message: `The vendor page did not finish saving within ${EXIT_TIMEOUT_MS / 1000} s; changes since its last save may be lost`,
+      frame: 'page',
+      time: Date.now(),
+    });
   }
 
   /**
@@ -234,6 +262,10 @@ export class PreviewSession implements PreviewHost {
         },
       },
     };
+  }
+
+  exitThrough(page: Window, exit: () => Promise<void>): void {
+    this.#viewOf(page).view.exit = exit;
   }
 
   #viewOf(page: Window): { view: View; opened: Opened } {

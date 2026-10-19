@@ -10,6 +10,11 @@ export interface PreviewHost {
   connect(page: Window, agent: PageAgent): ViewConnection;
   /** The Web Host options for the page of a TauriTavern View (docs/Vendors.md §3). */
   webHost(page: Window): WebHostOptions;
+  /**
+   * How the page exits before its View is removed: TauriTavern's Web Host
+   * `exit()`, which resolves once TT has saved through its own close path.
+   */
+  exitThrough(page: Window, exit: () => Promise<void>): void;
 }
 
 /**

@@ -14,4 +14,5 @@ const studio = window.frameElement?.ownerDocument.defaultView as
   (Window & { [HOST_KEY]?: PreviewHost }) | null | undefined;
 const host = studio?.[HOST_KEY];
 if (!host) throw new Error('This page only runs inside a Tavern Studio preview');
-installWebHost(host.webHost(window));
+const webHost = installWebHost(host.webHost(window));
+host.exitThrough(window, () => webHost.exit());

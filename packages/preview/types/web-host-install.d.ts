@@ -4,4 +4,6 @@ import type { WebHostOptions } from '../src/host';
 
 export declare function installWebHost(options: WebHostOptions): {
   emit(name: string, payload: unknown): void;
+  /** Resolves once TT has saved and closed; stays pending while a failed save keeps it open. */
+  exit(): Promise<void>;
 };
