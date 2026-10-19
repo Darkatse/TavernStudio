@@ -87,7 +87,7 @@ export function Workbench({
                 label="设备"
                 value={deviceId}
                 options={deviceOptions}
-                onChange={setDeviceId}
+                onChange={(id) => void previewSession.retireViews().then(() => setDeviceId(id))}
               />
               <Tooltip content="重新载入预览">
                 <Button
@@ -95,7 +95,11 @@ export function Workbench({
                   icon
                   aria-label="重新载入预览"
                   disabled={session.phase !== 'open'}
-                  onClick={() => setGeneration((count) => count + 1)}
+                  onClick={() =>
+                    void previewSession
+                      .retireViews()
+                      .then(() => setGeneration((count) => count + 1))
+                  }
                 >
                   <RotateCw
                     className="transition-[rotate] motion-slow motion-reduce:transition-none"

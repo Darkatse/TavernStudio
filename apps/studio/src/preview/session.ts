@@ -33,9 +33,17 @@ export interface VendorChoice {
   selected: string | undefined;
 }
 
-interface View {
+/** What a View's frame tells the Session, and how the Session tells it back. */
+export interface ViewHooks {
   device: DeviceIdentity;
+  /** The vendor page emitted APP_READY. */
   onReady(): void;
+  /** The vendor page is being unloaded, ahead of the View being removed. */
+  onRetire(): void;
+}
+
+interface View extends ViewHooks {
+  frame: HTMLIFrameElement;
   /** Set once the vendor page has connected and emitted APP_READY. */
   agent?: PageAgent;
 }
@@ -63,6 +71,7 @@ export class PreviewSession implements PreviewHost {
   /** The Web Host's own document for a TauriTavern Session (docs/Vendors.md §3). */
   #webHostState: Record<string, unknown> | null = null;
   #listeningToWorker = false;
+  /** Keyed by frame, which is how a connecting page finds its View. */
   readonly #views = new Map<Element, View>();
   readonly #viewsClosed = new Set<() => void>();
   readonly #listeners = new Set<() => void>();
@@ -120,6 +129,7 @@ export class PreviewSession implements PreviewHost {
     const fixture = this.#fixture;
     if (fixture === undefined) throw new Error('The preview Session has not been opened');
     if (this.#vendors.selected === id) return;
+    await this.retireViews();
     this.#vendors = { ...this.#vendors, selected: id };
     this.#opened = undefined;
     this.#opening = undefined;
@@ -132,13 +142,14 @@ export class PreviewSession implements PreviewHost {
    * Registers a View's frame before it navigates, so its vendor page can
    * connect. Returns the function that unregisters it.
    */
-  addView(frame: HTMLIFrameElement, device: DeviceIdentity, onReady: () => void): () => void {
+  addView(frame: HTMLIFrameElement, hooks: ViewHooks): () => void {
     const created = performance.now();
     this.#views.set(frame, {
-      device,
+      ...hooks,
+      frame,
       onReady: () => {
         performance.measure('studio:view-ready', { start: created });
-        onReady();
+        hooks.onReady();
       },
     });
     return () => {
@@ -147,6 +158,26 @@ export class PreviewSession implements PreviewHost {
       for (const resolve of this.#viewsClosed) resolve();
       this.#viewsClosed.clear();
     };
+  }
+
+  /**
+   * Unloads every View's vendor page while its frame is still in the
+   * document, as a reload of the real page would. Call it before anything
+   * removes a View: vendors save on pagehide (TauriTavern flushes its
+   * settings and chat then), and a frame that is already removed has a
+   * detached realm in which those saves fail.
+   */
+  async retireViews(): Promise<void> {
+    await Promise.all(
+      [...this.#views.values()].map(
+        (view) =>
+          new Promise<void>((resolve) => {
+            view.onRetire();
+            view.frame.addEventListener('load', () => resolve(), { once: true });
+            view.frame.src = 'about:blank';
+          }),
+      ),
+    );
   }
 
   /**

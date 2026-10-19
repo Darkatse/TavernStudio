@@ -17,7 +17,12 @@ export function PreviewView({ device, scale }: { device: Device; scale: number }
 
   const attach = (frame: HTMLIFrameElement | null) => {
     if (!frame) return;
-    const remove = previewSession.addView(frame, device.identity, () => setBooted(true));
+    const remove = previewSession.addView(frame, {
+      device: device.identity,
+      onReady: () => setBooted(true),
+      // The page unloads before the View goes: fade back to the startup overlay.
+      onRetire: () => setBooted(false),
+    });
     frame.src = '/';
     return remove;
   };
