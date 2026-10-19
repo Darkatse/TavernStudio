@@ -50,8 +50,6 @@ export function readFileTool(workspace: AgentWorkspace): Tool {
 
       const file = await readText(location);
       const total = measure(file.text);
-      // A whole-file read returns all of a file within the limits; past them,
-      // and for any range, the characters are capped and the rest is a preview.
       const wholeFile = startLine === 1 && lineCount === undefined;
       const fits =
         file.bytes <= MAX_READ_BYTES &&

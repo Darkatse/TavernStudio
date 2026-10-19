@@ -12,10 +12,8 @@ import { db } from '../storage/db';
 import { Checkpoints, type RollbackPlan } from './checkpoints';
 import { agentSettings, selectedEndpoint, settingsLoaded, type ModelProblem } from './settings';
 
-/** How many of the latest Runs keep their screenshots and long tool results (docs/Agent.md §1). */
 const RUNS_WITH_MEDIA = 20;
 
-/** The Run in progress, with the reply as it streams. */
 export interface ActiveRun {
   id: string;
   round: number;
@@ -23,36 +21,21 @@ export interface ActiveRun {
 }
 
 export interface ConversationState {
-  /** Whether History and Journal have been read from IndexedDB. */
   loaded: boolean;
   entries: readonly HistoryEntry[];
   events: readonly JournalEvent[];
-  /** The files each Run and rollback changed, for rolling back (docs/Agent.md §1). */
   files: readonly CheckpointFile[];
   active: ActiveRun | undefined;
   /** A rollback being carried out; nothing else starts meanwhile. */
   rollingBack: boolean;
-  /** Guidance the author sent during the Run, waiting for the next request. */
   guidance: readonly string[];
-  /** Why the last message could not start a Run, or the record could not be kept. */
   problem: ConversationProblem | undefined;
 }
 
-/** A step of the conversation whose failure the author is told of. */
 export type ConversationFailure = 'load' | 'start' | 'rollback' | 'prune' | 'save';
 
-/**
- * What went wrong, as data the interface words in the author's language
- * (docs/UI.md §6): the model settings a Run cannot start with, or the step
- * that failed and its error's own message.
- */
 export type ConversationProblem = ModelProblem | { kind: ConversationFailure; error: string };
 
-/**
- * A project's conversation with the Agent (docs/Agent.md §1): History and
- * Journal, kept in IndexedDB, and at most one Run at a time. A message sent
- * during a Run becomes Guidance for its next request.
- */
 export class Conversation {
   readonly #project: Project;
   readonly #checkpoints: Checkpoints;
@@ -79,7 +62,7 @@ export class Conversation {
     );
   }
 
-  /** The project's id; each project has one conversation. */
+  /** Each project has one conversation. */
   get id(): string {
     return this.#project.record.id;
   }
@@ -117,7 +100,6 @@ export class Conversation {
     }
   }
 
-  /** Starts a Run with the author's message, or adds it as Guidance to the Run in progress. */
   async send(text: string): Promise<void> {
     if (!this.#state.loaded) throw new Error('The conversation is not loaded yet');
     if (this.#state.rollingBack) throw new Error('A rollback is in progress');
@@ -194,20 +176,18 @@ export class Conversation {
     }
   }
 
-  /** Stops the Run; what it already changed stays (docs/Agent.md §1). */
+  /** What the Run already changed stays. */
   cancel(): void {
     this.#controller?.abort();
   }
 
-  /** What rolling back to before an operation would change, for the author to confirm. */
   planRollback(target: string): Promise<RollbackPlan> {
     return this.#checkpoints.plan(this.#state.events, this.#state.files, target);
   }
 
   /**
-   * Restores the project to before the plan's target. The rollback is an
-   * operation of its own, recorded before it starts, so that even one that
-   * stops halfway can be undone.
+   * The rollback is an operation of its own, recorded before it starts, so
+   * that even one that stops halfway can be undone.
    */
   async rollback(plan: RollbackPlan): Promise<void> {
     if (this.#state.active || this.#state.rollingBack) {
@@ -237,7 +217,6 @@ export class Conversation {
     }
   }
 
-  /** Clears the oldest Checkpoints over the limit, and says which can no longer be rolled back to. */
   async #prune(): Promise<void> {
     try {
       for (const op of await this.#checkpoints.prune(this.#state.events)) {
@@ -250,12 +229,6 @@ export class Conversation {
     }
   }
 
-  /**
-   * Screenshots and long tool results stay for the latest Runs only
-   * (docs/Agent.md §1). An older Run's screenshots become the note the model
-   * reads wherever an image is gone, and its long results are deleted; its
-   * words stay.
-   */
   #retain(): void {
     const runs = [...new Set(this.#state.entries.map((entry) => entry.run))];
     const old = new Set(runs.slice(0, -RUNS_WITH_MEDIA));
@@ -305,7 +278,6 @@ export class Conversation {
     this.#save(async () => (await db).add('journal', { project: this.#project.record.id, event }));
   }
 
-  /** Streaming updates land at most once a frame (docs/plan/P1.md, performance). */
   #stream(run: string, partial: AssistantMessage | undefined, round: number): void {
     cancelAnimationFrame(this.#frame);
     const apply = () => {

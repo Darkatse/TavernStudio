@@ -10,7 +10,6 @@ export function isJsonObject(value: JsonValue | undefined): value is JsonObject 
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Equality of parsed JSON: object key order does not matter, array order does. */
 export function jsonEqual(a: JsonValue | undefined, b: JsonValue | undefined): boolean {
   if (a === b) return true;
   if (Array.isArray(a)) {
@@ -55,7 +54,6 @@ export function formatPointer(pointer: Pointer): string {
   return pointer.map((token) => `/${token.replaceAll('~', '~0').replaceAll('/', '~1')}`).join('');
 }
 
-/** Whether `prefix` is `pointer` or one of its ancestors. */
 export function isPrefix(prefix: Pointer, pointer: Pointer): boolean {
   return (
     prefix.length <= pointer.length && prefix.every((token, index) => token === pointer[index])

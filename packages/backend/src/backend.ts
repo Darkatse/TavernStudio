@@ -14,7 +14,6 @@ import { themeRoutes } from './routes/themes';
 import { tokenizerRoutes } from './routes/tokenizers';
 import { worldRoutes } from './routes/worlds';
 
-/** What the backend needs to know about the vendor it serves. */
 export interface VendorInfo {
   id: string;
   version: string;
@@ -25,12 +24,12 @@ export interface VendorInfo {
 export interface RequestContext {
   data: DataDirectory;
   vendor: VendorInfo;
-  /** The Session's Replay: what it plays next is Session state. */
+  /** What it plays next is Session state. */
   replay: Replay;
   url: URL;
   params: Record<string, string>;
   body: BackendBody;
-  /** The body parsed as JSON; an empty body reads as `{}`, as with Express. */
+  /** An empty body reads as `{}`, as with Express. */
   json(): unknown;
 }
 
@@ -60,10 +59,7 @@ const ROUTES: Routes = {
 
 const decoder = new TextDecoder();
 
-/**
- * SillyTavern's HTTP API over a Session's data directory. Endpoints outside
- * the implemented set answer 501, never a guessed value.
- */
+/** Endpoints outside the implemented set answer 501, never a guessed value. */
 export function createSessionBackend(data: DataDirectory, vendor: VendorInfo): SessionBackend {
   const routes = compile(ROUTES);
   const replay = createReplay(data);

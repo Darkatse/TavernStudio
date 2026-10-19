@@ -23,10 +23,8 @@ import { previewSession, type PreviewPage } from '../preview/session';
 import { loadVendorFiles, type VendorImage } from '../preview/sources';
 import type { Project } from '../project/project';
 
-/** How long the preview may take to start before a tool gives up on it. */
 const START_TIMEOUT_MS = 60_000;
 
-/** The View now, in a line: the frontend, the device and its viewport. */
 export function describePreview(): string {
   const status = previewSession.status;
   const device = devices[previewSession.device];
@@ -35,11 +33,8 @@ export function describePreview(): string {
 }
 
 /**
- * The preview as the Agent's tools see it while it works on a project
- * (docs/Architecture.md §5): the page the author is looking at, what Attach
- * recorded in it, and the way the workbench switches and reloads it. What
- * looks at the page first waits for the preview to show the project as it is
- * now, since the Run's own writes may still be reaching it.
+ * What looks at the page first waits for the preview to show the project as
+ * it is now, since the Run's own writes may still be reaching it.
  */
 export function agentPreview(project: Project): {
   surface: AppSurface;
@@ -118,10 +113,6 @@ export function agentPreview(project: Project): {
   return { surface, control, inspect };
 }
 
-/**
- * The refs of the Run's latest snapshot page as marks, each at its element's
- * box. A ref whose element is gone or hidden since the snapshot has no mark.
- */
 function snapshotMarks(
   page: PreviewPage,
   run: string,

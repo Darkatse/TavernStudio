@@ -1,6 +1,5 @@
 import { defineMessages } from '../i18n/messages';
 
-/** What the shared components say themselves; callers give the rest. */
 export const uiMessages = defineMessages({
   zh: {
     notifications: '通知',

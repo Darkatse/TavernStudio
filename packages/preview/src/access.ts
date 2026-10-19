@@ -1,8 +1,7 @@
 /**
- * ST 接入 (docs/Architecture.md §4): answers SillyTavern's HTTP API inside the
- * vendor page and in every same-origin frame it creates, because the Preview
- * SW cannot see synchronous XHR and must not hold business logic. Attach
- * installs it into each realm that `observeRealms` reports.
+ * Answers SillyTavern's HTTP API inside the vendor page and in every
+ * same-origin frame it creates, because the Preview SW cannot see synchronous
+ * XHR.
  *
  * fetch is replaced; XMLHttpRequest is patched in place, so requests the layer
  * does not answer keep the browser's own behaviour.
@@ -14,13 +13,13 @@ import { dataPathForUrl, isApiPath, isStudioPath, vendorUrl } from './routes';
 
 type Connection = Pick<ViewConnection, 'handle' | 'readData' | 'vendorId'>;
 
-/** Installs the layer into one realm. Call it once per realm. */
+/** Call it once per realm. */
 export function installAccess(win: Realm, connection: Connection): void {
   patchFetch(win, connection);
   patchXhr(win, connection);
 }
 
-/** Resolves a request URL the way the page would; opaque base URLs fall back to the origin. */
+/** Opaque base URLs fall back to the origin. */
 function resolve(win: Realm, target: string | URL): URL {
   try {
     return new URL(target, win.document.baseURI);
@@ -96,8 +95,8 @@ function isThenable<T>(value: T | PromiseLike<T>): value is PromiseLike<T> {
 }
 
 /**
- * A request the layer answers itself: an API call, or a synchronous read of a
- * data file (synchronous loads bypass the Preview SW).
+ * An API call, or a synchronous read of a data file: synchronous loads bypass
+ * the Preview SW.
  */
 interface Answered {
   method: string;
@@ -241,7 +240,6 @@ function plainBody(body: XhrBody): BackendBody {
 
 const decoder = new TextDecoder();
 
-/** A response whose body is all there: what an XHR can be completed with. */
 type CompleteResponse = BackendResponse & { body: string | Uint8Array | null };
 
 /** Streams come from Studio's realm, so the check cannot use `instanceof`. */
@@ -249,7 +247,6 @@ function isComplete(response: BackendResponse): response is CompleteResponse {
   return Object.prototype.toString.call(response.body) !== '[object ReadableStream]';
 }
 
-/** Makes an XHR look completed with `response`, as the browser would. */
 function fulfil(win: Realm, xhr: XMLHttpRequest, backendResponse: BackendResponse): void {
   if (!isComplete(backendResponse)) {
     throw new win.DOMException('Studio streams responses only to fetch', 'NotSupportedError');

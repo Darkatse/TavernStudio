@@ -2,9 +2,8 @@
  * Adapted from shadcn/ui's Base UI toast (MIT, Copyright (c) 2023 shadcn):
  * https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/bases/base/ui/toast.tsx
  *
- * Changed for docs/UI.md: the stack stays spread out instead of collapsing
- * into a pile, because the pile animates height; motion is the `motion-toast`
- * recipe; an error the author has to act on stays until it is dismissed.
+ * The stack stays spread out instead of collapsing into a pile, because the
+ * pile animates height.
  */
 import { Toast as BaseToast } from '@base-ui/react/toast';
 import { TriangleAlert, X } from 'lucide-react';
@@ -17,19 +16,11 @@ const manager = BaseToast.createToastManager();
 export interface ToastOptions {
   title: string;
   description?: string;
-  /**
-   * `error`: something failed and the author has to act on it. It is
-   * announced at once and stays until dismissed. Show the error where it
-   * happened as well (docs/UI.md §5); the toast makes sure it is seen.
-   */
   kind?: 'info' | 'error';
-  /** Stays until dismissed, as an error does: news the author must not miss, such as something lost. */
   stay?: boolean;
-  /** One action that names what it does, for example "Retry". */
   action?: { label: string; onClick: () => void };
 }
 
-/** Shows a toast through the mounted `Toaster` and returns its id. */
 export function showToast({
   title,
   description,
@@ -53,11 +44,7 @@ export function closeToast(id: string): void {
   manager.close(id);
 }
 
-/**
- * Renders the toasts. Mount it once near the root. At most three show at a
- * time; older ones wait, hidden, until newer ones leave. F6 moves focus into
- * the toasts, and Esc closes the focused one.
- */
+/** Mount it once near the root. */
 export function Toaster() {
   const m = useMessages(uiMessages);
   return (

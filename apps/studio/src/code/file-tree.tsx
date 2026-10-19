@@ -43,23 +43,19 @@ import { FileRow, type Naming } from './file-row';
 import { codeMessages } from './messages';
 import { buildTree, nameProblem, type NameProblem, type TreeNode } from './tree-model';
 
-/** Why a typed name was not taken: the name itself, or what creating or moving ran into. */
 type Problem =
   NameProblem | { kind: 'unsaved'; path: string } | { kind: 'failed'; message: string };
 
-/** A name being typed: a rename, or a new file or folder. */
 type Editing = { value: string; problem: Problem | undefined } & (
   { kind: 'rename'; path: string } | { kind: 'create'; parent: string; folder: boolean }
 );
 
-/** A failed create or rename as a problem with the name; an unexpected one keeps its own words. */
 function problemOf(error: unknown): Problem {
   if (error instanceof PathTakenError) return { kind: 'taken', name: nameOf(error.path) };
   if (error instanceof UnsavedEditsError) return { kind: 'unsaved', path: error.path };
   return { kind: 'failed', message: error instanceof Error ? error.message : String(error) };
 }
 
-/** A problem as a sentence in the language of `words`. */
 function describe(problem: Problem, words: (typeof codeMessages)[Locale]['nameProblem']): string {
   switch (problem.kind) {
     case 'taken':
@@ -76,41 +72,32 @@ function describe(problem: Problem, words: (typeof codeMessages)[Locale]['namePr
 export interface FileTreeProps {
   project: Project;
   editors: Editors;
-  /** The file shown in the editor. */
   active: string | undefined;
-  /** Opens a file; `focus` moves focus into the editor, as Enter does and a click does not. */
   onOpen: (path: string, focus: boolean) => void;
-  /** Where the tree covers the editor, the way back to it. */
   onClose?: (() => void) | undefined;
 }
 
-/** Keys typed within this long of each other search together. */
 const TYPEAHEAD_MS = 500;
 
-/**
- * The project's files: headless-tree for state, keyboard and ARIA, with rows
- * drawn here. Arrows, Home and End move; typing jumps to a name; Enter opens;
- * F2 renames; Delete asks to delete.
- */
 export function FileTree({ project, editors, active, onOpen, onClose }: FileTreeProps) {
   const m = useMessages(codeMessages);
   const c = useMessages(common);
   const listing = useProjectFiles(project.store);
   const mountPoints = mountPointsBySource(usePlacements());
-  // Empty folders made here. The store lists files, so until a file is
-  // written inside, a new folder lives only in the tree.
+  // The store lists only files, so until a file is written inside, a new
+  // folder lives only in the tree.
   const [folders, setFolders] = useState<readonly string[]>([]);
   const [editing, setEditing] = useState<Editing>();
-  // What the delete dialog asks about; kept while the dialog animates out.
+  // Kept while the delete dialog animates out.
   const [removing, setRemoving] = useState<TreeNode>();
   const [removeOpen, setRemoveOpen] = useState(false);
   const [expanded, setExpanded] = useState<string[]>([]);
   const [opened, setOpened] = useState(false);
   const [menu] = useState(() => createMenuHandle<TreeNode>());
   const [contextTarget, setContextTarget] = useState<TreeNode>();
-  // The typed name has gone to the editors: set while its commit runs and
-  // after it succeeds, until another name starts. The field's blur, as focus
-  // moves to the new file before the field unmounts, must not commit it again.
+  // Set while a typed name's commit runs and after it succeeds, until another
+  // name starts: the field's blur, as focus moves to the new file before the
+  // field unmounts, must not commit it again.
   const committed = useRef(false);
   const focusAfterMenu = useRef(true);
   const typed = useRef({ text: '', at: 0 });
@@ -125,7 +112,6 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const nodeOf = (path: string): TreeNode =>
     nodes.get(path) ?? { path, name: nameOf(path), folder: false, draft: false, children: [] };
 
-  // A project has few folders: they all start open.
   if (listing.files && !opened) {
     setOpened(true);
     setExpanded(
@@ -174,7 +160,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
     },
   });
   // The data is this render's files, folders and draft; rebuild the rows from
-  // it before they are read. It is a small tree, and this keeps no second copy.
+  // it before they are read.
   tree().scheduleRebuildTree();
   const items = tree().getItems();
 
@@ -183,7 +169,6 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
     tree().updateDomFocus();
   };
 
-  /** Moves focus to the next row whose name starts with what was just typed. */
   const typeahead = ({ key, timeStamp }: KeyboardEvent, instance: TreeInstance<TreeNode>) => {
     const text = timeStamp - typed.current.at < TYPEAHEAD_MS ? typed.current.text + key : key;
     typed.current = { text, at: timeStamp };

@@ -4,11 +4,8 @@ import { optionalBoolean } from './arguments';
 import { elementTarget, TARGET_PROPERTIES, type ElementTarget } from './element-target';
 import { modelToolName, ToolError, type Tool } from './tool';
 
-/** What the `preview.*` tools control: the View the author is looking at. */
 export interface PreviewControl {
-  /** The frontends the preview can run, by the names `preview.configure` takes. */
   vendors: readonly string[];
-  /** The devices it can present, likewise. */
   devices: readonly string[];
   /** The View now, in a line: the frontend, the device and its viewport. */
   describe(): string;
@@ -32,7 +29,6 @@ export interface PreviewControl {
   ): Promise<Screenshot>;
 }
 
-/** A screenshot, and how it was taken (docs/Agent.md §5). */
 export interface Screenshot {
   image: ImageContent;
   width: number;
@@ -63,10 +59,6 @@ const CONFIGURE = modelToolName('preview.configure');
 
 const SNAPDOM_DISTORTIONS = `It was rendered from the DOM (snapdom), not taken from the screen: background layers may be missing or darker, <q> quotes may appear twice and text may wrap differently. Judge those with ${STYLES} and ${AUDIT}, not from this image.`;
 
-/**
- * The preview tools (docs/Agent.md §4). `preview.capture` is offered only
- * when the model takes images.
- */
 export function previewTools(preview: PreviewControl, { images }: { images: boolean }): Tool[] {
   const capture: Tool = {
     id: 'preview.capture',
@@ -179,8 +171,8 @@ With marks, the refs of your latest ${SNAPSHOT} page are boxed and labelled on t
 }
 
 /**
- * Waits for the preview to start. A preview that does not is a fact for the
- * model to report, so it comes back as a tool error; a cancelled Run is not.
+ * A preview that does not start is a fact for the model to report, so it
+ * comes back as a tool error; a cancelled Run is not.
  */
 async function untilStarted(start: () => Promise<void>, signal: AbortSignal): Promise<void> {
   try {

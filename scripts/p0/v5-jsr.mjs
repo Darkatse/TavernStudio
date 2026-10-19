@@ -1,8 +1,3 @@
-// P0 V5: JS-Slash-Runner installed from upstream renders a frontend card in a
-// srcdoc iframe, and the iframe's requests reach the Preview SW and the API layer.
-//
-// Usage: node scripts/p0/v5-jsr.mjs [--url http://localhost:3000/] [--browser chrome]
-
 import { parseArgs } from 'node:util';
 import { diagnostics, launch, openStudio, vendorPage } from '../lib/studio.mjs';
 
@@ -46,7 +41,6 @@ try {
     };
   }, TAILWIND);
 
-  // The card's own realm answers the API: asynchronous fetch and synchronous XHR.
   result.cardApi = await frame.evaluate(async () => {
     const ping = await fetch('/api/ping', { method: 'POST' });
     const xhr = new XMLHttpRequest();

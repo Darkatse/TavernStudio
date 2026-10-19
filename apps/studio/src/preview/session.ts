@@ -37,10 +37,7 @@ import { registerWorker, reportUnansweredRequests } from './worker';
 
 export type { ViewHooks } from './views';
 
-/**
- * How long a page may take to save hot-applied values. SillyTavern and
- * TauriTavern save settings a second after the last change.
- */
+/** SillyTavern and TauriTavern save settings a second after the last change. */
 const SAVE_WAIT_MS = 5000;
 
 export type OpeningStep = 'worker' | 'data';
@@ -49,10 +46,9 @@ export type SessionStatus =
   | { phase: 'opening'; step: OpeningStep }
   | { phase: 'open'; vendor: VendorImage }
   | { phase: 'failed'; error: string }
-  /** Another Studio tab holds the Session now (docs/Architecture.md §4). */
   | { phase: 'elsewhere' };
 
-/** A View's vendor page that has started, with the app-use engine in its realm. */
+/** `agent` is the app-use engine in the page's realm. */
 export interface PreviewPage {
   frame: HTMLIFrameElement;
   agent: PageAgent;
@@ -73,29 +69,20 @@ interface Opened {
   backend: SessionBackend;
 }
 
-/**
- * The one preview Session of this browser (docs/Architecture.md §2): the
- * Session Backend over the Snapshot, the fixture with the project's
- * placements, published for the Preview SW, and the host every View's vendor
- * page connects to.
- */
 export class PreviewSession implements PreviewHost {
   #status: SessionStatus = { phase: 'opening', step: 'worker' };
   #fixture: string | undefined;
   #placements: readonly Placement[] = [];
   /** Moves between placements, one at a time. */
   #placing: Promise<void> = Promise.resolve();
-  /** Each reload creates new Views: reloading is the authoritative path. */
   #generation = 0;
-  /** `selected` is the image the next Session opens: the first built one until the user picks. */
   #vendors: VendorChoice = { images: [], selected: undefined };
-  /** The device the Views present (docs/Architecture.md §2). */
   #device: DeviceId = 'desktop';
   #opened: Opened | undefined;
   #opening: Promise<void> | undefined;
   /** Publishing of session writes, in write order. */
   #published: Promise<void> = Promise.resolve();
-  /** The Web Host's own document for a TauriTavern Session (docs/Vendors.md §3). */
+  /** The Web Host's own document for a TauriTavern Session. */
   #webHostState: Record<string, unknown> | null = null;
   readonly #persistence = new SessionPersistence((error) => {
     this.#report({
@@ -117,7 +104,6 @@ export class PreviewSession implements PreviewHost {
     return this.#status;
   }
 
-  /** Views of an older generation have been reloaded away. */
   get generation(): number {
     return this.#generation;
   }
@@ -127,7 +113,7 @@ export class PreviewSession implements PreviewHost {
     return this.#placements;
   }
 
-  /** The built images and the one selected; a new object whenever either changes. */
+  /** A new object whenever the images or the selection change. */
   get vendors(): VendorChoice {
     return this.#vendors;
   }
@@ -140,16 +126,11 @@ export class PreviewSession implements PreviewHost {
     return this.#diagnostics;
   }
 
-  /** The anatomy of the frontend the Session runs; undefined until it is open. */
   get anatomy(): ThemeAnatomy | undefined {
     return this.#opened?.anatomy;
   }
 
-  /**
-   * A data file of the Snapshot (docs/Architecture.md §2): the fixture with
-   * the project placed, without the Session's own writes. Exports assemble
-   * from it. Undefined where the Snapshot has no such file.
-   */
+  /** The Snapshot is the fixture with the project placed, without the Session's own writes. */
   readSnapshot(path: string): Uint8Array | undefined {
     const opened = this.#opened;
     if (!opened) throw new Error('The preview Session is not open');
@@ -169,11 +150,7 @@ export class PreviewSession implements PreviewHost {
     return () => this.#diagnosticListeners.delete(listener);
   };
 
-  /**
-   * Opens the Session on a fixture with a project's placements. The same
-   * fixture again only moves the placements; another fixture is a new Session.
-   * Opening and moving placements run one at a time, in call order.
-   */
+  /** Opening and moving placements run one at a time, in call order. */
   open(fixture: string, placements: readonly Placement[]): Promise<void> {
     if (this.#opening && this.#fixture === fixture) return this.place(placements);
     if (this.#opening) return this.#restart(fixture, placements);
@@ -187,7 +164,6 @@ export class PreviewSession implements PreviewHost {
     return this.#opening;
   }
 
-  /** Retries after a failure. */
   retry(): Promise<void> {
     const fixture = this.#fixture;
     if (fixture === undefined) throw new Error('The preview Session has not been opened');
@@ -196,11 +172,7 @@ export class PreviewSession implements PreviewHost {
     return this.open(fixture, this.#placements);
   }
 
-  /**
-   * Switches to another vendor image: a new Session on the same Snapshot.
-   * Clearing the previous image's browser state needs every vendor page gone
-   * (docs/Architecture.md §7).
-   */
+  /** Clearing the previous image's browser state needs every vendor page gone. */
   async selectVendor(id: string): Promise<void> {
     const fixture = this.#fixture;
     if (fixture === undefined) throw new Error('The preview Session has not been opened');
@@ -209,7 +181,6 @@ export class PreviewSession implements PreviewHost {
     await this.#restart(fixture, this.#placements);
   }
 
-  /** Presents another device: the Views unload and come back as that device. */
   async selectDevice(id: DeviceId): Promise<void> {
     if (this.#device === id) return;
     await this.retireViews();
@@ -217,23 +188,13 @@ export class PreviewSession implements PreviewHost {
     this.#notify();
   }
 
-  /**
-   * Moves the Session to new placements (docs/Architecture.md §5). A running
-   * page is the only writer of its data: when every View is running and every
-   * change has a hot-apply entry, the pages' own controls take the values and
-   * the pages save them, and the placements count as moved once the data
-   * shows it. Files no page writes, an extension's stylesheet for one, Studio
-   * writes itself before the pages load them again. Otherwise the Views
-   * unload first, saving on exit, and Studio writes the data before they load
-   * again.
-   */
   place(placements: readonly Placement[]): Promise<void> {
     return this.#queue(() => this.#move((current) => current, placements));
   }
 
   /**
-   * Discards the session writes on one mount point: the project's content is
-   * placed there again, as if the Session had never held it.
+   * Moving from the placements without this one places the project's content
+   * there again, as if the Session had never held it.
    */
   discard(placement: Placement): Promise<void> {
     return this.#queue(() =>
@@ -241,7 +202,6 @@ export class PreviewSession implements PreviewHost {
     );
   }
 
-  /** Moves the data from the placements `previousOf` makes of the current ones to `placements`. */
   async #move(
     previousOf: (current: readonly Placement[]) => readonly Placement[],
     placements: readonly Placement[],
@@ -313,10 +273,6 @@ export class PreviewSession implements PreviewHost {
     this.#bumpGeneration();
   }
 
-  /**
-   * Waits for a page's own save to bring the data to hot-applied values, and
-   * returns the changes it had not saved in time.
-   */
   #savedBy(data: DataDirectory, changes: readonly DataChange[]): Promise<DataChange[]> {
     const missing = () => changes.filter((change) => !holdsChange(data, change));
     return new Promise((resolve) => {
@@ -333,16 +289,11 @@ export class PreviewSession implements PreviewHost {
     });
   }
 
-  /** Reloads every View: the authoritative way to show the Session's data. */
   async reload(): Promise<void> {
     await this.retireViews();
     this.#bumpGeneration();
   }
 
-  /**
-   * Discards every session write: the persisted Session goes, and a new one
-   * opens on the Snapshot (docs/Architecture.md §7).
-   */
   async reset(): Promise<void> {
     const fixture = this.#fixture;
     if (fixture === undefined) throw new Error('The preview Session has not been opened');
@@ -352,15 +303,11 @@ export class PreviewSession implements PreviewHost {
     await this.#restart(fixture, this.#placements);
   }
 
-  /** False once a session write could not be kept in IndexedDB. */
   get persisted(): boolean {
     return !this.#persistence.failed;
   }
 
-  /**
-   * Makes this tab the one that holds the Session, taking it from another
-   * Studio tab if one does (docs/Architecture.md §4). Call it before opening.
-   */
+  /** Call it before opening. */
   own(): Promise<void> {
     return ownSession({
       handOver: () =>
@@ -377,18 +324,17 @@ export class PreviewSession implements PreviewHost {
     });
   }
 
-  /** Reads the Session's data, session writes included. */
+  /** Session writes included. */
   readData(path: string): Uint8Array | undefined {
     return this.#opened?.data.read(path);
   }
 
-  /** Listens for every change to the Session's data, across Sessions. */
+  /** The listener stays across Sessions. */
   subscribeData = (listener: (path: string) => void) => {
     this.#dataListeners.add(listener);
     return () => this.#dataListeners.delete(listener);
   };
 
-  /** Closes the current Session and opens a new one. */
   async #restart(fixture: string, placements: readonly Placement[]): Promise<void> {
     await this.retireViews();
     this.#opened = undefined;
@@ -422,26 +368,23 @@ export class PreviewSession implements PreviewHost {
     this.#notify();
   }
 
-  /**
-   * Registers a View's frame before it navigates, so its vendor page can
-   * connect. Returns the function that unregisters it.
-   */
+  /** Call it before the frame navigates, so its vendor page can connect. */
   addView(frame: HTMLIFrameElement, hooks: ViewHooks): () => void {
     return this.#views.add(frame, hooks);
   }
 
   /**
    * Unloads every View's vendor page while its frame is still in the
-   * document (docs/Architecture.md §4). Call it before anything removes a View.
+   * document. Call it before anything removes a View.
    */
   retireViews(): Promise<void> {
     return this.#views.retire();
   }
 
   /**
-   * Writes a file of the Session's data directly, the way a vendor's save
-   * lands; the experiment scripts stage their scenes with it. Project changes
-   * go through `place`. Resolves once the Preview SW serves the new content.
+   * Writes the way a vendor's save lands; the experiment scripts stage their
+   * scenes with it. Project changes go through `place`. Resolves once the
+   * Preview SW serves the new content.
    */
   updateData(path: string, content: Uint8Array | string): Promise<void> {
     if (!this.#opened) throw new Error('The preview Session is not open');
@@ -449,20 +392,11 @@ export class PreviewSession implements PreviewHost {
     return this.#published;
   }
 
-  /**
-   * The vendor page the author is looking at: the newest View that is ready,
-   * with its app-use engine, for the Agent's `app.*` tools and screenshots.
-   * Undefined while the preview starts or reloads.
-   */
   page(): PreviewPage | undefined {
     const view = this.#views.all().findLast((candidate) => candidate.agent !== undefined);
     return view?.agent && { frame: view.frame, agent: view.agent };
   }
 
-  /**
-   * The page once a View is ready, for whatever waits on a reload or a
-   * switch. Rejects when the Session cannot open here, or on `signal`.
-   */
   whenPage(signal?: AbortSignal): Promise<PreviewPage> {
     return new Promise((resolve, reject) => {
       const settle = () => {
@@ -567,7 +501,7 @@ export class PreviewSession implements PreviewHost {
       Promise.all(EXTENSIONS.map(installExtension)).then((installed) => installed.flat()),
       readSessionState(),
     ]);
-    // Browser-side state follows the vendor image that wrote it (docs/Architecture.md §7).
+    // Browser-side state follows the vendor image that wrote it.
     if (published && published.vendor !== vendor.id) await clearBrowserState();
     const base: [string, Uint8Array][] = [
       ...files.files,
@@ -577,8 +511,8 @@ export class PreviewSession implements PreviewHost {
       ...files.hashes,
       ...extensions.map((file): [string, string] => [file.path, file.sha256]),
     ]);
-    // The data is the Snapshot, the fixture with the project mounted (docs/Architecture.md §2),
-    // or the persisted Session moved from the placements it reflects to the current ones (§7).
+    // The data is the Snapshot, the fixture with the project mounted, or the
+    // persisted Session moved from the placements it reflects to the current ones.
     const fixtureData = new DataDirectory(base);
     const data = new DataDirectory(base);
     restoreFiles(data, resumed?.files ?? []);

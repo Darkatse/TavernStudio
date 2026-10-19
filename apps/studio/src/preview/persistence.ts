@@ -7,7 +7,6 @@ export interface StoredSession {
   files: SessionFile[];
 }
 
-/** Lays a persisted Session's files over the fixture's, giving back the data it had. */
 export function restoreFiles(data: DataDirectory, files: readonly SessionFile[]): void {
   for (const { path, content } of files) {
     if (content === null) data.delete(path);
@@ -15,7 +14,6 @@ export function restoreFiles(data: DataDirectory, files: readonly SessionFile[])
   }
 }
 
-/** Every file where the Session's data differs from the fixture: what persistence keeps. */
 export function overlayOf(fixture: DataDirectory, data: DataDirectory): SessionFile[] {
   const paths = new Set([...fixture.paths(), ...data.paths()]);
   return [...paths].flatMap((path) => {
@@ -24,7 +22,7 @@ export function overlayOf(fixture: DataDirectory, data: DataDirectory): SessionF
   });
 }
 
-/** A file's overlay entry: its content, null when deleted, undefined when it is the fixture's. */
+/** The file's content, null when deleted, undefined when it is the fixture's. */
 export function overlayEntry(
   fixture: DataDirectory,
   data: DataDirectory,
@@ -39,11 +37,10 @@ export function overlayEntry(
 }
 
 /**
- * Keeps the Session in IndexedDB (docs/Architecture.md §7). Memory is the
- * truth: every write is queued in order behind the Session's own, never in
- * the path of a synchronous answer. The first failure is reported once and
- * the Session counts as not persisted until the next one begins; writes are
- * not dropped silently and success is never claimed.
+ * Memory is the truth: every write is queued in order behind the Session's
+ * own, never in the path of a synchronous answer. The first failure is
+ * reported once and the Session counts as not persisted until the next one
+ * begins; writes are not dropped silently and success is never claimed.
  */
 export class SessionPersistence {
   #queue: Promise<void> = Promise.resolve();
@@ -65,7 +62,6 @@ export class SessionPersistence {
     return record && { record, files: await database.getAll('sessionFiles') };
   }
 
-  /** Starts a new persisted Session: its record and every file that differs from the fixture. */
   begin(record: SessionRecord, files: SessionFile[]): Promise<void> {
     this.#failed = false;
     return this.#enqueue(async () => {
@@ -97,7 +93,6 @@ export class SessionPersistence {
     void this.#enqueue(() => update({ webHost: state }));
   }
 
-  /** Discards the persisted Session, so the next one starts from the Snapshot. */
   clear(): Promise<void> {
     return this.#enqueue(async () => {
       const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
@@ -109,7 +104,6 @@ export class SessionPersistence {
     });
   }
 
-  /** Resolves once every queued write has landed or failed. */
   flush(): Promise<void> {
     return this.#queue;
   }
@@ -127,7 +121,6 @@ export class SessionPersistence {
   }
 }
 
-/** Changes fields of the stored Session record, within one transaction. */
 async function update(change: Partial<SessionRecord>): Promise<void> {
   const tx = (await db).transaction('session', 'readwrite');
   const record = await tx.store.get('session');

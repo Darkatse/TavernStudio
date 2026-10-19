@@ -21,11 +21,7 @@ import { updateAgentSettings, useAgentSettings } from './settings';
 
 const CUSTOM = 'custom';
 
-/**
- * The model services the Agent can use, each with the author's own key
- * (docs/Agent.md §2). Mounted while the settings show it, so each opening
- * starts from the stored settings.
- */
+/** Mounted while the settings show it, so each opening starts from the stored settings. */
 export function ModelSettings() {
   const m = useMessages(modelSettingsMessages);
   const panel = useMessages(agentMessages);
@@ -110,8 +106,8 @@ export function ModelSettings() {
 }
 
 /**
- * The first preset not configured yet. A preset's id is its provider's id,
- * which pi-ai relies on (see Endpoint.id), so each preset is configured once.
+ * A preset's id is its provider's id, which pi-ai relies on (see Endpoint.id),
+ * so each preset is configured once.
  */
 function firstUnused(endpoints: readonly Endpoint[]): string {
   const unused = ENDPOINT_PRESETS.find(
@@ -120,10 +116,6 @@ function firstUnused(endpoints: readonly Endpoint[]): string {
   return unused?.id ?? CUSTOM;
 }
 
-/**
- * A new endpoint from a preset, or an OpenAI-compatible one the author points
- * at, named `customName` until they rename it.
- */
 function draft(preset: string, customName: string): Endpoint {
   const base = ENDPOINT_PRESETS.find((candidate) => candidate.id === preset);
   return base
@@ -151,8 +143,8 @@ type Listing =
 export type LimitsFrom = ModelInfo['limitsFrom'] | 'nobody';
 
 /**
- * What picking a model fills in: what is known of it, and the defaults for
- * the rest, so nothing carries over from the model picked before.
+ * What is not known of a model takes the defaults, so nothing carries over
+ * from the model picked before.
  */
 function prefill(model: ModelInfo): Partial<Endpoint> {
   return {
@@ -163,7 +155,6 @@ function prefill(model: ModelInfo): Partial<Endpoint> {
   };
 }
 
-/** A token count the way services write it: 128K, 1M. */
 function formatTokens(tokens: number): string {
   if (tokens >= 1_000_000) return `${Math.round(tokens / 100_000) / 10}M`;
   if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
@@ -215,7 +206,6 @@ function EndpointForm({
     setProbe({ state: 'idle' });
   };
 
-  /** The address or key changed, so the model list, fetched or on its way, no longer holds. */
   const forgetModels = () => {
     listingRequest.current?.abort();
     setListing({ state: 'idle' });
@@ -525,11 +515,7 @@ function Toggle({
   );
 }
 
-/**
- * A failed request to the service in the author's terms: a browser that
- * cannot reach the address is a CORS question; anything else is `failed`
- * with the error's own message.
- */
+/** A browser that cannot reach the address is a CORS question. */
 function requestAdvice(
   message: string,
   m: ModelSettingsText,

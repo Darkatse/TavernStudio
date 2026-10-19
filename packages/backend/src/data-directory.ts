@@ -12,8 +12,8 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
- * A SillyTavern data directory held in memory. Paths are POSIX paths relative
- * to the data root, for example `default-user/settings.json`.
+ * Paths are POSIX paths relative to the data root, for example
+ * `default-user/settings.json`.
  */
 export class DataDirectory {
   readonly #files = new Map<string, Entry>();
@@ -55,7 +55,6 @@ export class DataDirectory {
       .map((child) => child.name);
   }
 
-  /** Every file path, for example to publish the data subresources. */
   paths(): IterableIterator<string> {
     return this.#files.keys();
   }

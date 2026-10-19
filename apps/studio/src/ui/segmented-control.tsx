@@ -15,15 +15,11 @@ export interface SegmentedControlProps<T extends string> {
   value: T;
   options: readonly SegmentedOption<T>[];
   onChange: (value: T) => void;
-  /** Stretch to the container and split it evenly between options. */
   fill?: boolean;
-  /** On narrow screens, options show only their icons; screen readers still read the labels. */
   iconsWhenNarrow?: boolean;
-  /** Shows the current choice but takes no input, for example while it is being applied. */
   disabled?: boolean;
 }
 
-/** One choice out of a few, as a radio group. Tabs share its look. */
 export function SegmentedControl<T extends string>({
   label,
   value,
@@ -71,7 +67,6 @@ export function SegmentedControl<T extends string>({
   );
 }
 
-/** Where the item for `value` sits inside the group, kept current as the group resizes. */
 function useItemBox(group: RefObject<HTMLElement | null>, value: string) {
   const [box, setBox] = useState<{ left: number; width: number } | null>(null);
 

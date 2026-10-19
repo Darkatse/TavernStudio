@@ -4,7 +4,6 @@ export interface EmptyStateProps {
   icon: ReactNode;
   title: string;
   description?: string;
-  /** The next step, when there is one to take from here (docs/UI.md §5). */
   action?: ReactNode;
 }
 

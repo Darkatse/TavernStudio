@@ -3,7 +3,7 @@ import { formatNumber } from '../i18n/common';
 import type { Locale } from '../i18n/locale';
 import { defineMessages } from '../i18n/messages';
 
-/** The project menu's text. It loads with the menu, after the first screen. */
+/** Loads with the project menu, after the first screen. */
 export const projectMenuMessages = defineMessages({
   zh: {
     import: '导入项目…',
@@ -17,7 +17,6 @@ export const projectMenuMessages = defineMessages({
       export: '项目没能导出',
       import: '项目没能导入',
     },
-    /** Why an archive cannot become a project (project/archive.ts). */
     archive: {
       notZip: (detail: string) => `这个文件不是能读的 zip：${detail}`,
       notProject: `这个 zip 里没有 ${MANIFEST}，不是 Studio 项目。`,

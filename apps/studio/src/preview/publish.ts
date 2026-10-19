@@ -33,10 +33,6 @@ const CONTENT_TYPES: Record<string, string> = {
   webm: 'video/webm',
 };
 
-/**
- * Publishes a Session's data subresources to Cache Storage, where the Preview
- * SW serves them, and tells the worker which vendor image is open.
- */
 export async function publishSession(
   data: DataDirectory,
   hashes: ReadonlyMap<string, string>,
@@ -52,13 +48,11 @@ export async function publishSession(
   worker.postMessage({ type: 'session-changed' });
 }
 
-/** What the last Session published, from any earlier visit. */
 export async function readSessionState(): Promise<SessionState | null> {
   const stored = await (await caches.open(SESSION_CACHE)).match(SESSION_STATE_URL);
   return stored ? ((await stored.json()) as SessionState) : null;
 }
 
-/** Republishes one file after a session write or deletion. */
 export async function publishChange(data: DataDirectory, path: string): Promise<void> {
   const cache = await caches.open(SESSION_CACHE);
   const urlPath = urlPathForData(path);
@@ -83,7 +77,7 @@ async function publishFile(
       headers: {
         'content-type': CONTENT_TYPES[extension] ?? 'application/octet-stream',
         'content-length': String(bytes.length),
-        // The content hash, so revalidating clients see replaced files (docs/Architecture.md §4).
+        // The content hash, so revalidating clients see replaced files.
         etag: `"${etag}"`,
         'cache-control': 'no-cache',
       },

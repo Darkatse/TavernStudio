@@ -14,7 +14,6 @@ interface RecentRequest {
   metadata?: unknown;
 }
 
-/** The chat file a request names: `<character>/<file_name>.jsonl` under chats/. */
 function chatPath(body: unknown): { character: string; path: string } {
   const character = (text(body, 'avatar_url') ?? '').replace('.png', '');
   const file = sanitize(`${text(body, 'file_name') ?? ''}.jsonl`);
@@ -76,9 +75,8 @@ export const chatRoutes: Routes = {
     );
   },
 
-  // One character's chats. ST answers `{ error: true }` when the character has
-  // no chat directory yet; an empty list says the same without the ambiguity
-  // (docs/Vendors.md §2).
+  // ST answers `{ error: true }` when the character has no chat directory yet;
+  // an empty list says the same without the ambiguity.
   'POST /api/characters/chats': (request) => {
     const body = request.json();
     const character = (text(body, 'avatar_url') ?? '').replace('.png', '');

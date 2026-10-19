@@ -34,7 +34,6 @@ describe('restorePlan', () => {
       { op: 'b', path: 'theme.css', before: 'v1', after: 'v2' },
       { op: 'c', path: 'theme.css', before: 'v2', after: 'v3' },
       { op: 'b', path: 'new.css', before: null, after: 'n1' },
-      // Changed and changed back: nothing to restore.
       { op: 'c', path: 'same.json', before: 's0', after: 's0' },
     ];
     expect(restorePlan(events, files, 'b')).toEqual([

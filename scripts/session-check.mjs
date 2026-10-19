@@ -1,11 +1,3 @@
-// Session writes and Replay through a vendor's own paths (docs/Vendors.md §2;
-// TauriTavern's T4 W2 and W3 acceptance): write, reload through Studio, and
-// check what the reloaded page shows. Then send a message, watch Replay
-// stream the reply, and check that it is still there after another reload.
-//
-// Usage: node scripts/session-check.mjs [--url http://localhost:3000/]
-//        [--vendor st|tt] [--browser chrome]
-
 import { parseArgs } from 'node:util';
 import { diagnostics, launch, openStudio, reloadPreview, vendorPage } from './lib/studio.mjs';
 
@@ -18,12 +10,11 @@ const { values: options } = parseArgs({
 });
 
 const MARK = `studio-check-${Date.now()}`;
-/** The start of the fixture's first Replay reply. */
 const FIRST_REPLY = '*Seraphina kneels beside you';
 /** SillyTavern debounces character and chat saves; JS-Slash-Runner saves after them. */
 const SAVE_DELAY_MS = 3000;
 
-/** The vendor page once its extensions have loaded (TauriTavern defers them). */
+/** TauriTavern defers extensions, so the vendor page can be ready before TavernHelper is. */
 async function readyPage(page) {
   const frame = await vendorPage(page);
   await frame.waitForFunction(() => window.TavernHelper !== undefined, undefined, {
@@ -36,20 +27,16 @@ async function write(frame) {
   return frame.evaluate(async (mark) => {
     const script = await import('/script.js');
     const { extension_settings } = await import('/scripts/extensions.js');
-    // SillyTavern settings.
     extension_settings.studioSessionCheck = mark;
     await script.saveSettings();
-    // The character edit form, as typing in the description does.
     const description = document.querySelector('#description_textarea');
     description.value = `${description.value}\n${mark}`;
     description.dispatchEvent(new Event('input', { bubbles: true }));
-    // A theme, saved through the API the theme panel uses.
     const theme = await fetch('/api/themes/save', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: mark, main_text_color: 'rgba(220, 220, 210, 1)' }),
     });
-    // JS-Slash-Runner: a character script, character variables, chat variables.
     const helper = window.TavernHelper;
     helper.replaceScriptTrees(
       [{ type: 'script', name: mark, enabled: false, content: '// Tavern Studio check' }],
@@ -57,7 +44,6 @@ async function write(frame) {
     );
     helper.replaceVariables({ studio: mark }, { type: 'character' });
     helper.replaceVariables({ studio: mark }, { type: 'chat' });
-    // TauriTavern's own settings, through its public host API.
     const host = window.__TAURITAVERN__;
     if (host) {
       await host.ready;
@@ -88,10 +74,7 @@ async function read(frame) {
   }, MARK);
 }
 
-/**
- * Sends a message and samples the reply while it streams: a streamed reply
- * shows several lengths before it is complete.
- */
+/** A streamed reply shows several lengths before it is complete. */
 async function generate(frame) {
   return frame.evaluate(
     async ({ first }) => {

@@ -1,8 +1,6 @@
 /**
- * Preview SW (docs/Architecture.md §4). It maps the vendor image to the root of
- * the origin and serves the Session's data subresources from Cache Storage. It
- * holds no business logic: API requests belong to the in-page layer, and one
- * reaching the worker is reported as unanswered.
+ * The Preview SW holds no business logic: API requests belong to the in-page
+ * layer, and one reaching the worker is reported as unanswered.
  */
 import { SESSION_CACHE, SESSION_STATE_URL, type SessionState } from './cache';
 import { dataPathForUrl, isApiPath, isStudioPath, urlPathForData, vendorUrl } from './routes';

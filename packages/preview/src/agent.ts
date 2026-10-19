@@ -8,9 +8,9 @@ const AsyncFunction = (async () => {}).constructor as new (code: string) => () =
 const CAPTURE_MODULE = `${STUDIO_ASSETS}capture.js`;
 
 /**
- * The app-use engine of a vendor page. It is evaluated in the page's own
- * realm, as in TauriTavern's in-app assistant: snapshots, same-origin iframes
- * and interactions then see the page the way its own code does.
+ * Evaluated in the page's own realm, as in TauriTavern's in-app assistant:
+ * snapshots, same-origin iframes and interactions then see the page the way
+ * its own code does.
  */
 export function createPageAgent(): PageAgent {
   const observation = createObservation();
@@ -39,7 +39,7 @@ export function createPageAgent(): PageAgent {
       return observation.refs();
     },
     async capture(element) {
-      // Loaded in this realm on first use; see capture.ts.
+      // Loaded in this realm on first use.
       const module = (await import(/* webpackIgnore: true */ CAPTURE_MODULE)) as {
         capture: PageAgent['capture'];
       };

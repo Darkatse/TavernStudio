@@ -2,10 +2,9 @@ import { jsonEqual, type DataChange, type JsonValue } from '@tavern-studio/works
 import { dataPathForUrl } from './routes';
 
 /**
- * How a vendor image applies each theme field, from the image's anatomy
- * (vendors/lib/anatomy.mjs, `theme.json`): the control that sets it, the CSS
- * variables it drives, and the element whose content it becomes. A field
- * without a control has no hot-apply entry: changing it reloads the View.
+ * Comes from the image's anatomy (vendors/lib/anatomy.mjs, `theme.json`). A
+ * field without a control has no hot-apply entry: changing it reloads the
+ * View.
  */
 export interface ThemeAnatomy {
   fields: Record<
@@ -18,7 +17,6 @@ export interface ThemeControl {
   selector: string;
   /** What the control is, such as `color` or `range`; a colour control keeps the colour in its own form. */
   kind: string;
-  /** A property to assign (`value`, `checked`) or an attribute to set (a color picker's `color`). */
   write: { property: string } | { attribute: string };
   /** The event the vendor's handler listens for; null when writing raises it already. */
   dispatch: string | null;
@@ -32,12 +30,10 @@ export interface ThemeControl {
 const SETTINGS = 'default-user/settings.json';
 /** A user's extension folder, which names the extension: `third-party/<folder>`. */
 const EXTENSION_FOLDER = /^default-user\/extensions\/([^/]+)\//;
-/** How long a page may take to load a stylesheet again before the View reloads instead. */
 const STYLESHEET_WAIT_MS = 5000;
 /** Gives a stylesheet loaded again a URL of its own. The Preview SW ignores the query. */
 const RELOAD_PARAM = 'studio-reload';
 
-/** The theme field a change sets, when it sets one: `settings.json#/power_user/<field>`. */
 function themeField(change: DataChange): string | undefined {
   const [object, field, ...rest] = change.pointer ?? [];
   return change.path === SETTINGS && object === 'power_user' && rest.length === 0
@@ -67,8 +63,7 @@ function extensionStylesheet(page: Window, path: string): HTMLLinkElement | unde
 }
 
 /**
- * Whether every change has a hot-apply entry in every page
- * (docs/Architecture.md §5), by data path:
+ * Whether every change has a hot-apply entry in every page, by data path:
  * - a theme field with a control, set to a value a control can hold. The
  *   page's control takes it, and the page saves it;
  * - a whole extension stylesheet the page loaded through its manifest. No
@@ -89,7 +84,6 @@ export function canHotApply(
   });
 }
 
-/** What a hot-apply did to a page. */
 export interface HotApplied {
   /** Changes the page did not take; the caller then reloads, since a reload is the authority. */
   missed: DataChange[];
@@ -145,7 +139,6 @@ function reloadStylesheet(page: Window, path: string): Promise<boolean> {
   });
 }
 
-/** Sets theme values through the page's own controls and reads them back. */
 function applyValues(
   page: Window,
   anatomy: ThemeAnatomy,
@@ -182,7 +175,6 @@ function applyValues(
   return applied;
 }
 
-/** Whether two values name the same colour, as the page's own canvas reads them. */
 function sameColor(page: Window, a: JsonValue | undefined, b: JsonValue | undefined): boolean {
   if (typeof a !== 'string' || typeof b !== 'string') return false;
   const context = page.document.createElement('canvas').getContext('2d');

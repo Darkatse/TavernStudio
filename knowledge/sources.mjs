@@ -1,6 +1,3 @@
-// The sources of the knowledge pack (docs/Knowledge.md §1, §4). Each becomes
-// one directory, knowledge/out/<id>/, built by build.mjs.
-//
 // - repository: GitHub `owner/repository`.
 // - ref: the commit, in full; refName: the tag it is known by, or null.
 //   The `tt` source has neither: it follows the TauriTavern vendor image

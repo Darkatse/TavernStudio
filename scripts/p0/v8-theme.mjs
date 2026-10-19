@@ -1,8 +1,3 @@
-// P0 V8: hot-apply a theme through SillyTavern's own controls, then reload
-// and check that the reloaded page looks the same (docs/Architecture.md §5).
-//
-// Usage: node scripts/p0/v8-theme.mjs [--url http://localhost:3000/]
-
 import { parseArgs } from 'node:util';
 import { launch, openStudio, reloadPreview, vendorPage } from '../lib/studio.mjs';
 
@@ -17,7 +12,6 @@ const OUTLINE = 'rgb(255, 0, 128)';
 const TEXT = 'rgba(255, 200, 0, 1)';
 const CSS = `#chat .mes { outline: 3px solid ${OUTLINE}; }`;
 
-/** What the theme changes, read from the vendor page. */
 const probe = (frame) =>
   frame.evaluate(() => ({
     outline: getComputedStyle(document.querySelector('#chat .mes')).outlineColor,
@@ -34,7 +28,6 @@ try {
   let frame = await vendorPage(page);
   result.before = await probe(frame);
 
-  // Custom CSS: write the textarea and send the input event, as typing does.
   result.customCssMs = await frame.evaluate(
     async ({ css, outline }) => {
       const area = document.querySelector('#customCSS');
@@ -50,7 +43,7 @@ try {
     { css: CSS, outline: OUTLINE },
   );
 
-  // Colour: set the picker's own attribute and let the component report the change.
+  // The picker component reports a change of its own `color` attribute.
   result.colorPicker = await frame.evaluate(async (color) => {
     const picker = document.querySelector('#main-text-color-picker');
     const root = getComputedStyle(document.documentElement);

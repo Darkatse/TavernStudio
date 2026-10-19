@@ -13,21 +13,14 @@ import { previewSession } from '../preview/session';
 import type { ProjectRecord } from '../storage/db';
 
 export interface ProjectState {
-  /** Why the project could not be placed in the preview, as the author should read it. */
   error: string | undefined;
-  /** Session writes on positions the project owns (docs/Architecture.md §5). */
   differences: readonly Difference[];
-  /** The session writes the latest project change overwrote, for the author to see; never dropped silently. */
+  /** The session writes the latest project change overwrote; never dropped silently. */
   overwritten: readonly Difference[];
 }
 
 const decoder = new TextDecoder();
 
-/**
- * An open project: its files placed in the preview Session through its Mounts,
- * placed again whenever a file changes, and compared with the Session's data
- * whenever the vendor writes.
- */
 export class Project {
   readonly record: ProjectRecord;
   readonly store: ProjectStore;
@@ -52,7 +45,6 @@ export class Project {
     return () => this.#listeners.delete(listener);
   };
 
-  /** Places the project in the preview and follows it until closed. */
   start(): Promise<void> {
     this.#stops.push(
       this.store.subscribe(() => this.#schedule()),
@@ -69,7 +61,6 @@ export class Project {
   }
 
   /**
-   * Resolves once the preview Session has the project's latest files placed.
    * A write schedules its placing before it resolves, so whatever waits here
    * after writing sees the preview move on, reload included.
    */
@@ -77,10 +68,6 @@ export class Project {
     while (this.#resolving) await this.#resolving;
   }
 
-  /**
-   * Takes one mount point's session writes back into its source file. The
-   * project then matches the Session there, so the differences go away.
-   */
   async adopt(placement: Placement): Promise<void> {
     const differences = this.#state.differences.filter((d) => d.placement === placement);
     if (differences.length === 0) return;
@@ -90,7 +77,6 @@ export class Project {
     else await this.store.write(placement.source, content);
   }
 
-  /** Throws one mount point's session writes away: the project's content goes back there. */
   discard(placement: Placement): Promise<void> {
     return previewSession.discard(placement);
   }

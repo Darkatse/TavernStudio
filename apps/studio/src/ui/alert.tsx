@@ -2,24 +2,13 @@ import { clsx } from 'clsx';
 import type { ReactNode } from 'react';
 
 export interface AlertProps {
-  /**
-   * `error`: something failed. It is announced at once and its icon is red,
-   * the one place red goes (docs/UI.md §3). `notice`: something needs a
-   * decision, but nothing failed.
-   */
   kind?: 'notice' | 'error';
   icon: ReactNode;
   title: string;
-  /** What the decision is about, or the error's original text. */
   children?: ReactNode;
-  /** Buttons named for what they do: "Retry", "Load new version". */
   actions?: ReactNode;
 }
 
-/**
- * A message where the problem is (docs/UI.md §5). It stays until what it
- * reports is settled, unlike a toast.
- */
 export function Alert({ kind = 'notice', icon, title, children, actions }: AlertProps) {
   return (
     <div

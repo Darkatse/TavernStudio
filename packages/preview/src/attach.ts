@@ -1,9 +1,5 @@
 /**
- * Attach: the first script of every vendor page (docs/Vendors.md §1). It runs
- * before any vendor script, connects the page to its View in Studio and
- * installs the device identity, diagnostics, the API layer and the Agent's
- * app-use engine.
- *
+ * The first script of every vendor page: it runs before any vendor script.
  * Built as a classic script and served at /_studio/attach.js.
  */
 import { installAccess } from './access';

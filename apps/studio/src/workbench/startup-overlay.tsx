@@ -9,10 +9,6 @@ import { workbenchMessages } from './messages';
 
 type StepState = 'pending' | 'active' | 'done';
 
-/**
- * What the frame shows until the vendor page is ready: the three stages of a
- * cold start, and a way out when one fails.
- */
 export function StartupOverlay({ session, booted }: { session: SessionStatus; booted: boolean }) {
   const m = useMessages(workbenchMessages).startup;
   const hidden = booted && session.phase === 'open';
@@ -85,7 +81,6 @@ function Step({ state, children }: { state: StepState; children: ReactNode }) {
   );
 }
 
-/** A hairline that runs along the top edge of the frame while the preview starts. */
 function Progress() {
   return (
     <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden" aria-hidden="true">
@@ -94,7 +89,7 @@ function Progress() {
   );
 }
 
-/** The Session moved to another Studio tab; opening Studio here again takes it back. */
+/** Opening Studio here again takes the Session back from the other tab. */
 function Elsewhere() {
   const m = useMessages(workbenchMessages).startup;
   return (
@@ -111,7 +106,6 @@ function Elsewhere() {
   );
 }
 
-/** The error's original text follows the heading, the same in every language (docs/UI.md §6). */
 function Failure({ error }: { error: string }) {
   const m = useMessages(workbenchMessages).startup;
   const { retry } = useMessages(common);

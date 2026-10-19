@@ -6,7 +6,6 @@ import { useMessages } from '../i18n/messages';
 import { nameOf, parentOf } from '../project/paths';
 import { codeMessages } from './messages';
 
-// A vertical wheel scrolls the strip sideways; it has no room for a scrollbar.
 function onWheel(event: WheelEvent<HTMLDivElement>) {
   if (event.deltaX === 0) event.currentTarget.scrollLeft += event.deltaY;
 }
@@ -15,15 +14,9 @@ export interface FileTabsProps {
   editors: Editors;
   tabs: readonly Tab[];
   active: string | undefined;
-  /** The id of the panel the tabs control. */
   panel: string;
 }
 
-/**
- * The open files (docs/UI.md §5). Tabs close and overflow, so they are not
- * a segmented track: the active tab shares the editor's surface and joins
- * it, the strip scrolls sideways, and arrow keys move between tabs.
- */
 export function FileTabs({ editors, tabs, active, panel }: FileTabsProps) {
   const m = useMessages(codeMessages);
   const select = (path: string, element: HTMLElement | undefined) => {
@@ -101,8 +94,7 @@ function FileTab({
   return (
     <div
       className={clsx(
-        // The active tab is the editor's surface, and covers the strip's
-        // bottom line so the two join.
+        // The active tab's surface covers the strip's bottom line, so it joins the editor.
         'group/tab relative flex shrink-0 items-center transition-colors motion-fast',
         active
           ? 'bg-surface text-fg shadow-[1px_0_0_var(--color-line),-1px_0_0_var(--color-line)]'
@@ -125,11 +117,6 @@ function FileTab({
         {label.folder && <span className="truncate text-caption text-muted">{label.folder}</span>}
       </button>
       <span className="absolute top-1/2 right-1.5 grid size-5 -translate-y-1/2 place-items-center pointer-coarse:size-7">
-        {/*
-         * The dirty dot and the close button share one cell (docs/UI.md §5).
-         * The one coming in takes the full fast tier, the one going out the
-         * exit step.
-         */}
         {tab.dirty && (
           <span
             aria-hidden="true"
@@ -153,7 +140,6 @@ function FileTab({
   );
 }
 
-/** A tab's name, with its folder when another open file has the same name. */
 function labelOf(path: string, tabs: readonly Tab[]): { name: string; folder: string | undefined } {
   const name = nameOf(path);
   const shared = tabs.some((tab) => tab.path !== path && nameOf(tab.path) === name);

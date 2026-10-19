@@ -1,8 +1,6 @@
 /*
- * A field with suggestions (Base UI Autocomplete). The popup is a menu's
- * (ui/menu.tsx): raised surface, `motion-popup`, compact rows sharing one
- * highlight block (docs/UI.md §5). The input keeps DOM focus and the active
- * row is virtual (§5, 焦点), so the block follows it through `follow`.
+ * The input keeps DOM focus and the active row is virtual, so the highlight
+ * block follows it through `follow`.
  */
 import { Autocomplete as BaseAutocomplete } from '@base-ui/react/autocomplete';
 import { useRef, useState, type ReactNode } from 'react';
@@ -14,13 +12,10 @@ const ROW = '[role="option"]';
 export interface AutocompleteProps<Item> {
   value: string;
   onValueChange: (value: string) => void;
-  /** Suggestions; any other text stays a valid value. With none, the field is a plain input. */
+  /** Suggestions only: any other text stays a valid value. */
   items: readonly Item[];
-  /** What picking an item puts in the field. */
   itemToString: (item: Item) => string;
-  /** A row's content. */
   children: (item: Item) => ReactNode;
-  /** Shown when the typed text matches no item. */
   empty: ReactNode;
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -39,8 +34,8 @@ export function Autocomplete<Item>({
   input,
 }: AutocompleteProps<Item>) {
   const { contains } = BaseAutocomplete.useFilter({ sensitivity: 'base' });
-  // Opening shows every item; typing filters them. Filtering by the value
-  // itself would show only the current item whenever the list reopens.
+  // Filtering by the value itself would show only the current item whenever
+  // the list reopens.
   const [query, setQuery] = useState('');
   const shown = query === '' ? items : items.filter((item) => contains(itemToString(item), query));
   const popup = useRef<HTMLDivElement>(null);

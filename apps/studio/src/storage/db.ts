@@ -2,7 +2,6 @@ import type { CheckpointFile, HistoryEntry, JournalEvent } from '@tavern-studio/
 import type { Placement } from '@tavern-studio/workspace';
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
-/** Studio's one IndexedDB database (docs/Architecture.md §7). */
 export const DATABASE = 'tavern-studio';
 
 export interface ProjectRecord {
@@ -15,16 +14,15 @@ export interface ProjectRecord {
 }
 
 /**
- * The persisted Session (docs/Architecture.md §7): what it was opened on, and
- * the placements its data reflects, so that reopening can move from those to
- * the project's current ones.
+ * Keeps the placements the Session's data reflects, so that reopening can move
+ * from those to the project's current ones.
  */
 export interface SessionRecord {
   id: 'session';
   fixture: string;
   vendor: string;
   placements: readonly Placement[];
-  /** The Web Host's own document (docs/Vendors.md §3). */
+  /** The Web Host's own document. */
   webHost: Record<string, unknown> | null;
 }
 
@@ -34,20 +32,17 @@ export interface SessionFile {
   content: Uint8Array | null;
 }
 
-/** A History entry of a project's conversation with the Agent, in order (docs/Agent.md §1). */
 export interface HistoryRecord extends HistoryEntry {
   seq?: number;
   project: string;
 }
 
-/** A Journal event of a project's conversation, in order. */
 export interface JournalRecord {
   seq?: number;
   project: string;
   event: JournalEvent;
 }
 
-/** A long tool result, read back through the Agent's `tool-results/` root. */
 export interface ToolResultRecord {
   /** Its path inside `tool-results/`: `<run>/round-NNN-call_<hash>.txt`. */
   path: string;
@@ -55,7 +50,6 @@ export interface ToolResultRecord {
   text: string;
 }
 
-/** A file a Run or rollback changed, for the project's Checkpoint (docs/Agent.md §1). */
 export interface CheckpointFileRecord extends CheckpointFile {
   project: string;
   /** The compressed size of the content kept for `before`, which the limit counts. */
@@ -68,7 +62,6 @@ export interface CheckpointBlobRecord {
   gzip: Uint8Array;
 }
 
-/** A preference, such as the Agent's model endpoints. */
 export interface PreferenceRecord {
   key: string;
   value: unknown;
@@ -92,11 +85,6 @@ interface StudioSchema extends DBSchema {
 
 export type StudioDatabase = IDBPDatabase<StudioSchema>;
 
-/**
- * The database, opened once. Studio's state lives in memory and reaches the
- * interface through its own stores, so a thin promise wrapper is all that
- * IndexedDB needs here (docs/Decisions.md).
- */
 export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 2, {
   upgrade(database, oldVersion) {
     if (oldVersion < 1) {

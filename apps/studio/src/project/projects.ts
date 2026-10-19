@@ -7,7 +7,6 @@ import { projectMessages } from './messages';
 import { Project } from './project';
 import type { ProjectTemplate } from './templates';
 
-/** The fixture the preview shows while no project is open. */
 const DEFAULT_FIXTURE = 'showcase';
 
 let current: Project | undefined;
@@ -16,7 +15,6 @@ let records: readonly ProjectRecord[] = [];
 const listeners = new Set<() => void>();
 let started: Promise<void> | undefined;
 
-/** The open project, if any. */
 export function currentProject(): Project | undefined {
   return current;
 }
@@ -25,17 +23,14 @@ export function projectRecords(): readonly ProjectRecord[] {
   return records;
 }
 
-/** Listens for the open project or the list of projects to change. */
 export function subscribeProject(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
 
 /**
- * Opens the preview once: on the project opened last, or on the default
- * fixture with nothing mounted. The tab takes the Session first, and asks the
- * browser to keep Studio's storage, since projects live in it
- * (docs/Architecture.md §4, §7).
+ * The tab takes the Session first, and asks the browser to keep Studio's
+ * storage, since projects live in it.
  */
 export function startStudio(): Promise<void> {
   started ??= (async () => {
@@ -49,7 +44,6 @@ export function startStudio(): Promise<void> {
   return started;
 }
 
-/** A project from a template's files, named as Studio names a new one of its kind. */
 export async function createFromTemplate(template: ProjectTemplate): Promise<ProjectRecord> {
   const { files } = await loadTemplate(template.folder);
   const { name } = messagesNow(projectMessages).templates[template.folder];
@@ -57,9 +51,8 @@ export async function createFromTemplate(template: ProjectTemplate): Promise<Pro
 }
 
 /**
- * Creates a project in OPFS from files, a template's or an archive's;
- * `origin` records which. The caller has checked the paths. A name another
- * project has gets a number, so the list tells them apart.
+ * The files are a template's or an archive's, and `origin` records which.
+ * The caller has checked the paths.
  */
 export async function createProject(
   name: string,
@@ -79,7 +72,6 @@ export async function createProject(
   return record;
 }
 
-/** Opens a project in the preview, closing the one open before. */
 export async function openProject(record: ProjectRecord): Promise<void> {
   current?.close();
   const project = new Project(record, new ProjectStore(await projectDirectory(record.id)));
@@ -100,7 +92,6 @@ function notify(): void {
   for (const listener of listeners) listener();
 }
 
-/** A project's folder in OPFS: `projects/<id>/`. */
 async function projectDirectory(id: string): Promise<FileSystemDirectoryHandle> {
   const root = await navigator.storage.getDirectory();
   const projects = await root.getDirectoryHandle('projects', { create: true });

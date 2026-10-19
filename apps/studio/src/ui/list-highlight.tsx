@@ -1,33 +1,19 @@
 import { clsx } from 'clsx';
 import { useRef, type FocusEvent, type MouseEvent, type PointerEvent } from 'react';
 
-// The block moves on the moderate tier and fades on the fast one (docs/UI.md §4).
 const MOVE =
   'opacity var(--motion-fast) var(--ease-spring), translate var(--motion-moderate) var(--ease-spring)';
 const APPEAR = 'opacity var(--motion-fast) var(--ease-spring)';
 const LEAVE = 'opacity var(--motion-fast-exit) var(--ease-exit)';
 
 export interface ListHighlightOptions {
-  /**
-   * Rings the block while it marks keyboard focus. Lists whose highlight is
-   * their focus indicator, like menus, leave it off.
-   */
+  /** Lists whose highlight is their focus indicator, like menus, leave it off. */
   focusRing?: boolean;
 }
 
 /**
- * The one highlight block of a list: file tree, menu (docs/UI.md §5).
- *
- * - It follows the pointer by translateY alone. Over an item it highlights
- *   that item; anywhere else in the list, the nearest one. A click that lands
- *   between items goes to the highlighted one, so what is highlighted is what
- *   a click hits.
- * - When the pointer comes in, it fades in at the nearest item instead of
- *   sliding there from where it was last.
- * - Keyboard focus moves it at once, without animation. In a combobox the
- *   input keeps DOM focus and the active row is virtual; pass that row to
- *   `follow`.
- * - Touch has no hover, so it gets no block.
+ * A click that lands between items goes to the highlighted one, so what is
+ * highlighted is what a click hits. Touch has no hover, so it gets no block.
  *
  * Spread `listProps` on the list, which must be positioned, and render
  * `block` first inside it. Items match `selector` and lie in the list's flow.
@@ -78,7 +64,6 @@ export function useListHighlight(
     return nearest;
   };
 
-  /** The item holding keyboard focus inside the list, if focus is visible. */
   const focusedItem = (list: HTMLElement): HTMLElement | null => {
     const focused = document.activeElement;
     if (!focused || !list.contains(focused) || !focused.matches(':focus-visible')) return null;

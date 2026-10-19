@@ -3,11 +3,6 @@ import type { DiagnosticEntry, WebHostRequest, WebHostResponse } from '@tavern-s
 
 type Report = (entry: DiagnosticEntry) => void;
 
-/**
- * Answers a vendor page's API request with server semantics: a handler that
- * throws answers 500, and every failure, like every unimplemented endpoint,
- * is reported (docs/Architecture.md §3).
- */
 export function answer(
   backend: SessionBackend,
   request: BackendRequest,
@@ -42,9 +37,9 @@ export function answer(
 }
 
 /**
- * The Web Host's backend port (docs/Vendors.md §3): synchronous, answered with
- * text or, for streamed generation, a stream. A response without a body reads
- * as empty text, since an error status needs text for its message.
+ * The Web Host's backend port is synchronous, answered with text or, for
+ * streamed generation, a stream. A response without a body reads as empty
+ * text, since an error status needs text for its message.
  */
 export function answerSync(
   backend: SessionBackend,

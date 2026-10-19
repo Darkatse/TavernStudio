@@ -1,13 +1,3 @@
-// Transcript performance (docs/plan/P1.md, 性能):
-// - a long conversation, 200 Runs with 2000 tool calls, opens and scrolls with
-//   no long task over 50 ms;
-// - a reply streaming in thousands of small pieces keeps frames under 16 ms
-//   and commits at most once a frame.
-//
-// The conversation is written straight into IndexedDB, then Studio reloads.
-//
-// Usage: node scripts/p1/transcript-perf.mjs [--url http://localhost:3000/]
-
 import { createServer } from 'node:http';
 import { parseArgs } from 'node:util';
 import { createThemeProject, launch, openStudio, useModel, vendorPage } from '../lib/studio.mjs';
@@ -24,7 +14,6 @@ const RUNS = 200;
 const CALLS_PER_RUN = 10;
 const PIECES = 3000;
 
-/** A long reply streamed in small pieces, a few milliseconds apart. */
 async function startStreamingModel(port) {
   const server = createServer(async (request, response) => {
     if (request.method === 'OPTIONS') {
@@ -53,7 +42,6 @@ async function startStreamingModel(port) {
   return server;
 }
 
-/** Writes a conversation of `runs` Runs into the open project's History and Journal. */
 function seed({ runs, calls }) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('tavern-studio');
@@ -161,7 +149,6 @@ function seed({ runs, calls }) {
   });
 }
 
-/** Records long tasks and frame gaps in the page from now on; a second call starts over. */
 function watch() {
   const started = Boolean(window.__perf);
   window.__perf = { longTasks: [], frames: [] };
@@ -200,7 +187,6 @@ try {
   await createThemeProject(page);
   await page.evaluate(seed, { runs: RUNS, calls: CALLS_PER_RUN });
 
-  // A long conversation: open it, then scroll it from the newest to the oldest.
   await page.reload();
   const transcript = page.locator('[role=log]');
   await transcript.waitFor({ timeout: 60_000 });
@@ -225,7 +211,6 @@ try {
     ...(await page.evaluate(summary)),
   };
 
-  // Streaming: a reply in thousands of pieces, at the bottom of that conversation.
   await useModel(page, `http://localhost:${options.port}/v1`, 'stream');
   await page.evaluate(() => {
     const log = document.querySelector('[role=log]');

@@ -1,35 +1,25 @@
 import { join, nameOf, parentOf, ROOT } from '../project/paths';
 
-/** A row of the file tree: a file, a folder, or a new one being named. */
 export interface TreeNode {
-  /** The project path; '' for the project root. */
   path: string;
   name: string;
   folder: boolean;
-  /** Set on the row of a file or folder that is being named and does not exist yet. */
   draft: boolean;
   children: string[];
 }
 
-/** What a new row will become once named. */
 export interface Draft {
   parent: string;
   folder: boolean;
 }
 
-/** The draft row's id: no project path holds a NUL. */
+/** No project path holds a NUL, so the draft row's id cannot collide with a real one. */
 function draftId(parent: string): string {
   return join(parent, '\u0000');
 }
 
 const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 
-/**
- * The tree of a project's files. Folders come from the files' paths, plus
- * `folders`: empty ones made in the tree, which the store does not list until
- * a file is written inside. Folders sort before files, both by name; a draft
- * row comes first in its folder.
- */
 export function buildTree(
   files: readonly string[],
   folders: readonly string[],
@@ -63,7 +53,6 @@ export function buildTree(
   return nodes;
 }
 
-/** Why a name cannot be used; the tree says it in Studio's language. */
 export type NameProblem =
   | { kind: 'empty' }
   | { kind: 'separator' }
@@ -71,7 +60,6 @@ export type NameProblem =
   | { kind: 'spaces' }
   | { kind: 'taken'; name: string };
 
-/** Why `name` cannot be used in `parent`, or undefined when it can. */
 export function nameProblem(
   nodes: ReadonlyMap<string, TreeNode>,
   parent: string,
@@ -82,7 +70,7 @@ export function nameProblem(
   if (/[/\\]/.test(name)) return { kind: 'separator' };
   if (name === '.' || name === '..') return { kind: 'dots' };
   if (name.trim() !== name) return { kind: 'spaces' };
-  // Folded case, since a local folder may live on a case-insensitive file system.
+  // A local folder may live on a case-insensitive file system.
   const folded = name.toLowerCase();
   const taken = nodes
     .get(parent)

@@ -10,20 +10,15 @@ import {
 } from './json';
 import { intendedAt, type Placement, type ValuePlacement } from './placements';
 
-/** Synchronous reads of a data directory: the fixture's, or the Session's. */
 export interface DataReader {
   read(path: string): Uint8Array | undefined;
 }
 
-/**
- * A position a project change moved to a new value: what a running vendor has
- * to be brought to, by hot-apply or by reloading.
- */
 export interface DataChange {
   path: string;
   /** Absent when the whole file changed. */
   pointer?: Pointer;
-  /** The new value at the pointer; absent where the position is now empty. */
+  /** Absent where the position is now empty. */
   value?: JsonValue;
 }
 
@@ -34,8 +29,6 @@ export interface Applied {
 }
 
 /**
- * Moves data from `previous` placements to `next` ones (docs/Architecture.md §5).
- *
  * Only Mounts whose content changed are placed again, and each one replaces
  * the positions it owns, unadopted session writes there included. A position
  * the project no longer writes goes back to the fixture's value. Everything
@@ -69,11 +62,7 @@ export function applyPlacements(
   return applied;
 }
 
-/**
- * Whether the data holds a change's value at its position, as after a
- * vendor's own save of a hot-applied value. Only values are hot-applied; a
- * whole-file change is never held this way.
- */
+/** Only values are hot-applied; a whole-file change is never held this way. */
 export function holdsChange(data: DataReader, change: DataChange): boolean {
   if (change.pointer === undefined) return false;
   const bytes = data.read(change.path);
@@ -81,10 +70,7 @@ export function holdsChange(data: DataReader, change: DataChange): boolean {
   return jsonEqual(getAt(document, change.pointer), change.value);
 }
 
-/**
- * The previous placements a move replaces: their content changed or went
- * away. Session writes on the positions they own do not survive the move.
- */
+/** Session writes on the positions these placements own do not survive the move. */
 export function replacedPlacements(
   previous: readonly Placement[],
   next: readonly Placement[],
@@ -160,7 +146,6 @@ function isFile(placement: Placement): boolean {
   return placement.kind === 'file';
 }
 
-/** The same content at the same place: such a Mount has nothing to place again. */
 function samePlacement(a: Placement, b: Placement): boolean {
   if (a.path !== b.path) return false;
   if (a.kind === 'file' || b.kind === 'file') {

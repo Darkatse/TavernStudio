@@ -10,7 +10,6 @@ import type { Conversation } from './conversation';
 import { runMessages } from './run-messages';
 import type { RollbackBlock, TranscriptBlock } from './runs';
 
-/** A rollback the author asked for: its target and the plan being worked out. */
 export interface RollbackRequest {
   target: TranscriptBlock;
   plan: Promise<{ plan: RollbackPlan } | { error: string }>;
@@ -29,10 +28,6 @@ export function requestRollback(
   };
 }
 
-/**
- * Confirms a rollback, listing what it changes (docs/UI.md §5). A file that
- * changed after the Agent last wrote it is marked: rolling back overwrites it.
- */
 export function RollbackConfirm({
   conversation,
   request,
@@ -89,8 +84,8 @@ export function RollbackConfirm({
 }
 
 /**
- * Where a rollback happened. Undoing it is offered while nothing came after
- * it; later, rolling back to before a Run says what it does more plainly.
+ * Undoing a rollback is offered while nothing came after it; later, rolling
+ * back to before a Run says what it does more plainly.
  */
 export function RollbackView({
   block,

@@ -17,7 +17,6 @@ export const workbenchMessages = defineMessages({
       steps: '预览启动进度',
       worker: '准备预览服务',
       data: '载入样板与扩展',
-      /** The vendor's name once it is known. */
       vendor: (label: string | undefined) => (label ? `启动 ${label}` : '启动前端'),
       failed: '预览启动失败',
       elsewhere: '已在另一个标签页打开',
@@ -50,7 +49,6 @@ export const workbenchMessages = defineMessages({
         next: (file: string) =>
           `${file}，解压到 data/default-user/extensions/，重新载入后即可使用。`,
       },
-      /** A description, followed by how many changes in the preview the export leaves out. */
       pending: (description: string, count: number) =>
         count > 0
           ? `${description}预览里还有 ${formatNumber(count)} 处待采纳的修改，没有包含在内。`

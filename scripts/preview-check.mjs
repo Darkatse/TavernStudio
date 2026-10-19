@@ -1,17 +1,3 @@
-// Boots the preview in a headless browser and reports whether it is healthy
-// and how fast it is (docs/plan/P0.md, V2, V3 and the measurements).
-//
-// Usage: node scripts/preview-check.mjs [--url http://localhost:3000/]
-//        [--browser chrome|msedge|firefox|webkit] [--vendor st|tt]
-//        [--device desktop|mobile] [--reloads 3] [--screenshot file.png]
-//
-// Studio starts on SillyTavern, so for TauriTavern `ready` includes the
-// SillyTavern View it switches from; `data` and `vendor` are TauriTavern's own.
-//
-// Needs a running dev server (`pnpm dev`) and a built vendor image. Exits 1
-// when the preview did not become ready, an API request reached the network,
-// a same-origin request failed, or anything was reported as an error.
-
 import { parseArgs } from 'node:util';
 import { diagnostics, launch, openStudio, reloadPreview } from './lib/studio.mjs';
 
@@ -37,6 +23,8 @@ async function measure(page) {
     const frame = document.querySelector('iframe[title="预览"]');
     const resources = frame.contentWindow.performance.getEntriesByType('resource');
     return {
+      // Studio starts on SillyTavern, so for TauriTavern `ready` includes the
+      // SillyTavern View it switches from.
       ready: Math.round(view.startTime + view.duration),
       worker: Math.round(worker?.duration ?? 0),
       data: Math.round(data?.duration ?? 0),
@@ -67,7 +55,7 @@ try {
   }
 
   // One Studio tab at a time: tabs share the Preview SW and the published
-  // Session, and a second tab does not take over the first yet.
+  // Session, and a second tab does not take over the first.
   await page.close();
   const warmPage = await openStudio(session, options.url, target);
   const warm = await measure(warmPage);

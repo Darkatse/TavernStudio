@@ -14,12 +14,10 @@ export function nameOf(path: string): string {
   return path.slice(path.lastIndexOf('/') + 1);
 }
 
-/** Whether `path` is `root` or lies below it. */
 export function isWithin(path: string, root: string): boolean {
   return path === root || path.startsWith(`${root}/`);
 }
 
-/** The folders at or below `roots` that hold any of `files`, deepest first. */
 export function foldersWithin(files: readonly string[], roots: readonly string[]): string[] {
   const folders = new Set<string>();
   for (const file of files) {

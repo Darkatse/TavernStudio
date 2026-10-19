@@ -2,7 +2,6 @@ import type { Routes } from '../backend';
 import { empty, json, ok } from '../http';
 import { USER } from '../paths';
 
-/** stats.js keeps the user's stats in `stats.json` at the user's root. */
 const STATS = `${USER}/stats.json`;
 
 export const statsRoutes: Routes = {

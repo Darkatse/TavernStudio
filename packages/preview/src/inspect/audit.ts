@@ -11,9 +11,7 @@ import {
 } from './paint';
 
 /**
- * `inspect.audit` (docs/Agent.md §4): deterministic checks of what a vendor
- * page shows, so the Agent reads numbers where a screenshot would leave it to
- * guess. Only what is in view is checked: elements whose box shows inside the
+ * Only what is in view is checked: elements whose box shows inside the
  * viewport of their document and the overflow clips of their ancestors, and
  * that `checkVisibility` counts as visible.
  *
@@ -22,15 +20,14 @@ import {
  * it. Clip paths other than those hiding text for screen readers, masks and
  * transforms are not modelled. Shadow trees are not entered, nor the
  * documents of frames in the region: the report names those frames, and each
- * can be audited on its own. How contrast reads the page is in ./paint.ts.
+ * can be audited on its own.
  */
 
 /** Findings listed per check, the worst first; the counts cover all of them. */
 const SHOWN = 10;
 /**
- * Elements visited at most, a few microseconds each, so that a huge page stays
- * within the budget of `inspect.*` (docs/plan/P1.md). The descendants of
- * elements out of view are visited last, so the cap leaves those unchecked first.
+ * The descendants of elements out of view are visited last, so the cap leaves
+ * those unchecked first.
  */
 const MAX_ELEMENTS = 10_000;
 const WIDEST_SHOWN = 5;
@@ -46,7 +43,6 @@ const LARGE_BOLD_PX = 18.66;
 /** Two controls overlap when they share more than this part of the smaller one. */
 const OVERLAP_SHARE = 0.25;
 
-/** What a user can click, type into or reach with the keyboard. */
 const INTERACTIVE = [
   'a[href]',
   'button',
@@ -108,7 +104,6 @@ export type AuditReport = {
   unauditedFrames?: string[];
 };
 
-/** A finding as the Agent reads it: plain JSON, the element named by a unique selector. */
 type Finding = Record<string, string | number | boolean | (string | number)[]>;
 
 type Check = {
@@ -131,7 +126,6 @@ interface Box {
   bottom: number;
 }
 
-/** What an element passes down to its children as the walk descends. */
 interface Context {
   /** The area its ancestors' overflow leaves visible. */
   clip: Box;
@@ -139,7 +133,6 @@ interface Context {
   shownAbove: boolean;
 }
 
-/** An element whose box shows in view and is visible. */
 interface Shown {
   element: Element;
   style: CSSStyleDeclaration;
@@ -149,7 +142,6 @@ interface Shown {
   contentClip: Box;
   /** The text nodes it holds directly, whitespace aside. */
   nodes: Text[];
-  /** Whether a user can click it, type into it or reach it with the keyboard. */
   control: boolean;
 }
 
@@ -208,7 +200,6 @@ function frameRoot(frame: Element): Element {
   return root;
 }
 
-/** A document's viewport, scrollbars excluded. */
 function viewportOf(document: Document): Box {
   const scroller = document.scrollingElement ?? document.documentElement;
   return { left: 0, top: 0, right: scroller.clientWidth, bottom: scroller.clientHeight };
@@ -352,10 +343,6 @@ function contextAbove(element: Element, reader: PageReader, visible: Box): Conte
   return context;
 }
 
-/**
- * Where an element's box lies, what of it shows in `visible`, the part of the
- * viewport that shows, and what it passes to its children.
- */
 function place(
   element: Element,
   style: CSSStyleDeclaration,
@@ -378,7 +365,7 @@ function place(
   return { rect, clip, shown, sized, inner };
 }
 
-/** Whether an element's overflow clips its children; overflow does not apply to inline boxes. */
+/** Overflow does not apply to inline boxes. */
 function clipsContent(element: Element, style: CSSStyleDeclaration, reader: PageReader): boolean {
   if (style.overflowX === 'visible' && style.overflowY === 'visible') return false;
   if (style.display === 'inline') return false;
@@ -419,13 +406,6 @@ function textNodes(element: Element): Text[] {
   return nodes;
 }
 
-/**
- * Contrast of text against what is painted behind it, for each element that
- * holds text directly. Where an image, a gradient or a backdrop filter shows
- * through translucent layers, the ratio is a range from the darkest to the
- * lightest backdrop it could paint (black to white for an image or a filter):
- * failing when even its best is too low, uncertain when it straddles the minimum.
- */
 function checkContrast(shown: readonly Shown[], reader: PageReader) {
   let checked = 0;
   let failing = 0;
@@ -485,7 +465,6 @@ function checkContrast(shown: readonly Shown[], reader: PageReader) {
   return { checked, failing, uncertain, findings: worstFirst(found) };
 }
 
-/** The center of the first part of the text that shows in view. */
 function textPoint({ element, nodes, contentClip }: Shown): Point | undefined {
   const range = element.ownerDocument.createRange();
   for (const node of nodes) {
@@ -505,11 +484,6 @@ function isLarge(style: CSSStyleDeclaration): boolean {
   return size >= LARGE_PX || (size >= LARGE_BOLD_PX && Number(style.fontWeight) >= 700);
 }
 
-/**
- * Content cut off: by an element whose overflow is hidden or clipped, unless
- * it ends in an intended ellipsis or a line clamp; and text spilling out of a
- * box whose overflow is visible. Scroll containers are not findings.
- */
 function checkClipping(shown: readonly Shown[], reader: PageReader): Check {
   let checked = 0;
   const found: Found[] = [];
@@ -556,11 +530,7 @@ function hasEllipsis(style: CSSStyleDeclaration): boolean {
   return style.textOverflow === 'ellipsis' && style.getPropertyValue('text-wrap-mode') === 'nowrap';
 }
 
-/**
- * Controls covered by another element at their center, so that a click there
- * reaches something else; and pairs of controls sharing much of their area.
- * A label of the control is not a cover: clicking it reaches the control.
- */
+/** A label of the control is not a cover: clicking it reaches the control. */
 function checkOverlap(shown: readonly Shown[]): Check {
   const controls = shown.filter(({ control }) => control);
   let checked = 0;
@@ -605,7 +575,6 @@ function labelsOf(element: Element): Element[] {
   return labels ? [...labels] : [];
 }
 
-/** Controls and text that should show, inside a part of the page in view, yet have no size. */
 function checkZeroSize(seen: Collected): Check {
   return {
     checked: seen.sized,
@@ -620,7 +589,6 @@ function checkZeroSize(seen: Collected): Check {
   };
 }
 
-/** Content passing the right edge of the viewport, and the elements reaching furthest past it. */
 function pageOverflow(document: Document, wide: Collected['wide'], reader: PageReader) {
   const scroller = document.scrollingElement ?? document.documentElement;
   if (scroller.scrollWidth <= scroller.clientWidth + TOLERANCE) return undefined;
@@ -636,7 +604,6 @@ function pageOverflow(document: Document, wide: Collected['wide'], reader: PageR
   };
 }
 
-/** The findings to list, the worst first. */
 function worstFirst(found: readonly Found[]): Finding[] {
   return found
     .toSorted((a, b) => a.severity - b.severity)

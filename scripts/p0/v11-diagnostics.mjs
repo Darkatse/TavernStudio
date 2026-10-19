@@ -1,15 +1,3 @@
-// P0 V11: runtime diagnostics. Plants a runtime error and a syntax error in a
-// third-party extension, a JS-Slash-Runner script and a frontend card, then
-// checks that Attach records each one with a location Studio can map back to
-// the Session's data (docs/Architecture.md §5).
-//
-// - Extensions are files, so their URL and line must be exact.
-// - JSR scripts and cards are inline scripts in srcdoc frames. Their line
-//   counts from the start of the srcdoc document, which JSR assembles; the
-//   result records how far that is from the line in the author's source.
-//
-// Usage: node scripts/p0/v11-diagnostics.mjs [--url http://localhost:3000/]
-
 import { parseArgs } from 'node:util';
 import { dataPathForUrl } from '../../packages/preview/src/routes.ts';
 import { launch, openStudio, reloadPreview, vendorPage } from '../lib/studio.mjs';
@@ -71,8 +59,6 @@ const result = {};
 try {
   const page = await openStudio(session, options.url);
 
-  // Plant the extensions and the card in the Session's data, as an author's
-  // project files would arrive, then reload the preview.
   await page.evaluate(
     async ({ extensions, card, chat }) => {
       const studio = window.__TAVERN_STUDIO__;
@@ -115,7 +101,6 @@ try {
   }, SCRIPTS);
   await page.waitForTimeout(2000);
 
-  // Where each marker sits in its srcdoc document, to compare with the reported line.
   const srcdocLines = await vendor.evaluate(() =>
     Object.fromEntries(
       [...document.querySelectorAll('iframe[id^="TH-"]')].map((frame) => [
@@ -146,6 +131,9 @@ try {
       column: entry.column,
       sourceLine: expected.line,
     };
+    // Extensions are files, so their line must be exact. JSR scripts and cards
+    // are inline scripts in srcdoc documents that JSR assembles, so their line
+    // counts from the start of the srcdoc.
     if (expected.source === 'extension') {
       check.dataPath = dataPathForUrl(new URL(entry.url));
       check.exact = entry.line === expected.line;

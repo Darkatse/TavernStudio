@@ -80,8 +80,7 @@ export function AgentPanel() {
 function ConversationBody({ conversation }: { conversation: Conversation }) {
   const m = useMessages(agentMessages);
   const state = useConversationState(conversation);
-  // Nothing until History is read, so a conversation does not flash the welcome
-  // first; reading and loading take well under the 300 ms that needs a hint.
+  // Nothing until History is read, so a conversation does not flash the welcome first.
   if (!state.loaded) return <div className="flex-1" />;
   if (state.entries.length === 0 && !state.active) {
     return <Welcome description={m.welcomeToProject} />;

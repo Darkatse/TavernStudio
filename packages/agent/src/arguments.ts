@@ -5,12 +5,7 @@ import { parseWorkspacePath } from './workspace';
 const INVALID_ARGUMENTS = 'tool.invalid_arguments';
 const QUOTED_CHARS = 200;
 
-/**
- * A tool call's arguments as an object, as TauriTavern's `ToolArguments`
- * decodes them: nothing, null, blank text and the JSON text `null` mean no
- * arguments, and JSON text of an object is parsed. Anything else is refused
- * with `tool.invalid_arguments`, quoting what the model sent.
- */
+/** Decodes a tool call's arguments as TauriTavern's `ToolArguments` does. */
 export function normalizeArguments(raw: unknown): JsonObject {
   if (raw === undefined || raw === null) return {};
   if (typeof raw !== 'string') {
@@ -43,10 +38,8 @@ function invalidArguments(raw: string): ToolError {
   );
 }
 
-// Readers for single arguments, after TauriTavern's `agent_tools/common.rs`.
-// Each refuses a bad value with `tool.invalid_arguments`.
+// The argument readers below follow TauriTavern's `agent_tools/common.rs`.
 
-/** A string, trimmed, that must not be blank. */
 export function requiredTrimmedString(args: JsonObject, key: string): string {
   const value = args[key];
   const trimmed = typeof value === 'string' ? value.trim() : '';
@@ -54,7 +47,6 @@ export function requiredTrimmedString(args: JsonObject, key: string): string {
   return trimmed;
 }
 
-/** A string as sent, which may be empty. */
 export function requiredRawString(args: JsonObject, key: string): string {
   const value = args[key];
   if (typeof value !== 'string') throw new ToolError(INVALID_ARGUMENTS, `${key} is required`);
@@ -84,7 +76,7 @@ export function ensureOnlyArguments(args: JsonObject, allowed: readonly string[]
   if (unknown !== undefined) throw new ToolError(INVALID_ARGUMENTS, `${unknown} is not supported`);
 }
 
-/** A path to list or search in; none, null, blank, `.` and `./` mean the whole workspace. */
+/** undefined means the whole workspace. */
 export function optionalListPath(args: JsonObject, key: string): string | undefined {
   const value = args[key];
   if (value === undefined || value === null) return undefined;

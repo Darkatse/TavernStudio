@@ -3,7 +3,6 @@ import { empty, ok, text } from '../http';
 import { dirs, sanitize } from '../paths';
 
 export const themeRoutes: Routes = {
-  // themes.js /save: the whole theme object, stored under its name.
   'POST /api/themes/save': (request) => {
     const theme = request.json();
     const name = text(theme, 'name');

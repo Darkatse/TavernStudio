@@ -1,6 +1,3 @@
-// An OpenAI-compatible chat completions endpoint that answers from a script,
-// so a scenario can run the Agent without a model or a key.
-
 import { createServer } from 'node:http';
 
 const CORS = {
@@ -10,11 +7,9 @@ const CORS = {
 };
 
 /**
- * Serves streamed replies at http://localhost:<port>/v1/chat/completions.
- * `script(round, request)` decides each reply of a Run: `round` counts the
- * replies since the author's last message, from 0. It returns
- * `{ text?, calls?: [{ name, args }] }`, the calls by the names the model sees.
- * Every request with tools is kept in `requests`.
+ * `script(round, request)` returns `{ text?, calls?: [{ name, args }] }` for
+ * each reply of a Run, `round` counting from 0 since the author's last
+ * message. Calls name tools as the model sees them.
  */
 export async function startScriptedModel(port, script) {
   const requests = [];
@@ -56,8 +51,8 @@ export async function startScriptedModel(port, script) {
 }
 
 /**
- * The replies so far in this Run. pi-ai moves screenshots into user messages
- * of their own on this API; the author's messages are text.
+ * pi-ai moves screenshots into user messages of their own on this API; the
+ * author's messages are text.
  */
 function roundOf(messages) {
   const author = messages.findLastIndex(

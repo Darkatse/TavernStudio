@@ -1,13 +1,7 @@
 import type { ToolCall } from '@tavern-studio/agent';
 import type { RunText } from './run-messages';
 
-/**
- * How the Transcript names a tool call: what it does, in the present while it
- * runs and in the past once done, so the state is in the words and not only
- * in the icon (docs/UI.md §3, status). A call that failed or got no result,
- * because its Run stopped first, names the action and how it ended. The
- * words of each tool, by the name the model calls it, are in messages.ts.
- */
+/** Keyed by the name the model calls each tool. */
 const LABELS: Partial<Record<string, keyof RunText['calls']>> = {
   workspace_list_files: 'listFiles',
   workspace_search_files: 'search',

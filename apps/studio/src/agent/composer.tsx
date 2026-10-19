@@ -8,11 +8,6 @@ import type { Conversation, ConversationProblem, ConversationState } from './con
 import { agentMessages, type AgentText } from './messages';
 import { selectedEndpoint, useAgentSettings, type ModelProblem } from './settings';
 
-/**
- * Where the author writes to the Agent. Enter sends and Shift+Enter breaks
- * the line; during a Run, a message joins the Run as Guidance and the empty
- * composer offers Stop in the send button's place.
- */
 export function Composer({
   conversation,
   onOpenSettings,
@@ -115,7 +110,7 @@ export function Composer({
 
 const noSubscription = () => () => {};
 
-/** Why nothing can be sent now; during a Run, Guidance needs no model of its own. */
+/** During a Run, Guidance needs no model of its own. */
 function blockedReason(
   state: ConversationState | undefined,
   modelProblem: ModelProblem | undefined,
@@ -127,7 +122,6 @@ function blockedReason(
   return undefined;
 }
 
-/** A problem in the author's language; an error's own message follows it (docs/UI.md §6). */
 function problemText(problem: ConversationProblem, m: AgentText): string {
   switch (problem.kind) {
     case 'no-model':
@@ -139,7 +133,6 @@ function problemText(problem: ConversationProblem, m: AgentText): string {
   }
 }
 
-/** Guidance waiting for the Run's next request, so the author sees it was taken. */
 function Guidance({ items }: { items: ConversationState['guidance'] }) {
   const m = useMessages(agentMessages);
   return (
@@ -155,7 +148,6 @@ function Guidance({ items }: { items: ConversationState['guidance'] }) {
   );
 }
 
-/** Send and Stop share one cell; the arriving icon uses the full tier, the leaving one the exit tier. */
 function SendIcon({ stop }: { stop: boolean }) {
   return (
     <span className="grid">

@@ -1,6 +1,5 @@
-// Reads a vendor's theme module from its syntax tree, for the anatomy
-// (anatomy.mjs). The module owns power_user: the theme fields, the handlers of
-// their controls and the functions that apply them.
+// The theme module owns power_user: the theme fields, the handlers of their
+// controls and the functions that apply them.
 
 import { parse } from 'acorn';
 import * as walk from 'acorn-walk';
@@ -18,17 +17,6 @@ const CLASS_METHODS = new Set([
 /** jQuery methods returning the set they are called on. */
 const SAME_SET = new Set(['on', 'off']);
 
-/**
- * - `fields`: the keys of getThemeObject, each read from `power_user.<key>`;
- * - `handlers`: `$(selector).on('input' | 'change', listener)` bindings, with
- *   the power_user keys the listener assigns, and the bindings it makes when
- *   it runs (`later`), such as a slider's `mouseup` that applies the value;
- * - `variables`: CSS variable → power_user keys its written value derives from;
- * - `classes`: element selector → class → power_user keys deciding whether
- *   the element has it;
- * - `texts`: power_user key → the selector of the element whose content it
- *   becomes, such as custom_css → `#custom-style`.
- */
 export function readThemeModule(source) {
   const program = parse(source, { ecmaVersion: 'latest', sourceType: 'module' });
   const functions = new Map();
@@ -39,7 +27,6 @@ export function readThemeModule(source) {
       functions.set(declaration.id.name, declaration);
     }
   }
-  // Scope (function or program) → name → initializer; null for parameters.
   const bindings = new Map();
   walk.ancestor(program, {
     Function(fn) {
@@ -53,14 +40,12 @@ export function readThemeModule(source) {
     },
   });
   const scopesOf = (ancestors) => [...ancestors.filter(isFunction).toReversed(), program];
-  /** The initializer `name` is bound to in the innermost of `scopes`, and the scopes it sees. */
   const lookup = (name, scopes) => {
     const index = scopes.findIndex((scope) => bindings.get(scope)?.has(name));
     const init = index === -1 ? null : bindings.get(scopes[index]).get(name);
     return init && { init, scopes: scopes.slice(index) };
   };
 
-  /** The power_user keys a value derives from, through local variables and module functions. */
   function readsOf(node, scopes, seen = new Set()) {
     const keys = new Set();
     const follow = (next, nextScopes) => {
@@ -85,11 +70,6 @@ export function readThemeModule(source) {
     return keys;
   }
 
-  /**
-   * The selector of a jQuery object, when the source names its element:
-   * `$('#a')`, `$(document.body)`, the same set returned by `.off(…)` or
-   * `.on(…)`, or a variable holding one.
-   */
   function selectorOf(node, scopes) {
     if (node?.type === 'Identifier') {
       const bound = lookup(node.name, scopes);
@@ -102,7 +82,6 @@ export function readThemeModule(source) {
     return isString(element) ? element.value : documentElement(element);
   }
 
-  /** The selector of the element a class method acts on: jQuery's, or `classList`'s. */
   const classTarget = (object, method, scopes) =>
     method.endsWith('Class')
       ? selectorOf(object, scopes)
@@ -112,7 +91,6 @@ export function readThemeModule(source) {
   if (!getThemeObject) throw new Error(`${THEME_MODULE}: no getThemeObject function`);
   const fields = themeFields(getThemeObject);
 
-  /** The id of the element a value is, when the source names it: `document.getElementById(id)`. */
   function elementId(node, scopes) {
     if (node?.type === 'Identifier') {
       const bound = lookup(node.name, scopes);
@@ -123,7 +101,6 @@ export function readThemeModule(source) {
     return stringValue(node.arguments[0], scopes);
   }
 
-  /** A string literal, or a variable bound to one. */
   function stringValue(node, scopes) {
     if (isString(node)) return node.value;
     if (node?.type !== 'Identifier') return null;
@@ -132,7 +109,6 @@ export function readThemeModule(source) {
   }
 
   const handlers = [];
-  // Every `.on` binding on a named element, with the functions it is made in.
   const listened = [];
   const variables = new Map();
   const classes = new Map();
@@ -168,8 +144,6 @@ export function readThemeModule(source) {
         const scopes = scopesOf(ancestors);
         const target = classTarget(call.callee.object, method, scopes);
         if (!target) return;
-        // A class toggled by a state argument depends on it; otherwise on the
-        // conditions it is set under.
         const toggled = second && (method === 'toggleClass' || method === 'toggle');
         const tests = toggled ? [second] : conditionsOf(ancestors);
         const keys = tests.flatMap((test) => [...readsOf(test, scopes)]);
@@ -212,8 +186,8 @@ function themeFields(getThemeObject) {
 }
 
 /**
- * A direct `$(selector).on(events, listener)` binding for an input or change
- * event; a delegated `.on(events, selector, listener)` listens elsewhere.
+ * Only direct bindings count: a delegated `.on(events, selector, listener)`
+ * listens elsewhere.
  */
 function valueHandler(call, selector, functions) {
   const [events, listener] = call.arguments;
@@ -240,7 +214,6 @@ function valueHandler(call, selector, functions) {
   return { call, selector, event, listener: fn, keys, dataset };
 }
 
-/** The function and the module functions it calls, directly or not. */
 function reachable(fn, functions) {
   const reached = new Set([fn]);
   for (const next of reached) {
@@ -261,14 +234,12 @@ const eventNames = (events) =>
     .filter(Boolean)
     .map((name) => name.split('.')[0]);
 
-/** `document.body` as `body`, `document.documentElement` as `html`. */
 function documentElement(node) {
   if (node?.type !== 'MemberExpression' || node.object.type !== 'Identifier') return null;
   if (node.object.name !== 'document') return null;
   return { body: 'body', documentElement: 'html' }[memberName(node)] ?? null;
 }
 
-/** Tests of the branches enclosing the last ancestor, within its function. */
 function conditionsOf(ancestors) {
   const tests = [];
   for (let i = ancestors.length - 2; i >= 0 && !isFunction(ancestors[i]); i--) {
@@ -279,11 +250,11 @@ function conditionsOf(ancestors) {
   return tests;
 }
 
-/** Values a function returns, without those of the functions nested in it. */
 function returnedValues(fn) {
   if (fn.expression) return [fn.body];
   const values = [];
   walk.recursive(fn.body, null, {
+    // Nested functions' returns are not this function's.
     Function() {},
     ReturnStatement(node) {
       if (node.argument) values.push(node.argument);
@@ -311,7 +282,6 @@ function patternNames(pattern) {
   }
 }
 
-/** The value at `key`, created empty first. */
 function entry(map, key, Empty) {
   if (!map.has(key)) map.set(key, new Empty());
   return map.get(key);

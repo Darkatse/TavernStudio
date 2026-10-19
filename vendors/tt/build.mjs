@@ -1,16 +1,5 @@
-// Builds a TauriTavern vendor image (docs/Vendors.md §1).
-//
-// Until TauriTavern publishes its web distribution (its plan T5), the image is
-// built from a commit of a TauriTavern checkout. The checkout is only read:
-// `git archive` exports the commit, its lockfile installs the dependencies,
-// and its own `pnpm web:build` builds the bundles. The image is the exported
-// src/, with two scripts injected once into index.html after <base href="/">:
-// Attach, then the module that installs TauriTavern's Web Host.
-//
-// Usage: node vendors/tt/build.mjs <checkout> <commit>
-// Output: vendors/out/__vendor/tt@<version>+<commit>/ and its .json, and its
-// anatomy in anatomy/tt@<version>+<commit>/; index.json lists every built
-// image. Exports and installs are cached in vendors/.work/.
+// The TauriTavern checkout is only read: the commit is exported with
+// `git archive`, then installed and built apart from it.
 
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';

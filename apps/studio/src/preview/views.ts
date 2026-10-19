@@ -1,6 +1,5 @@
 import type { DeviceIdentity, DiagnosticEntry, PageAgent } from '@tavern-studio/preview';
 
-/** What a View's frame tells the Session, and how the Session tells it back. */
 export interface ViewHooks {
   device: DeviceIdentity;
   /** The vendor page emitted APP_READY. */
@@ -17,13 +16,9 @@ export interface View extends ViewHooks {
   exit?: () => Promise<void>;
 }
 
-/** How long a page may take to save on exit before its View is removed anyway. */
 const EXIT_TIMEOUT_MS = 5000;
 
-/**
- * The Session's Views, keyed by frame, which is how a connecting vendor page
- * finds its View, and the order in which they unload (docs/Architecture.md §4).
- */
+/** Keyed by frame, which is how a connecting vendor page finds its View. */
 export class Views {
   readonly #views = new Map<Element, View>();
   readonly #closed = new Set<() => void>();
@@ -41,10 +36,6 @@ export class Views {
     return [...this.#views.values()];
   }
 
-  /**
-   * Registers a View's frame before it navigates, so its vendor page can
-   * connect. Returns the function that unregisters it.
-   */
   add(frame: HTMLIFrameElement, hooks: ViewHooks): () => void {
     const created = performance.now();
     this.#views.set(frame, {
@@ -85,16 +76,14 @@ export class Views {
     );
   }
 
-  /** Resolves once every View has been removed. */
   closed(): Promise<void> {
     if (this.#views.size === 0) return Promise.resolve();
     return new Promise((resolve) => this.#closed.add(resolve));
   }
 
   /**
-   * Lets a page that can say when it has saved (TauriTavern) close through
-   * its own path first. A save that fails keeps such a page open; the View
-   * is removed anyway, since the user asked for it, and the loss is reported.
+   * A save that fails keeps the page open; the View is removed anyway, since
+   * the user asked for it, and the loss is reported.
    */
   async #exit(view: View): Promise<void> {
     if (!view.exit) return;

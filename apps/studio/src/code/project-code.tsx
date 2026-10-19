@@ -15,14 +15,6 @@ import { EditorArea } from './editor-area';
 import { FileTree } from './file-tree';
 import { codeMessages } from './messages';
 
-/**
- * The code view of an open project: the file tree beside the editor on wide
- * screens, resizable as the shell is; one at a time on narrow ones, where the
- * tree is a panel opened from the editor's toolbar (docs/UI.md §1).
- *
- * This module and the editor behind it load on demand, out of the first
- * screen (docs/plan/P1.md, 性能).
- */
 export function ProjectCode({ project }: { project: Project }) {
   const m = useMessages(codeMessages);
   const wide = useMediaQuery('(min-width: 768px)');
@@ -36,12 +28,11 @@ export function ProjectCode({ project }: { project: Project }) {
   const toggleButton = useRef<HTMLButtonElement>(null);
   const filesOverlay = useRef<HTMLDivElement>(null);
   // Wide: whether the tree's panel is expanded. Narrow: whether the tree covers
-  // the editor, as it does while no file is open.
+  // the editor.
   const [shown, setShown] = useState(wide || tabs.length === 0);
 
-  // Esc leaves the narrow file panel, unless a name field is taking it back.
   // The shell mounts a new workbench when the width class changes, so the
-  // panel is here, or not, for this component's whole life.
+  // narrow file panel is here, or not, for this component's whole life.
   useEffect(() => {
     const overlay = filesOverlay.current;
     if (!overlay) return;
@@ -164,7 +155,6 @@ export function ProjectCode({ project }: { project: Project }) {
         inert={!shown}
         className={clsx(
           'absolute inset-0 z-10 bg-surface motion-reduce:translate-x-0',
-          // A drawer on the moderate tier: in from the left, out a step faster.
           shown
             ? '[transition:opacity_var(--motion-moderate)_var(--ease-spring),translate_var(--motion-moderate)_var(--ease-spring)]'
             : 'invisible -translate-x-4 opacity-0 [transition:opacity_var(--motion-moderate-exit)_var(--ease-exit),translate_var(--motion-moderate-exit)_var(--ease-exit),visibility_0s_var(--motion-moderate-exit)]',

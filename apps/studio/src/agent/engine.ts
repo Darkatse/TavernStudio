@@ -17,14 +17,12 @@ import { agentPreview } from './preview-surface';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
-/** What the conversation supplies to a Run: where its record goes, and how it is steered. */
 export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools'>;
 
 /**
- * Runs the Agent on a project with the author's model: its tools, its system
- * prompt and the model API. The Run writes the project through `projectRoot`,
- * which keeps its Checkpoint. This module loads with the first Run, so the
- * Agent's engine stays off Studio's first screen (docs/plan/P1.md, 性能).
+ * The Run writes the project through `projectRoot`, which keeps its
+ * Checkpoint. This module loads with the first Run, so the Agent's engine
+ * stays off Studio's first screen.
  */
 export async function runInProject(
   project: Project,

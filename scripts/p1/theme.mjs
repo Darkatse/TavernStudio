@@ -1,13 +1,3 @@
-// P1a scenario (docs/plan/P1.md, P1a 主题): a theme project from the template;
-// the Agent changes colours and CSS, which the preview hot-applies, and takes
-// a screenshot; the author adjusts a colour in the frontend's own settings and
-// adopts it; the theme is exported, imported through the frontend's own theme
-// import in a fresh Studio, selected, and must look the same.
-//
-// The Agent runs on a scripted model, so no key is needed.
-//
-// Usage: node scripts/p1/theme.mjs [--url http://localhost:3000/] [--vendor st|tt]
-
 import { readFile } from 'node:fs/promises';
 import { parseArgs } from 'node:util';
 import { startScriptedModel } from '../lib/scripted-model.mjs';
@@ -42,7 +32,6 @@ const RADIUS = '14px';
 /** A key and its string value as theme.json writes them. */
 const json = (key, value) => `"${key}": "${value}"`;
 
-/** What the Agent does, reply by reply. */
 function script(round) {
   switch (round) {
     case 0:
@@ -81,7 +70,6 @@ function script(round) {
   }
 }
 
-/** The look a theme gives, read from the vendor page: its variables and one rule of the CSS. */
 const look = (frame) =>
   frame.evaluate(() => {
     const root = getComputedStyle(document.documentElement);
@@ -94,7 +82,6 @@ const look = (frame) =>
     };
   });
 
-/** The look once the preview shows what `done` waits for, across the reloads a change may cause. */
 async function settled(page, done, timeout = 30_000) {
   const started = Date.now();
   for (;;) {
@@ -115,13 +102,11 @@ const model = await startScriptedModel(Number(options.port), script);
 const session = await launch(options);
 const result = { vendor: options.vendor };
 try {
-  // 1. A project from the theme template.
   const page = await openStudio(session, options.url, { vendor: options.vendor });
   page.on('pageerror', (error) => session.problems.push(`Page error: ${error.message}`));
   await createThemeProject(page);
   await useModel(page, `http://localhost:${options.port}/v1`);
 
-  // 2–4. The Agent edits; the preview hot-applies; the Agent looks.
   result.run = await askAgent(page, '正文改成暖白，引号改成青色，消息加圆角');
   // On TauriTavern each change reloads the View, so wait for the last one.
   result.afterAgent = await settled(page, (seen) => seen.radius === RADIUS);
@@ -133,7 +118,6 @@ try {
     );
   result.agentSawScreenshot = screenshot;
 
-  // 5. The author changes a colour in the frontend's own settings and adopts it.
   await (
     await vendorPage(page)
   ).evaluate(
@@ -148,7 +132,7 @@ try {
   await page.getByRole('button', { name: /^待采纳/ }).waitFor({ state: 'detached' });
   result.projectLook = await settled(page, (seen) => seen.italics === ITALICS);
 
-  // 6. Export: the browser's download, since a save dialog cannot be answered here.
+  // A save dialog cannot be answered here, so the export uses the browser's download.
   await page.evaluate(() => {
     window.showSaveFilePicker = undefined;
   });
@@ -168,7 +152,6 @@ try {
     css: theme.custom_css.includes(`border-radius: ${RADIUS}`),
   };
 
-  // A fresh Studio, with no project: the frontend imports the file and selects the theme.
   const fresh = await session.browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const other = await openStudio({ context: fresh, problems: session.problems }, options.url, {
     vendor: options.vendor,

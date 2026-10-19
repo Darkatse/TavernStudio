@@ -1,7 +1,3 @@
-// What every vendor image build shares (docs/Vendors.md §1): the output
-// layout, the one change to index.html, the file manifest and the index of
-// built images.
-
 import { execFileSync, execSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
@@ -9,7 +5,6 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const vendorsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-/** Downloads, checkouts and installs, kept between builds. */
 export const WORK = path.join(vendorsDir, '.work');
 /** Served as /__vendor/ by Studio's dev server. */
 export const OUT = path.join(vendorsDir, 'out', '__vendor');
@@ -28,10 +23,7 @@ export function shell(command, cwd) {
   execSync(command, { cwd, stdio: 'inherit' });
 }
 
-/**
- * Injects `scripts` right after `<base href="/">`, which must occur exactly
- * once: the scripts have to run before any vendor script.
- */
+/** The injected scripts have to run before any vendor script. */
 export async function injectAfterBase(image, scripts) {
   const indexPath = path.join(image, 'index.html');
   const html = await fs.readFile(indexPath, 'utf8');
@@ -43,10 +35,6 @@ export async function injectAfterBase(image, scripts) {
   await fs.writeFile(indexPath, html.replace(ANCHOR, `${ANCHOR}${injected}`));
 }
 
-/**
- * Writes `<id>.json` beside the image: its identity, built-in extensions and
- * the SHA-256 of every file. Returns the metadata.
- */
 export async function describe(image, identity) {
   const files = {};
   for (const file of (await listFiles(image)).toSorted()) {
@@ -64,7 +52,6 @@ export async function describe(image, identity) {
   return metadata;
 }
 
-/** Rewrites index.json from every image described in OUT. */
 export async function writeIndex() {
   const images = [];
   for (const file of (await fs.readdir(OUT)).toSorted()) {

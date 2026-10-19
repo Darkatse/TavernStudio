@@ -10,7 +10,6 @@ export interface ProjectReader {
   files(directory: string): Promise<string[]>;
 }
 
-/** What one Mount places at one data path: a whole file, or a value inside its document. */
 export type Placement = FilePlacement | ValuePlacement;
 
 interface PlacementBase {
@@ -35,18 +34,16 @@ export interface ValuePlacement extends PlacementBase {
    * keys and leaves the others, anything else replaces the value there.
    */
   patch: JsonValue;
-  /** A `.json` source is parsed; any other is text, fenced when the Mount says so. */
   format: 'json' | 'text';
   fence?: string;
-  /** The positions the placement writes, which the project owns. */
   owned: Pointer[];
 }
 
 const decoder = new TextDecoder();
 
 /**
- * Reads what each Mount places. Fails with a `MountError` naming the Mount when
- * a source is missing or malformed, or when two Mounts write the same position.
+ * Fails with a `MountError` naming the Mount when a source is missing or
+ * malformed, or when two Mounts write the same position.
  */
 export async function resolveMounts(
   manifest: ProjectManifest,
@@ -122,7 +119,6 @@ function sourceText(bytes: Uint8Array, language: string | undefined): string {
   return language === undefined ? text : fence(text, language);
 }
 
-/** Where a merge patch writes: each leaf below `at`, or `at` itself when the patch is no object. */
 function patchedPointers(patch: JsonValue, at: Pointer): Pointer[] {
   if (!isJsonObject(patch)) return [at];
   return Object.entries(patch).flatMap(([key, value]) => patchedPointers(value, [...at, key]));

@@ -4,16 +4,13 @@ import { formatPointer, type Placement, type Pointer } from '@tavern-studio/work
 
 const SETTINGS = 'default-user/settings.json';
 
-/** Where the styles of the page come from, as the Agent's workspace paths name it. */
+/** Names use the Agent's workspace paths. */
 export interface SourceNamer {
-  /** A rule of a sheet, at its line when known: `project/theme.css:12`, `vendor/src/style.css:4021`. */
   sheet(sheet: CSSStyleSheet, line: number | undefined): string;
-  /** A declaration of an element's style attribute. */
   attribute(element: Element, property: string): string;
 }
 
 export interface SourceContext {
-  /** What the project places in the Session (docs/Architecture.md §6). */
   placements: readonly Placement[];
   anatomy: ThemeAnatomy;
   /** The files of the vendor image, by their path below its root. */
@@ -21,11 +18,8 @@ export interface SourceContext {
 }
 
 /**
- * Names where a style was written (docs/Agent.md §4, `inspect.styles`). A
- * sheet is traced to the data it was read from, and the data through the
- * project's Mounts to a project file; what no Mount placed is the vendor's,
- * or something the page added as it ran. Mounts place text verbatim, so a
- * line in the sheet is a line in the project file, one more when fenced.
+ * Mounts place text verbatim, so a line in the sheet is a line in the project
+ * file, one more when fenced.
  */
 export function sourceNamer({ placements, anatomy, vendorFiles }: SourceContext): SourceNamer {
   const fields = Object.entries(anatomy.fields);
@@ -39,7 +33,6 @@ export function sourceNamer({ placements, anatomy, vendorFiles }: SourceContext)
     }
   }
 
-  /** A data location as a project path, or as the preview's own data. */
   const located = (path: string, pointer: Pointer | undefined, line: number | undefined) => {
     const where = inProject(placements, path, pointer);
     const at = (offset: number) => (line === undefined ? '' : `:${line + offset}`);
@@ -84,10 +77,7 @@ export function sourceNamer({ placements, anatomy, vendorFiles }: SourceContext)
   };
 }
 
-/**
- * The project file at a data location: the one whose Mount writes it. A JSON
- * Mount writes only the keys it holds, so another Mount may write beside it.
- */
+/** A JSON Mount writes only the keys it holds, so another Mount may write beside it. */
 function inProject(
   placements: readonly Placement[],
   path: string,

@@ -1,14 +1,7 @@
 /**
- * What a page paints, read from its computed styles for `inspect.audit`:
- * colors in sRGB, the backgrounds behind a point of the page, and the WCAG 2
- * contrast of text over them.
- *
  * The backgrounds follow axe-core's color-contrast rule: those of the
  * elements on the hit-test stack at the point are composited, top first,
- * until one is opaque. Below them all lies the canvas, white where the page
- * sets no background, and for a frame inside the page, the page around the
- * frame. A gradient paints colors between its stops; an image or a backdrop
- * filter could paint any.
+ * until one is opaque.
  *
  * Opacity multiplies the alpha of each color by the opacity of its element
  * and its ancestors; text over a faded element's own background is then
@@ -31,7 +24,6 @@ export interface Rgba {
   a: number;
 }
 
-/** Computed styles and colors of a page, each read once, from the page's own realm. */
 export interface PageReader {
   /** The vendor page; frames inside it, such as frontend cards, are part of what it paints. */
   page: Window;
@@ -62,7 +54,6 @@ const BLACK: Rgba = { r: 0, g: 0, b: 0, a: 1 };
 const WHITE: Rgba = { r: 255, g: 255, b: 255, a: 1 };
 /** The colors in a computed value, which spells each as a function. */
 const COLOR_FUNCTION = /\b(?:rgba?|hsla?|hwb|lab|lch|oklab|oklch|color)\([^()]*\)/g;
-/** Background images other than gradients. */
 const IMAGE_FUNCTION = /\b(?:url|image|image-set|cross-fade|element|paint)\(/;
 
 /** A reader for one inspection: a page changes its styles as it runs. */
@@ -168,7 +159,6 @@ export function textContrast(text: Rgba, behind: Backdrop) {
   };
 }
 
-/** `#rrggbb`, or `#rrggbbaa` for a translucent color. */
 export function hex({ r, g, b, a }: Rgba): string {
   const channels = a < 1 ? [r, g, b, a * 255] : [r, g, b];
   return `#${channels.map((channel) => Math.round(channel).toString(16).padStart(2, '0')).join('')}`;

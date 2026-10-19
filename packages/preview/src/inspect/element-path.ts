@@ -1,8 +1,6 @@
 /**
- * A short CSS selector that matches only this element in its own document,
- * so that a finding names something the Agent can pass on as a selector: the
- * element's id when it is unique, else its tag, classes and position, below
- * the nearest ancestor with a unique id.
+ * Matches only this element in its own document, so that a finding names
+ * something the Agent can pass on as a selector.
  */
 export function elementPath(element: Element): string {
   const document = element.ownerDocument;
@@ -20,7 +18,6 @@ export function elementPath(element: Element): string {
   }
   if (steps.length === 0 && anchor) return anchor;
 
-  // The element alone, then below its anchor, then the whole chain.
   const self = steps.at(-1) ?? element.localName;
   const candidates = [
     self,
@@ -37,7 +34,6 @@ function uniqueId(element: Element, unique: (selector: string) => boolean): stri
   return unique(selector) ? selector : undefined;
 }
 
-/** Tag, up to two classes, and the position among siblings that share them. */
 function step(element: Element): string {
   const classes = [...element.classList]
     .slice(0, 2)

@@ -18,7 +18,6 @@
 }
 
 /*
- * Design tokens. Rules and rationale: docs/UI.md §3–4.
  * Tailwind's default palettes and scales are removed so components can only
  * use these tokens.
  */
@@ -32,13 +31,11 @@
   --ease-*: initial;
   --animate-*: initial;
 
-  /* Surfaces, from back to front. */
   --color-floor: oklch(0.973 0.002 84);
   --color-sunken: oklch(0.962 0.002 84);
   --color-surface: oklch(1 0 0);
   --color-raised: oklch(1 0 0);
 
-  /* Text has two colors only. */
   --color-fg: oklch(0.215 0.006 70);
   --color-muted: oklch(0.53 0.009 70);
 
@@ -47,14 +44,12 @@
   --color-hover: oklch(0.25 0.01 70 / 0.045);
   --color-selected: oklch(0.25 0.01 70 / 0.075);
 
-  /* Accent marks focus and the primary action only. */
   --color-accent: oklch(0.67 0.155 60);
   --color-primary: oklch(0.215 0.006 70);
   --color-primary-fg: oklch(0.985 0.002 84);
   /* At least 4.5:1 on every surface, sunken and the diff tints included. */
   --color-danger: oklch(0.55 0.2 27);
 
-  /* Dims what sits behind a modal dialog. */
   --color-backdrop: oklch(0.2 0.01 70 / 0.24);
 
   --font-sans:
@@ -70,7 +65,7 @@
   --font-weight-semibold: 550;
   --font-weight-bold: 700;
 
-  /* Type roles are chosen by purpose. Compact values: [data-density='compact'] below. */
+  /* Compact values: [data-density='compact'] below. */
   --text-display: 28px;
   --text-display--line-height: 34px;
   --text-display--font-weight: 700;
@@ -86,11 +81,10 @@
   --text-caption--line-height: 16px;
   --text-micro: 11px;
   --text-micro--line-height: 14px;
-  /* Reading text: the Transcript and Markdown. Chinese paragraphs need a line height of at least 1.6. */
+  /* Chinese paragraphs need a line height of at least 1.6. */
   --text-prose: 14px;
   --text-prose--line-height: 23px;
 
-  /* Nested corners are concentric: inner = outer − inset − border. */
   --radius-sm: 6px;
   --radius-md: 8px;
   --radius-lg: 10px;
@@ -166,7 +160,6 @@
   );
   --ease-exit: cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Progress indicators: the only animations that loop. */
   --animate-spin: spin 0.8s linear infinite;
   --animate-indeterminate: indeterminate 1.4s var(--ease-spring) infinite;
 
@@ -187,15 +180,11 @@
 }
 
 /*
- * Code colors. CodeMirror reads them through `var()`, out of Tailwind's sight,
- * so they are always emitted (`static`). Every text color here stays ≥ 4.5:1
- * on surface, sunken and both diff rows, in both schemes.
+ * CodeMirror reads these through `var()`, out of Tailwind's sight, so they
+ * are always emitted (`static`). Every text color here stays ≥ 4.5:1 on
+ * surface, sunken and both diff rows, in both schemes.
  */
 @theme static {
-  /*
-   * Diff rows: low chroma, and apart from danger. The +/− signs and the
-   * strike-through carry the meaning too.
-   */
   --color-diff-add: oklch(0.962 0.024 150);
   --color-diff-add-fg: oklch(0.47 0.09 150);
   --color-diff-del: oklch(0.958 0.02 15);
@@ -228,7 +217,6 @@
   :root {
     color-scheme: light;
 
-    /* Motion tiers: enter / exit. The bigger the thing, the slower it moves. */
     --motion-fast: 80ms;
     --motion-fast-exit: 60ms;
     --motion-moderate: 160ms;
@@ -237,7 +225,6 @@
     --motion-slow-exit: 160ms;
     --motion-popup-scale: 0.96;
     --motion-fold-offset: -4px;
-    /* How far a toast travels: in from below, out past the edge it is swiped to. */
     --motion-toast-distance: 100%;
 
     --size-control: 36px;
@@ -294,7 +281,7 @@
     }
   }
 
-  /* Compact only under a mouse: a finger needs the default size (docs/UI.md §3). */
+  /* Compact only under a mouse: a finger needs the default size. */
   @media (pointer: fine) {
     [data-density='compact'] {
       --text-display: 24px;
@@ -372,10 +359,7 @@
 }
 
 @layer components {
-  /*
-   * Markdown in the Transcript (agent/markdown.tsx), in the prose role. Each
-   * top-level block sits in a `display: contents` wrapper.
-   */
+  /* Each top-level block sits in a `display: contents` wrapper (agent/markdown.tsx). */
   .markdown {
     font-size: var(--text-prose);
     line-height: var(--text-prose--line-height);
@@ -464,7 +448,6 @@
     }
   }
 
-  /* A solid caret at the end of a reply while it streams. It does not blink. */
   .markdown-streaming > div:last-child > :last-child::after {
     content: '';
     display: inline-block;
@@ -478,8 +461,8 @@
 }
 
 /*
- * Motion tiers. A component sets `transition-property` and one tier; the tier
- * supplies duration and easing, and exits run one step faster on an ease-out.
+ * A component sets `transition-property` and one tier; the tier supplies
+ * duration and easing.
  */
 @utility motion-fast {
   transition-duration: var(--motion-fast);
@@ -519,16 +502,13 @@
   transition-timing-function: var(--ease-exit);
 }
 
-/*
- * A Run in the Transcript. Off screen it skips layout and paint and keeps its
- * last size, so a long conversation scrolls lightly (docs/plan/P1.md, performance).
- */
+/* Off screen a Run skips layout and paint and keeps its last size. */
 @utility run-block {
   content-visibility: auto;
   contain-intrinsic-size: auto 160px;
 }
 
-/* Floating popups grow from their anchor. Pair with a tier. */
+/* Pair with a tier. */
 @utility motion-popup {
   transform-origin: var(--transform-origin);
   transition-property: opacity, transform;
@@ -540,9 +520,9 @@
 }
 
 /*
- * Folded content (docs/UI.md §4). The height changes at once; the content
- * fades in from just above on the moderate tier and out on the fast one, so
- * the space it leaves closes right after.
+ * The height changes at once; the content fades in from just above on the
+ * moderate tier and out on the fast one, so the space it leaves closes right
+ * after.
  */
 @utility motion-fold {
   transition-property: opacity, translate;
@@ -562,9 +542,7 @@
 /*
  * Toasts stack up from the bottom of their viewport, newest at the bottom.
  * Base UI gives each toast the height of those in front of it, its index and
- * the swipe movement, so the stack moves by transform alone. A toast arrives
- * from below on the moderate tier and leaves on the fast one: it fades where it
- * is, or carries on in the direction it was swiped.
+ * the swipe movement, so the stack moves by transform alone.
  */
 @utility motion-toast {
   --toast-gap: --spacing(2);

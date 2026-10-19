@@ -2,7 +2,6 @@ import { evaluateTool, interactTool, readLogsTool, snapshotTool } from '@taurita
 import type { JsonValue } from '@tavern-studio/workspace';
 import { modelToolName, ToolError, type JsonObject, type Tool, type ToolResult } from './tool';
 
-/** The preview page the `app.*` tools act on, with app-use running in its realm. */
 export interface AppPage {
   snapshot(run: string, args: JsonObject): JsonValue;
   interact(run: string, args: JsonObject): JsonValue;
@@ -10,7 +9,6 @@ export interface AppPage {
   evaluate(run: string, code: string): Promise<unknown>;
 }
 
-/** A runtime record of the preview: an uncaught error, a rejection, console.error, a failed load. */
 export interface AppLogEntry {
   timestampMs: number;
   level: 'warn' | 'error';
@@ -21,7 +19,6 @@ export interface AppLogEntry {
   frame: string;
 }
 
-/** What the app gives the `app.*` tools: the page, and what was recorded in it. */
 export interface AppSurface {
   /**
    * The page once the preview shows the project as it is now: a change the
@@ -37,10 +34,9 @@ const EVALUATE = modelToolName(evaluateTool.name);
 const READ_LOGS = modelToolName(readLogsTool.name);
 
 /**
- * The page tools of TauriTavern's in-app assistant (docs/Agent.md §4), with
- * app-use's own definitions, so the contract is the same in both places. A
- * failure in the page is the model's to act on, as TT's extension tools
- * report it.
+ * Uses app-use's own definitions, so the contract is the same as in
+ * TauriTavern's in-app assistant. A failure in the page goes back to the model,
+ * as TT reports its extension tools' failures.
  */
 export function appTools(surface: AppSurface): Tool[] {
   const page = async (signal: AbortSignal): Promise<AppPage> => {
@@ -127,10 +123,7 @@ Returns entries with timestampMs, level, message, the source position when known
   ];
 }
 
-/**
- * A page result as the model reads it, as TauriTavern passes an extension
- * tool's value: a string as it is, anything else as JSON.
- */
+/** Passes a page result to the model as TauriTavern passes an extension tool's value. */
 async function fromPage(call: () => unknown): Promise<ToolResult> {
   let value: unknown;
   try {

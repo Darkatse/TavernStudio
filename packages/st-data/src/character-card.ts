@@ -7,8 +7,8 @@ interface Chunk {
 }
 
 /**
- * Reads the character JSON embedded in a PNG card. A `ccv3` text chunk takes
- * precedence over `chara`, as in SillyTavern's character-card-parser.
+ * A `ccv3` text chunk takes precedence over `chara`, as in SillyTavern's
+ * character-card-parser.
  */
 export function readCharacterCard(png: Uint8Array): string {
   const texts = new Map<string, string>();

@@ -13,7 +13,6 @@ export const worldRoutes: Routes = {
     return content ? json(JSON.parse(content)) : json({ entries: {} });
   },
 
-  // worldinfo.js /edit: the lorebook replaces the stored one.
   'POST /api/worldinfo/edit': (request) => {
     const body = request.json() as { data?: unknown };
     const name = text(body, 'name');

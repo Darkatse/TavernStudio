@@ -1,7 +1,6 @@
 /**
- * Installs TauriTavern's Web Host in the page of a TauriTavern View
- * (docs/Vendors.md §3). The TT image loads this module right after Attach,
- * ahead of TT's own module scripts, so the host exists before `init.js` runs.
+ * The TT image loads this module right after Attach, ahead of TT's own module
+ * scripts, so the host exists before `init.js` runs.
  *
  * Built as an ES module served at /_studio/web-host.js. The import below is
  * the vendor's own file and stays a static import in the output.

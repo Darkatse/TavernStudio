@@ -3,7 +3,6 @@ import type { Locale } from '../i18n/locale';
 import { defineMessages } from '../i18n/messages';
 import type { RunStatus } from './runs';
 
-/** The Transcript's text: Runs, tool calls and rollbacks. It loads with the Transcript. */
 export const runMessages = defineMessages({
   zh: {
     conversation: '与 Agent 的对话',
@@ -15,13 +14,11 @@ export const runMessages = defineMessages({
       cancelled: 'Agent 已停止',
     } satisfies Partial<Record<RunStatus, string>>,
 
-    // A Run
     rollBackHere: '回滚到此处',
     rollBackBeforeRun: '回滚到这次运行之前',
     cancelledNote: '已停止。已经生效的文件修改都保留着。',
     interruptedNote: '页面关闭时这次运行还没有结束；没有结果的工具调用不会重新执行。',
     runFailed: (reason: string) => `运行失败：${reason}`,
-    /** What the author can do about a failure the Agent can explain, by its code. */
     failureAdvice: {
       'agent.output_truncated':
         '回复写到单次输出上限就停了，其中的工具调用没有执行。对话越长，留给回复的空间越少：可以在「模型」设置里调高单次输出上限，或核对上下文窗口。',
@@ -42,10 +39,7 @@ export const runMessages = defineMessages({
     arguments: '参数',
     result: '结果',
     error: '错误',
-    /**
-     * A tool call's words: what it does while it runs and once done, and the
-     * action that a failed or unanswered call names.
-     */
+    /** `action` is what a failed or unanswered call names. */
     calls: {
       listFiles: { running: '正在列出文件', done: '列出了文件', action: '列出文件' },
       search: { running: '正在搜索', done: '搜索了', action: '搜索' },
@@ -73,7 +67,6 @@ export const runMessages = defineMessages({
     shareCapture: '开启精确截图',
     shareCaptureFailed: '没能开启精确截图',
 
-    // Rollback
     cannotRollBack: '无法回滚',
     understood: '知道了',
     undoRollbackTitle: '撤销这次回滚？',
@@ -84,7 +77,6 @@ export const runMessages = defineMessages({
       '项目文件回到这次运行开始之前。之后的运行留在对话里，标为已回滚，Agent 继续对话时不再参考它们。回滚可以撤销。',
     affectedFiles: '受影响的文件',
     changedLater: '之后有改动',
-    /** What a rollback does to a file. */
     fileChange: { remove: '删除', recreate: '重新创建', restore: '还原' },
     conflictNote: '标为"之后有改动"的文件在 Agent 写入之后又被修改过，回滚会覆盖这些修改。',
     /** Around the request of the Run rolled back to, which shortens to fit. */
@@ -211,5 +203,4 @@ export const runMessages = defineMessages({
   },
 });
 
-/** The Transcript's text in one language, for helpers that word things for a component. */
 export type RunText = (typeof runMessages)[Locale];

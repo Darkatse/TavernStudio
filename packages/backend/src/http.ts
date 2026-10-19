@@ -1,8 +1,7 @@
 /**
  * The Session Backend speaks SillyTavern's HTTP API as plain data, so the same
  * calls work from any realm and synchronously when the handler allows it.
- * This is also the `backend.handle` contract of TauriTavern's Web Host
- * (docs/Vendors.md §3).
+ * This is also the `backend.handle` contract of TauriTavern's Web Host.
  */
 export interface BackendRequest {
   method: string;

@@ -13,7 +13,6 @@ import type { ConversationState } from './conversation';
 
 export type RunStatus = 'running' | 'completed' | 'cancelled' | 'failed' | 'interrupted';
 
-/** What every operation in the Transcript carries about rolling back. */
 interface Operation {
   id: string;
   /** A later rollback undid it, and that rollback is still in effect. */
@@ -22,14 +21,12 @@ interface Operation {
   restorable: boolean;
 }
 
-/** One Run as the Transcript shows it (docs/Agent.md §7). */
 export interface RunBlock extends Operation {
   kind: 'run';
-  /** The author's message that started the Run. */
   request: string;
   /** Everything between the request and the final answer: rounds, guidance, tool calls. */
   work: HistoryEntry[];
-  /** The last reply without a tool call, shown even when the work is folded. */
+  /** The last reply without a tool call. */
   answer: AssistantMessage | undefined;
   status: RunStatus;
   failure: { code: string; message: string } | undefined;
@@ -38,7 +35,6 @@ export interface RunBlock extends Operation {
   toolCalls: number;
 }
 
-/** A rollback, where it happened in the conversation. */
 export interface RollbackBlock extends Operation {
   kind: 'rollback';
   /** The Run it went back to before, or the rollback it undid. */
@@ -49,10 +45,9 @@ export interface RollbackBlock extends Operation {
 export type TranscriptBlock = RunBlock | RollbackBlock;
 
 /**
- * The conversation's operations in the order they began: History grouped
- * into Runs, and the rollbacks between them. A Run without a terminal
- * Journal event that is not the active one was interrupted: Studio closed
- * while it ran, and its tools are not replayed (docs/Agent.md §1).
+ * The conversation's operations, in the order they began. A Run without a
+ * terminal Journal event that is not the active one was interrupted: Studio
+ * closed while it ran, and its tools are not replayed.
  */
 export function transcriptBlocks({
   entries,
@@ -159,7 +154,6 @@ function canRestore(
   return operations(events).includes(op) && restorePlan(events, files, op).length > 0;
 }
 
-/** The results of a Run's tool calls, by call id, for the rows that show them. */
 export function resultsOf(block: RunBlock): Map<string, ToolResultMessage> {
   return new Map(
     block.work.flatMap((entry) =>

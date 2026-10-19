@@ -4,14 +4,10 @@ import { db } from '../storage/db';
 
 export interface AgentSettings {
   endpoints: readonly Endpoint[];
-  /** The endpoint new Runs use. */
   selected: string | undefined;
   /** API keys by endpoint id. */
   keys: Readonly<Record<string, string>>;
-  /**
-   * Whether keys are kept in IndexedDB. Off by default: same-origin code,
-   * extensions included, can read whatever Studio keeps (docs/Architecture.md §9).
-   */
+  /** Off by default: same-origin code, extensions included, can read whatever Studio keeps. */
   rememberKeys: boolean;
 }
 
@@ -29,7 +25,6 @@ export function agentSettings(): AgentSettings {
   return settings;
 }
 
-/** Resolves once the stored settings are read. */
 export function settingsLoaded(): Promise<void> {
   return loaded;
 }
@@ -43,7 +38,6 @@ function subscribe(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-/** Changes the settings and stores them; keys only when the author chose to remember them. */
 export async function updateAgentSettings(change: Partial<AgentSettings>): Promise<void> {
   settings = { ...settings, ...change };
   for (const listener of listeners) listener();
@@ -55,16 +49,11 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
   });
 }
 
-/** Why a Run cannot start with the model settings, for the interface to word. */
-export type ModelProblem =
-  | { kind: 'no-model' }
-  /** The selected endpoint, by its label, has no key. */
-  | { kind: 'no-key'; label: string };
+export type ModelProblem = { kind: 'no-model' } | { kind: 'no-key'; label: string };
 
 /**
- * The selected endpoint and its key, or why a Run cannot start. It takes the
- * settings rather than reading them, so a component that renders it re-renders
- * with them (the React Compiler memoizes calls by their arguments).
+ * Takes the settings rather than reading them, so a component that renders it
+ * re-renders with them (the React Compiler memoizes calls by their arguments).
  */
 export function selectedEndpoint(
   current: AgentSettings,

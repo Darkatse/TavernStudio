@@ -1,11 +1,6 @@
 import { sha256, StaleFileError } from '@tavern-studio/workspace';
 import { modelToolName, ToolError } from './tool';
 
-/**
- * One root of the Agent's workspace (docs/Agent.md §3): `project/` is the
- * project's store and writable; `skills/`, `knowledge/`, `vendor/` and
- * `tool-results/` are read-only. A `ProjectStore` is a writable root as is.
- */
 export interface WorkspaceRoot {
   kind(path: string): Promise<'file' | 'directory' | undefined>;
   read(path: string): Promise<Uint8Array>;
@@ -22,21 +17,15 @@ export interface WorkspaceRoot {
 /** The roots by name, as the Agent's paths begin: `project/theme.css`. */
 export type AgentWorkspace = Readonly<Record<string, WorkspaceRoot>>;
 
-/** The read-only root holding long tool results (see `tool-results.ts`). */
 export const TOOL_RESULTS_ROOT = 'tool-results';
 
-// The workspace tools' ids. Model-facing text names them by `modelToolName`.
 export const LIST_FILES = 'workspace.list_files';
 export const SEARCH_FILES = 'workspace.search_files';
 export const READ_FILE = 'workspace.read_file';
 export const WRITE_FILE = 'workspace.write_file';
 export const EDIT_FILE = 'workspace.edit_file';
 
-/**
- * Normalizes a path as the Agent writes it, as TauriTavern's
- * `WorkspacePath::parse` does: `\` reads as `/`, and empty and `.` segments
- * drop out. Absolute paths, drive prefixes and `..` are refused with `code`.
- */
+/** Normalizes a path as TauriTavern's `WorkspacePath::parse` does. */
 export function parseWorkspacePath(raw: string, code = 'workspace.invalid_path'): string {
   const refuse = (reason: string) => new ToolError(code, `Invalid data: Workspace path ${reason}`);
   if (raw === '') throw refuse('cannot be empty');
@@ -52,14 +41,13 @@ export function parseWorkspacePath(raw: string, code = 'workspace.invalid_path')
   return segments.join('/');
 }
 
-/** A workspace path on its root; `relative` is `''` for the root itself. */
+/** `relative` is `''` for the root itself. */
 export interface Location {
   path: string;
   root: WorkspaceRoot;
   relative: string;
 }
 
-/** A file's place on a writable root. */
 export interface WritableLocation extends Location {
   root: Required<WorkspaceRoot>;
 }
@@ -71,7 +59,6 @@ function locate(workspace: AgentWorkspace, path: string): Location | undefined {
   return root && { path, root, relative: slash === -1 ? '' : path.slice(slash + 1) };
 }
 
-/** A root and everything below it is readable. */
 export function visibleLocation(workspace: AgentWorkspace, path: string): Location {
   const location = locate(workspace, path);
   if (!location) {
@@ -83,7 +70,6 @@ export function visibleLocation(workspace: AgentWorkspace, path: string): Locati
   return location;
 }
 
-/** Everything below a root with `write` is writable, the root itself not. */
 export function writableLocation(workspace: AgentWorkspace, path: string): WritableLocation {
   const location = locate(workspace, path);
   if (!location || location.relative === '' || !isWritable(location.root)) {
@@ -105,11 +91,9 @@ export function kindAt(location: Location): Promise<'file' | 'directory' | undef
     : location.root.kind(location.relative);
 }
 
-/** A workspace file as UTF-8 text. */
 export interface TextFile {
   path: string;
   text: string;
-  /** Its size in bytes. */
   bytes: number;
   /** SHA-256 (hex) of its bytes. */
   sha256: string;
@@ -118,7 +102,6 @@ export interface TextFile {
 const decoder = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 const encoder = new TextEncoder();
 
-/** Reads a file as text, refusing what is missing, a directory or not UTF-8. */
 export async function readText(location: Location): Promise<TextFile> {
   const kind = await kindAt(location);
   if (kind === undefined) {
@@ -148,13 +131,9 @@ export async function textAt(location: Location): Promise<TextFile | undefined> 
   return { path: location.path, text, bytes: bytes.length, sha256: await sha256(bytes) };
 }
 
-/** Why a write was refused: the file appeared, changed, or went away since the Run knew it. */
 export type WriteConflict = 'exists' | 'changed' | 'missing';
 
-/**
- * Writes text only if the file still is what the Run knows: content with the
- * SHA-256 `expected`, or no file for null. The tools write only through here.
- */
+/** The tools write only through here. */
 export async function writeText(
   location: WritableLocation,
   text: string,
@@ -189,10 +168,8 @@ export interface EntryList {
 }
 
 /**
- * The entries below a location, or below the workspace's roots without one,
- * walked as TauriTavern's `list_files` walks them: a directory's children are
- * all taken before any is entered, subdirectories down to `depth` levels,
- * until `maxEntries`. Directories sort first. A file lists itself.
+ * Walks as TauriTavern's `list_files` does: a directory's children are all
+ * taken before any is entered.
  */
 export async function listEntries(
   workspace: AgentWorkspace,

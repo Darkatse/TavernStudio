@@ -102,7 +102,6 @@ export function searchFilesTool(workspace: AgentWorkspace): Tool {
   };
 }
 
-/** The files below the location, or below every root, up to `MAX_FILES`. */
 async function searchedFiles(
   workspace: AgentWorkspace,
   location: Location | undefined,

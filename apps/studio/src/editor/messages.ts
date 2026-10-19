@@ -1,6 +1,6 @@
 import { defineMessages } from '../i18n/messages';
 
-/** CodeMirror's own words, keyed by its English phrase. */
+/** Keyed by CodeMirror's English phrase. */
 export type Phrases = Readonly<Record<string, string>>;
 
 export const editorMessages = defineMessages<{ phrases: Phrases }>({

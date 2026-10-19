@@ -3,7 +3,6 @@ import type { Locale } from '../i18n/locale';
 import { defineMessages } from '../i18n/messages';
 import type { LimitsFrom } from './model-settings';
 
-/** The model settings' text. It loads with the settings dialog. */
 export const modelSettingsMessages = defineMessages({
   zh: {
     description: 'Agent 在浏览器里直接请求你配置的模型服务，使用你自己的 API Key。',
@@ -45,7 +44,6 @@ export const modelSettingsMessages = defineMessages({
     remove: '移除',
     removeTitle: (endpoint: string) => `移除 ${endpoint}？`,
     removeDescription: '它的地址、模型和 API Key 会从 Studio 中删除。对话记录不受影响。',
-    /** A browser that cannot reach the address: a CORS question. */
     unreachable: (error: string) =>
       `浏览器无法直接访问这个地址（${error}）。服务可能没有返回 CORS 头：换用支持浏览器直连的地址，或经 CORS 中继访问。`,
     probeFailed: (error: string) => `连接失败：${error}`,

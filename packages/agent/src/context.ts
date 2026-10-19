@@ -11,7 +11,6 @@ import type {
 import type { HistoryEntry } from './history';
 import { modelToolName, type Tool } from './tool';
 
-/** Only the latest screenshots stay in the context; older ones become a note (docs/Agent.md §5). */
 export const IMAGES_KEPT = 3;
 
 const INTERRUPTED =
@@ -21,7 +20,6 @@ const IMAGE_REMOVED: TextContent = {
   text: '[An earlier screenshot was removed from the context.]',
 };
 
-/** What the model is sent for a request: the system prompt, the tools and History. */
 export function modelContext(
   systemPrompt: string,
   tools: readonly Tool[],
@@ -44,11 +42,10 @@ function modelTool(tool: Tool): ModelTool {
 }
 
 /**
- * Pairs each assistant message's tool calls with the results after it, as
- * TauriTavern's `prepareAgentHistory` does. A group with an unanswered call,
- * left by a Run that stopped, becomes one assistant text that says so, in
- * TauriTavern's words: no tool is replayed, and no provider sees an unanswered
- * call. History itself is not changed.
+ * Follows TauriTavern's `prepareAgentHistory`. A group with an unanswered
+ * call, left by a Run that stopped, becomes one assistant text that says so,
+ * in TauriTavern's words: no tool is replayed, and no provider sees an
+ * unanswered call.
  */
 export function closeToolGroups(messages: readonly Message[]): Message[] {
   const closed: Message[] = [];
@@ -104,10 +101,6 @@ function textOf(result: ToolResultMessage): string {
   return result.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n');
 }
 
-/**
- * A message with its images replaced by the note the model reads wherever an
- * image is gone: for a Run whose screenshots were cleared from storage.
- */
 export function withoutImages<T extends Message>(message: T): T {
   if (message.role === 'assistant' || typeof message.content === 'string') return message;
   if (!message.content.some((part) => part.type === 'image')) return message;
@@ -117,7 +110,6 @@ export function withoutImages<T extends Message>(message: T): T {
   };
 }
 
-/** Replaces all but the latest `kept` images with a note, from the end of the context. */
 export function keepLatestImages(messages: readonly Message[], kept: number): Message[] {
   let seen = 0;
   const keep = (part: TextContent | ImageContent): TextContent | ImageContent => {

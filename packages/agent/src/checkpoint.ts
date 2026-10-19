@@ -1,8 +1,8 @@
 import type { JournalEvent } from './journal';
 
 /**
- * A file one operation changed (docs/Agent.md §1). Operations are Runs and
- * rollbacks; contents are named by SHA-256 (hex), null meaning no file.
+ * An operation is a Run or a rollback. Contents are named by SHA-256 (hex);
+ * null means no file.
  */
 export interface CheckpointFile {
   op: string;
@@ -13,7 +13,6 @@ export interface CheckpointFile {
   after: string | null;
 }
 
-/** A file a rollback changes: what it restores and what the file should still be. */
 export interface RestoreStep {
   path: string;
   restore: string | null;
@@ -21,7 +20,6 @@ export interface RestoreStep {
   expected: string | null;
 }
 
-/** The operations in the order they began: Runs at their creation, rollbacks when they ran. */
 export function operations(events: readonly JournalEvent[]): string[] {
   return events
     .filter((event) => event.type === 'run_created' || event.type === 'rolled_back')
@@ -29,9 +27,8 @@ export function operations(events: readonly JournalEvent[]): string[] {
 }
 
 /**
- * The operations currently undone. A rollback undoes every operation from its
- * target up to itself; rolling back to before a rollback undoes it, and with
- * it the undoing it did.
+ * A rollback undoes every operation from its target up to itself; rolling
+ * back to before a rollback undoes it, and with it the undoing it did.
  */
 export function undoneOperations(events: readonly JournalEvent[]): Set<string> {
   const timeline = operations(events);
@@ -59,9 +56,9 @@ export function undoneOperations(events: readonly JournalEvent[]): Set<string> {
 }
 
 /**
- * What restores the project to just before `target`: each file changed by an
- * operation from the target on goes back to its content before the first of
- * them. Files those operations left as they found them are not touched.
+ * Each file changed by an operation from `target` on goes back to its content
+ * before the first of them. Files those operations left as they found them
+ * are not touched.
  */
 export function restorePlan(
   events: readonly JournalEvent[],

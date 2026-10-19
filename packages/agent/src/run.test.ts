@@ -41,7 +41,6 @@ function call(id: string, name: string, args: ToolCall['arguments'] = {}): ToolC
   return { type: 'toolCall', id, name, arguments: args };
 }
 
-/** A provider that answers each request with the next scripted reply. */
 function scripted(...replies: AssistantMessage[]): ProviderStreams {
   const streamSimple = () => {
     const stream = createAssistantMessageEventStream();

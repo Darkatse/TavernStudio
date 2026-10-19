@@ -11,15 +11,10 @@ import { LoadingLine } from '../ui/loading';
 import { showToast } from '../ui/toast';
 import { workbenchMessages } from './messages';
 
-// The file tree and the editor stay out of the first screen (docs/plan/P1.md, 性能).
 const ProjectCode = lazy(() =>
   import('../code/project-code').then((module) => ({ default: module.ProjectCode })),
 );
 
-/**
- * The code view. Its editor loads the first time the view is shown and then
- * stays, like the preview, while the view is hidden.
- */
 export function CodeView({ shown }: { shown: boolean }) {
   const m = useMessages(workbenchMessages).codeView;
   const { templates } = useMessages(projectMessages);

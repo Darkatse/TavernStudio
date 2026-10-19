@@ -17,29 +17,23 @@ import type { ReadState } from './read-state';
 import { modelToolName, ToolError, type Tool, type ToolContext, type ToolResult } from './tool';
 import { resultForModel, type ToolResultStore } from './tool-results';
 
-/** A model ready to stream: pi-ai's model description and the API that serves it. */
 export interface AgentModel {
   model: Model<Api>;
   streams: ProviderStreams;
-  /** Key, headers, fetch and reasoning for the endpoint; retries stay off. */
   options: SimpleStreamOptions;
 }
 
-/** Budgets per Run, TauriTavern's defaults. */
+/** TauriTavern's defaults. */
 export const MAX_ROUNDS = 80;
 export const MAX_TOOL_CALLS = 80;
 
-/** What a Run reads and where it writes; the app provides the stores. */
 export interface RunEnvironment {
   agent: AgentModel;
   systemPrompt: string;
   tools: readonly Tool[];
   toolResults: ToolResultStore;
-  /** Appends to History. */
   record(entry: HistoryEntry): void;
-  /** Appends to the Journal. */
   journal(event: JournalEvent): void;
-  /** The assistant message as it streams, for the Transcript. */
   streaming?(partial: AssistantMessage, round: number): void;
   /** Guidance the author added since the last request; the Run takes it before each request. */
   takeGuidance(): string[];
@@ -52,16 +46,13 @@ export type RunOutcome =
   | { status: 'failed'; code: string; message: string };
 
 /**
- * Runs the Agent from the author's message until the model answers without
- * calling a tool (docs/Agent.md §1): the Session mode of TauriTavern's in-app
- * assistant, with no finish tool. Each Round sends the context, streams the
- * reply, then runs its tool calls in order.
+ * The Session mode of TauriTavern's in-app assistant, with no finish tool:
+ * the Run ends when the model answers without calling a tool.
  *
  * Mistakes the model can correct go back to it as error results. The Run
- * fails, with its record kept, when the model's reply cannot be acted on: an
- * error, output cut off at the length limit, an undeclared tool. Cancelling
- * keeps what already happened; unanswered calls are explained to the next Run
- * instead of replayed.
+ * fails, with its record kept, when the model's reply cannot be acted on.
+ * Cancelling keeps what already happened; unanswered calls are explained to
+ * the next Run instead of replayed.
  */
 export async function runAgent(
   id: string,
@@ -199,11 +190,7 @@ export async function runAgent(
   });
 }
 
-/**
- * Runs one call. The budget is spent before the arguments are checked, as in
- * TauriTavern. A `ToolError` becomes an error result with its code; any other
- * error ends the Run.
- */
+/** The budget is spent before the arguments are checked, as in TauriTavern. */
 async function callTool(
   tool: Tool,
   call: ToolCall,
@@ -245,7 +232,7 @@ function toolResult(
   };
 }
 
-/** Guidance joins the context as one user message before the next request, as in TauriTavern. */
+/** Guidance joins the context as TauriTavern adds it. */
 function guidanceMessage(guidance: readonly string[]): UserMessage {
   return {
     role: 'user',

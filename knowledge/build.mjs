@@ -1,22 +1,3 @@
-// Builds the knowledge pack (docs/Knowledge.md §3).
-//
-// Each source declared in sources.mjs becomes one directory, out/<id>/: its
-// files at a pinned commit, at their paths in the repository, with the
-// upstream LICENSE at the root, and source.json naming the repository, ref,
-// license, attribution and policy that cover every file there. Studio
-// publishes out/ at /_studio/knowledge/ (apps/studio/build/published.ts),
-// where each directory's index.json lists its files' sizes and SHA-256.
-//
-// Files come from jsDelivr, each checked against the SHA-256 jsDelivr lists
-// for it, and are cached in .work/. The TauriTavern docs follow the TT vendor
-// image instead: they are read from a TauriTavern checkout at the image's
-// commit, as vendors/tt/build.mjs reads it, since that commit need not be on
-// GitHub.
-//
-// Usage: node knowledge/build.mjs [<id>...] [--tt-checkout <dir>]
-// Without ids every source is built. A source's directory is replaced whole,
-// or left as it was when anything fails or nothing changed.
-
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
@@ -28,7 +9,6 @@ import { OUT as VENDOR_IMAGES } from '../vendors/lib/image.mjs';
 import { SOURCES } from './sources.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
-/** Downloads, kept between builds, and each directory while it is assembled. */
 const WORK = path.join(ROOT, '.work');
 const OUT = path.join(ROOT, 'out');
 
@@ -71,7 +51,6 @@ for (const source of selected) {
   console.log(`${done} knowledge/out/${source.id}, ${files.size} files at ${provenance.ref}`);
 }
 
-/** A source's files by path, checked, and the source.json that covers them. */
 async function collect(source) {
   if (!['verbatim', 'link'].includes(source.policy)) {
     throw new Error(`${source.id}: unknown policy ${source.policy}`);
@@ -131,8 +110,8 @@ async function collect(source) {
 }
 
 /**
- * Fails unless the LICENSE is the declared license's text, known by its mark:
- * a source relicensed at some commit is refused at the commits before it.
+ * The LICENSE must be the declared license's text, so a source relicensed at
+ * some commit is refused at the commits before it.
  */
 function checkLicense(source, ref, bytes) {
   const mark = LICENSE_MARKS[source.license];
@@ -151,7 +130,6 @@ function checkLicense(source, ref, bytes) {
   }
 }
 
-/** The paths a source selects; every include pattern must match a file. */
 function select(source, ref, paths) {
   const include = source.include.map(globRegExp);
   const exclude = (source.exclude ?? []).map(globRegExp);
@@ -166,10 +144,9 @@ function select(source, ref, paths) {
 }
 
 /**
- * A glob as a RegExp, the same on every platform: `**` stands for any number
- * of directories, `*` for any part of one name. Neither matches a name that
- * starts with a dot unless the pattern spells the dot, so `**\/*.md` leaves
- * out `.github/`.
+ * `**` stands for any number of directories, `*` for any part of one name.
+ * Neither matches a name that starts with a dot unless the pattern spells the
+ * dot, so `**\/*.md` leaves out `.github/`.
  */
 function globRegExp(glob) {
   const parts = glob.split('/');
@@ -182,7 +159,7 @@ function globRegExp(glob) {
   return new RegExp(`^${source.join('')}$`);
 }
 
-/** A file's text; the Agent reads only text, so anything else stops the build. */
+/** The Agent reads only text, so anything else stops the build. */
 function decode(id, file, bytes) {
   try {
     return utf8.decode(bytes);
@@ -191,13 +168,12 @@ function decode(id, file, bytes) {
   }
 }
 
-/** A GitHub repository at a commit, through jsDelivr, cached in .work/. */
 function jsDelivr(repository, ref) {
   const cache = path.join(WORK, ...repository.split('/'), ref);
   let listing;
   const hashes = () => (listing ??= loadListing());
 
-  /** The repository's files, by path, with their SHA-256 in base64. */
+  /** jsDelivr lists each file's SHA-256 in base64. */
   async function loadListing() {
     const url = `https://data.jsdelivr.com/v1/packages/gh/${repository}@${ref}?structure=flat`;
     const file = path.join(cache, 'listing.json');
@@ -239,9 +215,9 @@ function jsDelivr(repository, ref) {
 }
 
 /**
- * TauriTavern at the commit of the one TT vendor image, read from a
+ * The TT vendor image's commit need not be on GitHub, so it is read from a
  * checkout. Git checks its own objects, so there is no listing to check
- * against; the bytes are the repository's, as GitHub serves them.
+ * against; the blobs are the repository's bytes, as GitHub serves them.
  */
 function ttImage(checkout) {
   const git = (args, encoding) =>
@@ -272,10 +248,6 @@ function ttImage(checkout) {
   };
 }
 
-/**
- * Writes a source's directory aside, then swaps it in for the old one, unless
- * the old one holds exactly these files. Resolves to whether it was replaced.
- */
 async function replaceOutput(id, files) {
   const target = path.join(OUT, id);
   if (await holds(target, files)) return false;
@@ -305,7 +277,6 @@ async function replaceOutput(id, files) {
   return true;
 }
 
-/** Whether a directory holds exactly these files, byte for byte. */
 async function holds(directory, files) {
   if (!existsSync(directory)) return false;
   const present = (await fs.readdir(directory, { recursive: true, withFileTypes: true }))
@@ -334,7 +305,6 @@ function readJson(file, what) {
   return JSON.parse(readFileSync(file, 'utf8'));
 }
 
-/** Runs `task` on each item, a few at a time. */
 async function eachLimited(items, task) {
   const queue = [...items];
   await Promise.all(

@@ -1,9 +1,5 @@
 import { ENDPOINT_PRESETS, providerCatalog, type Endpoint } from './endpoints';
 
-/**
- * A model a service offers, as the author picks it: what the service says of
- * it, completed with what pi-ai knows of the model.
- */
 export interface ModelInfo {
   id: string;
   name: string | undefined;
@@ -11,12 +7,11 @@ export interface ModelInfo {
   maxTokens: number | undefined;
   images: boolean | undefined;
   reasoning: boolean | undefined;
-  /** Who gave the limits, so the author knows how far to trust them; undefined when nobody did. */
+  /** Undefined when nobody gave the limits. */
   limitsFrom: 'service' | 'pi-ai' | undefined;
 }
 
 /**
- * The models the endpoint's service offers, with the key the author gave.
  * What the service says of a model wins over pi-ai's catalogs. These are
  * searched from the endpoint's own provider on: a relay serves other
  * providers' models under their ids, and a model's limits go with it.
@@ -52,7 +47,6 @@ export async function listModels(
     .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-/** A model as a service lists it; services say more or less about it. */
 interface ListedModel {
   id: string;
   name?: string | undefined;
@@ -62,7 +56,6 @@ interface ListedModel {
   reasoning?: boolean | undefined;
 }
 
-/** Each API lists models its own way (docs/Agent.md §2). */
 async function fetchModels(
   endpoint: Endpoint,
   apiKey: string,
@@ -124,9 +117,9 @@ async function fetchModels(
 }
 
 /**
- * An OpenAI-style entry. OpenAI and most relays give the id alone;
- * OpenRouter adds the context length, the output limit, the input
- * modalities and the parameters the model takes.
+ * OpenAI and most relays give the id alone; OpenRouter adds the context
+ * length, the output limit, the input modalities and the parameters the model
+ * takes.
  */
 function openAIModel(model: Record<string, unknown>): ListedModel[] {
   if (typeof model.id !== 'string') return [];

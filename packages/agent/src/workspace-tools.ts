@@ -7,9 +7,8 @@ import type { AgentWorkspace } from './workspace';
 import { writeFileTool } from './write-file';
 
 /**
- * The workspace tools (docs/Agent.md §4), ported from TauriTavern's
- * `agent_tools/workspace/` with the same rules, limits, error codes and
- * model-facing text.
+ * Ported from TauriTavern's `agent_tools/workspace/` with the same rules,
+ * limits, error codes and model-facing text.
  */
 export function workspaceTools(workspace: AgentWorkspace): Tool[] {
   return [

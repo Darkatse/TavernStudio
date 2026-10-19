@@ -1,9 +1,6 @@
-// Prints the CSS `linear()` easings behind the motion tiers in docs/UI.md §3.
-//
-// Each curve is a spring released from rest. The damping ratio is 1 − bounce,
-// and the frequency is chosen so the remaining displacement falls to 0.1% at
-// the tier's duration. The curve is therefore duration-independent: tiers
-// share an easing and differ only in duration.
+// Each curve is a spring released from rest, with damping ratio 1 − bounce and
+// the frequency at which the remaining displacement falls to 0.1% at the end of
+// the duration, so tiers share an easing and differ only in duration.
 //
 // Usage: node apps/studio/scripts/springs.mjs, then paste into src/styles/index.css.
 

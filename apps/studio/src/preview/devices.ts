@@ -2,14 +2,11 @@ import type { DeviceIdentity, HostIdentity } from '@tavern-studio/preview';
 
 export type DeviceId = 'desktop' | 'mobile';
 
-/**
- * What a View presents to the vendor page (docs/Architecture.md §2). The
- * preview always has the viewport's CSS size; the stage only scales it.
- */
+/** The preview always has the viewport's CSS size; the stage only scales it. */
 export interface Device {
   id: DeviceId;
   viewport: { width: number; height: number };
-  /** Corner radius of the screen or window, in viewport pixels. */
+  /** In viewport pixels. */
   cornerRadius: number;
   /** SillyTavern reads the user agent; TauriTavern reads its host identity. */
   identity: DeviceIdentity;
@@ -43,7 +40,6 @@ export function isDeviceId(value: string): value is DeviceId {
   return Object.hasOwn(devices, value);
 }
 
-/** The desktop platform of the browser Studio runs in. */
 function desktopPlatform(): HostIdentity['platform'] {
   const platform = navigator.platform.toLowerCase();
   if (platform.startsWith('mac')) return 'macos';

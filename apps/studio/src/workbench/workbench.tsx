@@ -21,8 +21,6 @@ import { devices, type DeviceId } from '../preview/devices';
 import { useMessages } from '../i18n/messages';
 import { workbenchMessages } from './messages';
 
-// The menu brings Base UI's Menu, which nothing else on the first screen
-// needs; it loads right after, behind a button that looks the same.
 const ProjectMenu = lazy(() =>
   import('./project-menu').then((module) => ({ default: module.ProjectMenu })),
 );
@@ -38,17 +36,14 @@ function isWorkbenchView(value: unknown): value is WorkbenchView {
 export interface WorkbenchProps {
   view: WorkbenchView;
   onViewChange: (view: WorkbenchView) => void;
-  /** Controls placed before the view tabs. */
   leading?: ReactNode;
-  /** Hidden where the shell switches views itself (mobile navigation). */
   showViewTabs?: boolean;
-  /** The device to present when this layout appears; the shell matches it to the screen. */
   initialDevice?: DeviceId;
 }
 
 /**
- * Preview and code side by side as tabs. Both panels stay mounted: switching
- * views must not tear down the running preview or the editor state.
+ * Both panels stay mounted: switching views must not tear down the running
+ * preview or the editor state.
  */
 export function Workbench({
   view,
@@ -142,8 +137,8 @@ export function Workbench({
 }
 
 /**
- * Switches between frontends. ST and TT never run side by side (docs/Architecture.md
- * §3), and a switch opens a new Session, so it waits while one is opening.
+ * ST and TT never run side by side, and a switch opens a new Session, so it
+ * waits while one is opening.
  */
 function VendorSwitch({ session }: { session: SessionStatus }) {
   const m = useMessages(workbenchMessages);

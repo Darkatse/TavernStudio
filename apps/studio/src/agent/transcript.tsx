@@ -11,14 +11,12 @@ import { RunView } from './run-view';
 import { transcriptBlocks, type RunBlock, type RunStatus, type TranscriptBlock } from './runs';
 import { useConversationState } from './use-conversation';
 
-/** How close to the bottom still counts as following the conversation. */
+/** Pixels from the bottom that still count as following the conversation. */
 const FOLLOW_SLACK = 40;
 
 /**
- * The conversation, Run by Run (docs/Agent.md §7). It follows the bottom
- * while the author is there and stays put while they read further up. The
- * log itself is silent; one announcement says when a Run ends, not every
- * streamed word (docs/UI.md §5).
+ * The log itself is silent; one announcement says when a Run ends, not every
+ * streamed word.
  */
 export function Transcript({ conversation }: { conversation: Conversation }) {
   const m = useMessages(runMessages);
@@ -44,7 +42,6 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
     setConfirming(true);
   };
 
-  // Keep to the bottom as content grows, while following.
   useLayoutEffect(() => {
     const root = scroller.current;
     const content = root?.firstElementChild;
@@ -112,7 +109,6 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
       </p>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
         {rollback && (
-          // The plan reads the files; that takes well under the 300 ms that needs a hint.
           <Suspense fallback={null}>
             <RollbackConfirm conversation={conversation} request={rollback} />
           </Suspense>
@@ -140,10 +136,7 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
   );
 }
 
-/**
- * The reply still streaming, until it lands in History. A reply already in
- * History for the same round is not shown twice.
- */
+/** A reply already in History for the same round is not shown twice. */
 function streamingReply(
   work: readonly HistoryEntry[],
   partial: AssistantMessage | undefined,

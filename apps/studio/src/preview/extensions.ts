@@ -1,8 +1,8 @@
 /**
  * Third-party extensions are installed from their upstream repositories at a
- * pinned version, the way SillyTavern's installer clones them (docs/Vendors.md
- * §4). Files come from jsDelivr, are checked against its SHA-256 and kept in
- * Studio's own cache, so later Sessions install offline.
+ * pinned version, the way SillyTavern's installer clones them. Files come
+ * from jsDelivr, are checked against its SHA-256 and kept in Studio's own
+ * cache, so later Sessions install offline.
  */
 export interface ExtensionSource {
   /** The folder under extensions/, which names the extension in SillyTavern. */

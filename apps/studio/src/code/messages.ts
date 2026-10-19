@@ -2,7 +2,6 @@ import { defineMessages } from '../i18n/messages';
 
 export const codeMessages = defineMessages({
   zh: {
-    // The file tree.
     projectFiles: '项目文件',
     newFile: '新建文件',
     newFolder: '新建文件夹',
@@ -24,7 +23,6 @@ export const codeMessages = defineMessages({
     actionsFor: (name: string) => `${name} 的操作`,
     mountedAt: '挂载到',
     mountedAtPoints: (points: readonly string[]) => `挂载到 ${points.join('、')}`,
-    /** Why a typed name was not taken. */
     nameProblem: {
       empty: '名称不能为空',
       separator: '名称里不能有 / 或 \\',
@@ -35,7 +33,6 @@ export const codeMessages = defineMessages({
       failed: (message: string) => `没能完成：${message}`,
     },
 
-    // The editor area.
     openFailed: (path: string) => `没能打开 ${path}`,
     noFileOpen: '未打开文件',
     previewFailed: '预览没能更新',
@@ -54,7 +51,6 @@ export const codeMessages = defineMessages({
     keepMine: '保留我的修改',
     saveFailed: (name: string) => `没能保存 ${name}`,
 
-    // The tabs.
     openTabs: '打开的文件',
     closeTab: (path: string) => `关闭 ${path}`,
   },

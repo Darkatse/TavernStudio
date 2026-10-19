@@ -1,5 +1,3 @@
-// Drives Studio in a headless browser for checks and experiments.
-
 import { chromium, firefox, webkit } from 'playwright-core';
 
 const API = /^\/(api\/|csrf-token$|version$)/;
@@ -8,12 +6,8 @@ const DEVICE_LABELS = { desktop: '桌面', mobile: '移动' };
 const ENGINES = { firefox, webkit };
 
 /**
- * Launches a browser and collects what goes wrong across every page: API
- * requests reaching the network, same-origin error responses, page errors.
- *
- * Studio speaks `locale` through its own preference cookie (docs/UI.md §6),
- * Chinese unless asked otherwise, since the scripts find controls by their
- * Chinese names. The browser's language, which the preview's frontend
+ * The scripts find controls by their Chinese names, so Studio's locale cookie
+ * defaults to Chinese. The browser's language, which the preview's frontend
  * follows, stays as it is.
  */
 export async function launch({
@@ -50,11 +44,7 @@ export async function launch({
   return { browser, context, problems };
 }
 
-/**
- * Opens Studio in a new tab and waits until the preview of `device` is ready.
- * Studio starts on the first built image (SillyTavern); `vendor: 'tt'`
- * switches to TauriTavern through Studio's own control.
- */
+/** Studio starts on the first built image, SillyTavern. */
 export async function openStudio(
   { context, problems },
   url,
@@ -73,7 +63,6 @@ export async function openStudio(
   return page;
 }
 
-/** Switches the preview to the vendor of `kind` and waits for its View. */
 export async function selectVendor(page, kind) {
   const before = await viewCount(page);
   await page.getByRole('radio', { name: kind.toUpperCase() }).click();
@@ -92,22 +81,17 @@ export async function waitForViews(page, count) {
   );
 }
 
-/** Reloads the preview through Studio's own button and waits for the new View. */
 export async function reloadPreview(page) {
   const before = await viewCount(page);
   await page.getByRole('button', { name: '重新载入预览' }).click();
   await waitForViews(page, before + 1);
 }
 
-/** The vendor page of the current View. */
 export function vendorFrame(page) {
   return page.frameLocator('iframe[title="预览"]');
 }
 
-/**
- * The vendor page's playwright Frame, for evaluate(), once the View is ready:
- * a change can reload it, and its frame is then a new one.
- */
+/** A change can reload the vendor page, and its frame is then a new one. */
 export async function vendorPage(page) {
   await page.waitForFunction(() => window.__TAVERN_STUDIO__?.page() !== undefined, undefined, {
     timeout: 60_000,
@@ -120,7 +104,6 @@ export async function diagnostics(page) {
   return page.evaluate(() => window.__TAVERN_STUDIO__.diagnostics);
 }
 
-/** Creates a project from the theme template through the code view, then shows the preview again. */
 export async function createThemeProject(page) {
   await page.getByRole('tab', { name: '代码' }).click();
   await page.getByRole('button', { name: '新建主题项目' }).click();
@@ -128,7 +111,6 @@ export async function createThemeProject(page) {
   await page.getByRole('tab', { name: '预览' }).click();
 }
 
-/** Points the Agent at an OpenAI-compatible endpoint, such as a scripted model, through the settings dialog. */
 export async function useModel(page, baseUrl, model = 'scripted') {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const dialog = page.getByRole('dialog');
@@ -143,10 +125,8 @@ export async function useModel(page, baseUrl, model = 'scripted') {
   await dialog.waitFor({ state: 'detached' });
 }
 
-/** The Runs the Transcript shows, counted in the page. */
 const runCount = () => document.querySelectorAll('[role=log] section').length;
 
-/** Sends the author's message, waits for its Run to end, and returns how it ended, as announced. */
 export async function askAgent(page, message, timeout = 60_000) {
   const before = await page.evaluate(runCount);
   const composer = page.getByLabel('给 Agent 的消息');

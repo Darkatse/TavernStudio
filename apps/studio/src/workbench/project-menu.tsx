@@ -11,21 +11,13 @@ import { showToast } from '../ui/toast';
 import { ProjectButton } from './project-button';
 import { projectMenuMessages, type ProjectMenuText } from './project-menu-messages';
 
-// Archives bring the zip library with them, so it loads as the author heads for the menu.
 const prefetch = () => void import('../lib/zip');
 
-/** How many projects the menu lists, the ones opened last. */
 const RECENT = 8;
-/** How many of an archive's unusable paths a failed import names. */
 const LISTED = 5;
 
 type Failure = 'create' | keyof ProjectMenuText['failed'];
 
-/**
- * The project the workbench shows, and the ways to another: start one from a
- * template, switch to a recent one, import an archive; and to keep this one
- * as an archive (docs/Architecture.md §6).
- */
 export function ProjectMenu() {
   const m = useMessages(projectMenuMessages);
   const { templates } = useMessages(projectMessages);
@@ -34,7 +26,6 @@ export function ProjectMenu() {
   const picker = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
-  // Toasts speak the language of the moment they show, read when they do.
   const run = async (failure: Failure, action: () => Promise<void>) => {
     setBusy(true);
     try {
@@ -135,10 +126,6 @@ export function ProjectMenu() {
   );
 }
 
-/**
- * A failure as the author reads it: why an archive cannot become a project,
- * in their language; anything else in its original words (docs/UI.md §6).
- */
 function describe(error: unknown, text: ProjectMenuText): string {
   if (error instanceof ArchiveError) return archiveProblem(error.reason, text.archive);
   return error instanceof Error ? error.message : String(error);

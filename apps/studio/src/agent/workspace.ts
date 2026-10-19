@@ -12,12 +12,6 @@ import { loadSkills, skillUrl } from './skills';
 
 const encoder = new TextEncoder();
 
-/**
- * The Agent's view of files (docs/Agent.md §3): the project, writable through
- * the Run's Checkpoint, and read-only beside it the Skills, the knowledge
- * pack, the frontend the preview runs, and the long results of the Agent's
- * own tool calls.
- */
 export function agentWorkspace(project: string, projectRoot: WorkspaceRoot): AgentWorkspace {
   return {
     project: projectRoot,
@@ -28,10 +22,6 @@ export function agentWorkspace(project: string, projectRoot: WorkspaceRoot): Age
   };
 }
 
-/**
- * A read-only root over a list of file paths: folders are what the paths
- * pass through, and each file is read when asked for.
- */
 function listedRoot(
   list: () => Promise<ReadonlyMap<string, () => Promise<Uint8Array>>>,
 ): WorkspaceRoot {
@@ -58,7 +48,6 @@ function listedRoot(
   };
 }
 
-/** The long results stored for the project's Runs (`tool-results/<run>/…`). */
 function toolResultsRoot(project: string): WorkspaceRoot {
   return listedRoot(async () => {
     const paths = await (await db).getAllKeysFromIndex('toolResults', 'project', project);
@@ -75,7 +64,6 @@ function toolResultsRoot(project: string): WorkspaceRoot {
   });
 }
 
-/** Every published Skill, by folder: `skills/st-theme/SKILL.md`. */
 const skillsRoot = listedRoot(async () => {
   const entries = (await loadSkills()).flatMap((skill) =>
     skill.files.map(
@@ -89,11 +77,6 @@ const skillsRoot = listedRoot(async () => {
 const KNOWLEDGE = '/_studio/knowledge/';
 let knowledge: Promise<Map<string, () => Promise<Uint8Array>>> | undefined;
 
-/**
- * The knowledge pack (docs/Knowledge.md §1): upstream documents and types,
- * one directory per source, whose source.json names its repository, version
- * and license. `pnpm knowledge` builds it; it is listed once.
- */
 const knowledgeRoot = listedRoot(() => {
   knowledge ??= knowledgeFiles().catch((error: unknown) => {
     // A failed load is not kept, so the next call tries again.
@@ -128,11 +111,6 @@ async function knowledgeFiles(): Promise<Map<string, () => Promise<Uint8Array>>>
   );
 }
 
-/**
- * The frontend the preview runs (docs/Knowledge.md §1): its anatomy under
- * `anatomy/` and its source under `src/`. It follows the preview to another
- * frontend.
- */
 const vendorRoot = listedRoot(() => {
   const status = previewSession.status;
   if (status.phase !== 'open') {

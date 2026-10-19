@@ -4,7 +4,6 @@ import { Conversation, type ConversationState } from './conversation';
 
 const conversations = new Map<string, Conversation>();
 
-/** The open project's conversation with the Agent, loaded from IndexedDB on first use. */
 export function useConversation(): Conversation | undefined {
   const project = useCurrentProject();
   if (!project) return undefined;

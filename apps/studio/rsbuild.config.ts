@@ -4,7 +4,7 @@ import { pluginReact } from '@rsbuild/plugin-react';
 import { pluginPublished } from './build/published';
 
 // Studio serves only `/`; everything else it ships lives under `/_studio/`, so
-// vendor and data paths stay free for the preview (docs/Architecture.md §4).
+// vendor and data paths stay free for the preview.
 const assets = '_studio';
 const repo = path.resolve(import.meta.dirname, '../..');
 
@@ -14,7 +14,7 @@ export default defineConfig({
     htmlFallback: false,
     // The Preview SW lives under /_studio/ but controls the whole origin.
     headers: { 'Service-Worker-Allowed': '/' },
-    // Vendor images are built by `pnpm vendor:st`; deployment ships them separately.
+    // Deployment ships the vendor images separately.
     publicDir: { name: path.join(repo, 'vendors/out'), copyOnBuild: false },
   },
   output: {
@@ -39,8 +39,8 @@ export default defineConfig({
         pluginPublished(path.join(repo, 'fixtures'), 'fixtures'),
         pluginPublished(path.join(repo, 'templates'), 'templates'),
         pluginPublished(path.join(repo, 'skills'), 'skills'),
-        // Built by `pnpm knowledge`. A build without it, such as CI's, ships no
-        // pack, and the Agent's knowledge/ says how to build one.
+        // A build without knowledge/out/, such as CI's, ships no pack, and the
+        // Agent's knowledge/ says how to build one.
         pluginPublished(path.join(repo, 'knowledge/out'), 'knowledge'),
       ],
       source: { entry: { index: './src/main.tsx' } },
@@ -83,12 +83,8 @@ export default defineConfig({
       tools: { htmlPlugin: false },
       dev: { hmr: false, liveReload: false },
     },
-    // ES modules a vendor page imports, one file each:
-    // - web-host installs TauriTavern's Web Host in a TT page. Its static
-    //   import of the vendor's own install.js runs it, with the host ready,
-    //   before TT's init.js (docs/Vendors.md §3).
-    // - capture is the screenshot fallback, imported only when a screenshot
-    //   needs it (docs/Agent.md §5).
+    // web-host's static import of the vendor's own install.js runs it, with
+    // the host ready, before TauriTavern's init.js.
     'page-modules': {
       source: {
         entry: {

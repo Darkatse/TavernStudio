@@ -2,9 +2,7 @@
  * Adapted from shadcn/ui's Base UI dialog (MIT, Copyright (c) 2023 shadcn):
  * https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/bases/base/ui/dialog.tsx
  *
- * Changed for docs/UI.md: the parts are folded into one content component on
- * the slow tier, styled like AlertDialog, anchored near the top so a dialog
- * whose content changes does not jump.
+ * Anchored near the top, so a dialog whose content changes does not jump.
  */
 import { Dialog as BaseDialog } from '@base-ui/react/dialog';
 import { clsx } from 'clsx';
@@ -22,15 +20,10 @@ export interface DialogContentProps {
   title: string;
   description?: string;
   children: ReactNode;
-  /** Actions at the bottom, such as a primary button. */
   footer?: ReactNode;
   size?: 'md' | 'lg';
 }
 
-/**
- * A modal dialog for a task, such as settings. Focus moves inside, stays
- * there, and goes back to the trigger when it closes; Esc closes it.
- */
 export function DialogContent({
   title,
   description,

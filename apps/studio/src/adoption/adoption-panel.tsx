@@ -21,8 +21,7 @@ export interface AdoptionPanelProps {
 }
 
 /**
- * Session writes on the project's mount points, one group per mount point,
- * since that is the unit of adopting (docs/Architecture.md §5). Adopting or
+ * One group per mount point, since that is the unit of adopting. Adopting or
  * discarding changes the project or the Session; the project compares them
  * again, and the group goes away by itself.
  */
@@ -143,10 +142,6 @@ function MountPointGroup({
   );
 }
 
-/**
- * What a discard throws away: the fields of a JSON mount, or the whole text
- * or file. `whole` names a field that is the mount's whole value.
- */
 function lost(placement: Placement, differences: readonly Difference[], whole: string): string[] {
   if (placement.kind === 'value' && placement.format === 'json') {
     return differences.flatMap((difference) =>
@@ -213,10 +208,6 @@ function textOf(bytes: Uint8Array): string | undefined {
   }
 }
 
-/**
- * A text mount's value as the author writes it: inside its code block when
- * the Mount fences it. A value that is not such a block shows as it is.
- */
 function valueText(value: JsonValue | undefined, fence: string | undefined): string | undefined {
   if (value === undefined) return undefined;
   if (typeof value !== 'string') return JSON.stringify(value, null, 2);

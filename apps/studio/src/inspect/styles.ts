@@ -11,19 +11,11 @@ import type { JsonObject } from '@tavern-studio/agent';
 import type { JsonValue } from '@tavern-studio/workspace';
 import type { SourceNamer } from './sources';
 
-/** The rules listed, the ones that apply first; the properties already say which declarations win. */
 const RULES_SHOWN = 20;
-/** Declarations a property lists as overridden. */
 const OVERRIDES_SHOWN = 4;
-/** How far custom properties are followed through the values that use them. */
 const VARIABLE_DEPTH = 3;
 const DECLARATIONS_SHOWN = 400;
 
-/**
- * `inspect.styles` (docs/Agent.md §4): why an element of the preview looks as
- * it does, each declaration traced to the project file and line, or the
- * vendor file, it was written in.
- */
 export async function inspectStyles(
   page: Window,
   element: Element,
@@ -38,7 +30,6 @@ export async function inspectStyles(
   const explained = new Map(
     longhands.map((property) => [property, styles.explain(element, property)]),
   );
-  // The custom properties the winning values use, and those their values use in turn.
   const variables = new Map<string, Explanation>();
   let frontier = [...explained.values()];
   for (let depth = 0; depth < VARIABLE_DEPTH && frontier.length > 0; depth++) {
@@ -65,7 +56,6 @@ export async function inspectStyles(
 
   const declaration = (candidate: Candidate, of: Element, property: string): JsonObject => ({
     selector: candidate.rule.selector,
-    // A shorthand that sets the property says so.
     ...(candidate.property === property ? {} : { property: candidate.property }),
     value: candidate.important ? `${candidate.value} !important` : candidate.value,
     source: source(candidate.rule, of, candidate.property),
@@ -92,7 +82,6 @@ export async function inspectStyles(
   const explainAll = (explanations: Map<string, Explanation>) =>
     Object.fromEntries([...explanations].map(([name, each]) => [name, explain(name, each)]));
 
-  // An element of a frame inside the page, such as a frontend card, names its frame too.
   const frame = frameInPage(element.ownerDocument, page);
   return {
     element: elementPath(element),
@@ -131,11 +120,7 @@ function shorten(text: string): string {
   return text.length > DECLARATIONS_SHOWN ? `${text.slice(0, DECLARATIONS_SHOWN)}…` : text;
 }
 
-/**
- * The line of each rule in the text of its sheet: a <style>'s own text, or
- * the file a <link> loaded, fetched by the page so that it reads what the
- * page read. A sheet whose text cannot be read gives no lines.
- */
+/** A <link>'s file is fetched by the page, so that it reads what the page read. */
 async function lineFinder(
   view: Window,
   rules: readonly MatchedRule[],

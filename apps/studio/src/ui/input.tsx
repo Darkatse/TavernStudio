@@ -6,10 +6,7 @@ export type InputProps = Omit<ComponentProps<'input'>, 'className'> & {
   className?: string;
 };
 
-/**
- * A one-line field, the height of every control (docs/UI.md §3, density).
- * Numbers go without spin buttons: Studio's are counts typed whole, not stepped.
- */
+/** Numbers go without spin buttons: Studio's are counts typed whole, not stepped. */
 export function Input({ className, ...props }: InputProps) {
   return (
     <input
@@ -22,7 +19,6 @@ export function Input({ className, ...props }: InputProps) {
   );
 }
 
-/** A labelled field: the label above, a hint or an error below. */
 export function Field({
   label,
   hint,

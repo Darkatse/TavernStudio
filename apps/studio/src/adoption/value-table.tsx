@@ -10,15 +10,13 @@ export interface ValueRow {
   session: JsonValue | undefined;
 }
 
-/** A field's path for reading: its tokens joined by `/`; `whole` when it is the whole value. */
 export function fieldName(pointer: Pointer, whole: string): string {
   return pointer.length === 0 ? whole : pointer.join('/');
 }
 
 /**
- * JSON fields that differ, as a table of path, project value and session
- * value. The project value is what adopting replaces, so it reads as removed
- * and the session's as added. A narrow panel stacks each field.
+ * The project value is what adopting replaces, so it reads as removed and
+ * the session's as added.
  */
 export function ValueTable({ rows }: { rows: readonly ValueRow[] }) {
   const m = useMessages(adoptionMessages);
@@ -77,7 +75,6 @@ function Value({ value, side }: { value: JsonValue | undefined; side: 'project' 
   );
 }
 
-/** Any value the browser reads as a CSS color, whatever the field. */
 function isColor(value: string): boolean {
   return value.trim() !== '' && CSS.supports('color', value);
 }

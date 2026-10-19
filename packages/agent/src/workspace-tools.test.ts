@@ -16,7 +16,6 @@ const THEME = 'project/theme.css';
 const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
-/** A read-only root in memory. `put` stands for the app, or anyone outside the Run, writing. */
 class MemoryRoot implements WorkspaceRoot {
   protected readonly contents = new Map<string, Uint8Array>();
 
@@ -72,7 +71,6 @@ class WritableMemoryRoot extends MemoryRoot {
   }
 }
 
-/** One Run over a workspace: calls go through `normalizeArguments`, as the model's would. */
 function run(workspace: AgentWorkspace) {
   const tools = new Map(workspaceTools(workspace).map((tool) => [tool.id, tool]));
   const reads: ReadState = new Map();
@@ -90,7 +88,6 @@ function project(files: Record<string, string>) {
   return { root, call };
 }
 
-/** The code of the `ToolError` a call fails with. */
 async function failure(call: Promise<unknown>): Promise<string> {
   try {
     await call;
@@ -220,7 +217,6 @@ describe('Long results', () => {
 
     expect(storedAt).toMatch(/^tool-results\/run-1\/round-002-call_[0-9a-f]{16}\.txt$/);
     const stored = results.text((storedAt as string).slice('tool-results/'.length)) as string;
-    // Long lines are cut, so every part of the result is a line a reader can address.
     expect(stored.split('\n').every((line) => line.length <= 3_000)).toBe(true);
     expect(stored.replaceAll('\n', '')).toBe(text.replaceAll('\n', ''));
 

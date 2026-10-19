@@ -18,7 +18,6 @@ export const adoptionMessages = defineMessages({
     valueDeleted: '预览删除了这个值。',
     changesTo: (path: string) => `${path} 的修改`,
 
-    // The value table.
     wholeValue: '（整个值）',
     path: '路径',
     project: '项目',

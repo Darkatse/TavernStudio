@@ -2,17 +2,11 @@ import type { ProjectStore } from '@tavern-studio/workspace';
 import { useSyncExternalStore } from 'react';
 
 export interface ProjectFiles {
-  /** Every file of the project, in name order; undefined until first listed. */
   files: readonly string[] | undefined;
-  /** Why the files could not be listed, as the store said. */
   error: string | undefined;
 }
 
-/**
- * A project's file list, listed again after every change made through its
- * store, the Agent's writes included. Listings run one at a time, and a
- * burst of changes leads to one more listing.
- */
+/** Listings run one at a time, and a burst of changes leads to one more listing. */
 class FileListing {
   #state: ProjectFiles = { files: undefined, error: undefined };
   #listing = false;
@@ -72,7 +66,6 @@ function listingOf(store: ProjectStore): FileListing {
   return listing;
 }
 
-/** Lists the files again, for example after a listing failed. */
 export function relist(store: ProjectStore): void {
   listingOf(store).list();
 }

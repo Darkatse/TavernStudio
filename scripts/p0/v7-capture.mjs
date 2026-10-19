@@ -1,14 +1,3 @@
-// P0 V7: screenshot methods. Captures the showcase View, with the
-// JS-Slash-Runner card, in SillyTavern's default theme and in a blurred one,
-// through snapdom inside the vendor page and through Element Capture in
-// Studio's page. Each result is compared with the browser's own screenshot
-// of the View (docs/Agent.md §5).
-//
-// Element Capture needs a rendered tab, so the browser runs headed, with its
-// window placed off-screen.
-//
-// Usage: node scripts/p0/v7-capture.mjs [--url http://localhost:3000/] [--out <dir>]
-
 import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -33,9 +22,8 @@ const PREVIEW = 'iframe[title="预览"]';
 /** SillyTavern's default theme turns blur off; Azure blurs its panels over the background. */
 const SCENES = [{ name: 'dark-lite' }, { name: 'azure', theme: 'Azure' }];
 /**
- * What to capture and how. The page background is painted through the root
- * element, so capturing body alone can drop it. Caching is off so that each
- * variant renders afresh.
+ * The page background is painted through the root element, so capturing body
+ * alone can drop it. Caching is off so that each variant renders afresh.
  */
 const SNAPDOM_VARIANTS = {
   'snapdom-body': { root: 'body', settings: { cache: 'disabled' } },
@@ -43,6 +31,8 @@ const SNAPDOM_VARIANTS = {
   'snapdom-root-fonts': { root: 'html', settings: { cache: 'disabled', embedFonts: true } },
 };
 
+// Element Capture needs a rendered tab, so the browser runs headed, with its
+// window placed off-screen.
 const session = await launch({
   ...options,
   headless: false,
@@ -63,7 +53,6 @@ try {
   const vendor = await vendorPage(page);
   await vendor.addScriptTag({ path: SNAPDOM });
 
-  // Element Capture: share this tab once, restricted to the preview frame.
   await page.mouse.click(5, 5); // getDisplayMedia needs a user gesture
   result.elementCaptureSetup = await page.evaluate(startElementCapture, PREVIEW);
 
@@ -90,7 +79,6 @@ try {
       snapdomWarnings: {},
     };
 
-    // snapdom runs in the page it captures, like the app-use engine.
     for (const [name, variant] of Object.entries(SNAPDOM_VARIANTS)) {
       outcome.snapdomMs[name] = [];
       for (let run = 0; run < 2; run++) {
@@ -135,10 +123,8 @@ console.log(JSON.stringify({ ...result, problems: session.problems }, null, 2));
 await session.browser.close();
 process.exitCode = session.problems.length ? 1 : 0;
 
-/** In Studio's page: shares the tab and keeps the stream for later frames. */
 async function startElementCapture(selector) {
   const started = performance.now();
-  // Each step names itself when it stalls.
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function
   const step = (name, promise) =>
     Promise.race([
@@ -170,9 +156,9 @@ async function startElementCapture(selector) {
 }
 
 /**
- * In Studio's page: the current frame of the shared stream. Capture delivers
- * frames only when the View repaints, so the playing video already holds the
- * latest one; waiting for another would wait forever on a still page.
+ * Capture delivers frames only when the View repaints, so the playing video
+ * already holds the latest one; waiting for another would wait forever on a
+ * still page.
  */
 function grabElementCapture() {
   const video = window.v7Capture;
@@ -188,7 +174,6 @@ function grabElementCapture() {
   };
 }
 
-/** In Studio's page: draws each capture at the reference size and compares pixels. */
 async function compare(images) {
   // oxlint-disable-next-line unicorn/consistent-function-scoping -- page.evaluate sends only this function
   const load = async (url) => createImageBitmap(await (await fetch(url)).blob());

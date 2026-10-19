@@ -3,23 +3,17 @@ import type { JsonValue } from '@tavern-studio/workspace';
 import { elementTarget, TARGET_PROPERTIES, type ElementTarget } from './element-target';
 import { modelToolName, ToolError, type Tool, type ToolResult } from './tool';
 
-/** What the `inspect.*` tools read: the styles and layout of the preview page (docs/Agent.md §4). */
 export interface InspectSurface {
-  /**
-   * The cascade of one element: the rules matching it, where each comes from,
-   * and why each property has its value.
-   */
   styles(
     run: string,
     target: ElementTarget,
     properties: readonly string[] | undefined,
     signal: AbortSignal,
   ): Promise<JsonValue>;
-  /** Deterministic checks over the part of the page in view, or of one region of it. */
+  /** Checks only what is in view: of the whole page when `target` is undefined. */
   audit(run: string, target: ElementTarget | undefined, signal: AbortSignal): Promise<JsonValue>;
 }
 
-/** Explained when the call names none. */
 export const DEFAULT_STYLE_PROPERTIES = [
   'color',
   'background-color',
@@ -32,10 +26,6 @@ export const DEFAULT_STYLE_PROPERTIES = [
 const INTERACT = modelToolName(interactTool.name);
 const STYLES = modelToolName('inspect.styles');
 
-/**
- * The inspect tools (docs/Agent.md §4): numbers and sources read from the
- * running page, where a screenshot would leave the model to guess.
- */
 export function inspectTools(surface: InspectSurface): Tool[] {
   return [
     {
@@ -91,7 +81,6 @@ Findings name elements by a CSS selector that matches only them within their own
   ];
 }
 
-/** A page result as JSON; a failure in the page is the model's to act on. */
 async function fromPage(signal: AbortSignal, read: () => Promise<JsonValue>): Promise<ToolResult> {
   try {
     return { text: JSON.stringify(await read()) };

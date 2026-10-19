@@ -1,11 +1,7 @@
 /**
- * The screenshot fallback (docs/Agent.md §5): snapdom renders the vendor page,
- * or one element of it, from its DOM, in the page's own realm. Built as an ES
- * module served at /_studio/capture.js and imported only when a screenshot
- * needs it, so its weight stays off every page load.
- *
- * Known distortions on SillyTavern (P0 V7): background layers dropped or
- * darkened, `<q>` quotes doubled, text rewrapped.
+ * Runs in the page's own realm. Built as an ES module served at
+ * /_studio/capture.js and imported only when a screenshot needs it, so its
+ * weight stays off every page load.
  */
 import { snapdom } from '@zumer/snapdom';
 import { CAPTURE_IMAGE, type PageCapture } from './host';
@@ -33,9 +29,8 @@ export async function capture(element: Element | undefined): Promise<PageCapture
 }
 
 /**
- * Why snapdom's SVG would not decode as an image. A browser refuses an SVG
- * image that is not well-formed XML, and says no more than that; its XML
- * parser says where.
+ * A browser refuses an SVG image that is not well-formed XML, and says no more
+ * than that; its XML parser says where.
  */
 function svgProblem(url: string): string {
   const comma = url.indexOf(',');

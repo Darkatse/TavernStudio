@@ -12,11 +12,6 @@ function isSection(value: unknown): value is SettingsSection {
   return value === 'general' || value === 'models';
 }
 
-/**
- * Studio's settings, in two sections: Studio's own preferences, and the model
- * services the Agent uses. This module loads when the settings first open,
- * since the model list brings its combobox.
- */
 export function SettingsDialog({
   section,
   onSectionChange,

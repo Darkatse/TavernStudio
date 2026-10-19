@@ -7,11 +7,6 @@ import {
 } from './specificity';
 
 /**
- * The cascade of a vendor page, read from its CSSOM as DevTools' Styles pane
- * reads it: which rules match an element, in the order they apply, and which
- * declaration each property takes, here or from an ancestor. `inspect.styles`
- * and the inspector (docs/plan/P1.md P1d) both read styles through it.
- *
  * Not modelled: `@container` and `@scope` rules, pseudo-elements, the order
  * of named cascade layers among themselves, animations and user-agent styles.
  */
@@ -22,11 +17,10 @@ export interface Declaration {
   important: boolean;
 }
 
-/** A rule that matches the element, or the element's style attribute. */
 export interface MatchedRule {
-  /** The rule, or null for the style attribute. */
+  /** Null for the style attribute. */
   rule: CSSRule | null;
-  /** Its sheet, or null for the style attribute. */
+  /** Null for the style attribute. */
   sheet: CSSStyleSheet | null;
   /** The rule's selectors as written, or `style attribute`. */
   selector: string;
@@ -34,19 +28,17 @@ export interface MatchedRule {
   specificity: Specificity;
   /** The at-rules around it, outermost first, such as `@media (max-width: 1000px)`. */
   conditions: readonly string[];
-  /** Declared inside a cascade layer. */
   layered: boolean;
   /** Its place in the document's order of rules; the style attribute comes last. */
   order: number;
   declarations: readonly Declaration[];
 }
 
-/** A declaration that sets a property, possibly through a shorthand, and the rule making it. */
+/** The declaration may set the property through a shorthand. */
 export interface Candidate extends Declaration {
   rule: MatchedRule;
 }
 
-/** Why a property of an element has its value. */
 export interface Explanation {
   computed: string;
   /** The declarations on the element setting it, the one that applies first. */
@@ -135,8 +127,8 @@ const INHERITED = new Set([
 ]);
 
 /**
- * Reads the styles of one document. The rules are indexed once, so make one
- * reader per inspection: a page changes its sheets as it runs.
+ * The rules are indexed once, so make one reader per inspection: a page
+ * changes its sheets as it runs.
  */
 export function readStyles(document: Document): Styles {
   const view = document.defaultView;
@@ -353,7 +345,6 @@ function byCascade(a: Candidate, b: Candidate): number {
   );
 }
 
-/** The declarations of a serialized block, `color: red; margin: 0 !important`. */
 function parseDeclarations(text: string): Declaration[] {
   const declarations: Declaration[] = [];
   let depth = 0;

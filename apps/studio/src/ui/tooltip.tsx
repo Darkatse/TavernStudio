@@ -6,7 +6,7 @@ export const TooltipProvider = BaseTooltip.Provider;
 export interface TooltipProps {
   content: ReactNode;
   side?: BaseTooltip.Positioner.Props['side'];
-  /** The trigger. It receives the tooltip's props and ref. */
+  /** The trigger receives the tooltip's props and ref. */
   children: ReactElement;
 }
 

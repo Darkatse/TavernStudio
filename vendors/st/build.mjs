@@ -1,15 +1,3 @@
-// Builds a SillyTavern vendor image (docs/Vendors.md §1).
-//
-// The image is the npm release's public/ directory, with two changes:
-// - /lib.js is prebuilt by ST's own webpack setup (docker/build-lib.js), with
-//   dependencies pinned by the upstream lockfile of the same tag;
-// - Attach is injected once into index.html, right after <base href="/">.
-//
-// Usage: node vendors/st/build.mjs <version>
-// Output: vendors/out/__vendor/st@<version>/ and st@<version>.json, and its
-// anatomy in anatomy/st@<version>/; index.json lists every built image.
-// Downloads and installs are cached in vendors/.work/.
-
 import { existsSync } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';

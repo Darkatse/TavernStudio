@@ -12,14 +12,12 @@ export function compareSpecificity(a: Specificity, b: Specificity): number {
   return a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 }
 
-/** The specificity of a selector list: that of its most specific complex selector. */
 export function listSpecificity(selectors: string): Specificity {
   return splitSelectorList(selectors)
     .map(specificity)
     .reduce((max, next) => (compareSpecificity(next, max) > 0 ? next : max), ZERO);
 }
 
-/** The complex selectors of a list, split at its top-level commas. */
 export function splitSelectorList(selectors: string): string[] {
   const parts: string[] = [];
   let depth = 0;
@@ -42,7 +40,6 @@ export function splitSelectorList(selectors: string): string[] {
   return parts.filter(Boolean);
 }
 
-/** The specificity of one complex selector. */
 export function specificity(selector: string): Specificity {
   let ids = 0;
   let classes = 0;

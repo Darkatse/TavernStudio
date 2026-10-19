@@ -4,7 +4,6 @@ import { ReplayError, type Reply } from '../replay';
 
 /** The one model Replay offers, so the frontend counts the API as connected. */
 const MODEL = 'replay';
-/** Streaming pace: characters per event, and the pause between events. */
 const CHARACTERS_PER_EVENT = 8;
 const EVENT_INTERVAL_MS = 25;
 
@@ -71,7 +70,6 @@ function streamed({ content, reasoning }: Reply): BackendResponse {
       };
       send();
     },
-    // The reader went away: a stopped generation or a closed page.
     cancel() {
       clearTimeout(timer);
     },
@@ -88,7 +86,7 @@ function chunk(delta: Record<string, string>, finishReason: string | null): stri
   return `data: ${JSON.stringify(data)}\n\n`;
 }
 
-/** Splits text into short pieces, never inside a surrogate pair. */
+/** Never splits inside a surrogate pair. */
 function pieces(text: string): string[] {
   const characters = Array.from(text);
   const result: string[] = [];

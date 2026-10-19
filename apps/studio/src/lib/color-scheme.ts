@@ -1,11 +1,10 @@
 import { readPreference, writePreference } from './preference-cookie';
 
-/** Follow the system, or keep Studio light or dark whatever the system says. */
 export type ColorScheme = 'system' | 'light' | 'dark';
 
 /**
  * The manual scheme must be known before the first frame: index.html reads
- * this cookie with an inline script (docs/UI.md §3).
+ * this cookie with an inline script.
  */
 const COOKIE = 'studio-scheme';
 
@@ -13,15 +12,14 @@ export function readColorScheme(): ColorScheme {
   return readPreference(COOKIE, ['light', 'dark'] as const) ?? 'system';
 }
 
-/** Keeps the author's choice and applies it. */
 export function setColorScheme(scheme: ColorScheme): void {
   writePreference(COOKIE, scheme === 'system' ? undefined : scheme);
   applyColorScheme(scheme);
 }
 
 /**
- * Switches Studio's color scheme. The tokens read `data-theme` on <html>
- * (styles/index.css); without it they follow `prefers-color-scheme`.
+ * The tokens read `data-theme` on <html> (styles/index.css); without it they
+ * follow `prefers-color-scheme`.
  */
 export function applyColorScheme(scheme: ColorScheme): void {
   freezeTransitions();
@@ -35,10 +33,10 @@ export function applyColorScheme(scheme: ColorScheme): void {
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change', freezeTransitions);
 
 /**
- * Turns every transition off for the frame that applies a new scheme, so all
- * colors change at once instead of element by element (docs/UI.md §3).
- * Transitions come back one frame later, after the new colors are styled, so
- * nothing is left to animate.
+ * Every transition is off for the frame that applies a new scheme, so all
+ * colors change at once instead of element by element. Transitions come back
+ * one frame later, after the new colors are styled, so nothing is left to
+ * animate.
  */
 function freezeTransitions() {
   const freeze = document.createElement('style');

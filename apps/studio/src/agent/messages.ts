@@ -3,20 +3,17 @@ import { defineMessages } from '../i18n/messages';
 import type { ConversationFailure } from './conversation';
 
 /**
- * The Agent panel's own text: the panel and the composer, on the first
- * screen. The Transcript's is in run-messages.ts and the model settings' in
- * model-settings-messages.ts, each loading with its part.
+ * Only the first screen's text: the Transcript's is in run-messages.ts and the
+ * model settings' in model-settings-messages.ts, each loading with its part.
  */
 export const agentMessages = defineMessages({
   zh: {
-    // The panel
     panel: 'Agent',
     welcome: '想做点什么？',
     welcomeWithoutProject: '新建一个项目，再描述你想要的主题、前端卡或脚本。',
     welcomeToProject:
       '描述你想要的主题、前端卡或脚本。Agent 会修改文件、查看预览，反复调整到满意为止。',
 
-    // The composer
     message: '给 Agent 的消息',
     placeholder: '描述你想要的效果…',
     guidancePlaceholder: '补充说明，会在下一步交给 Agent…',
@@ -30,7 +27,6 @@ export const agentMessages = defineMessages({
     notLoaded: '对话记录还没有读取',
     modelMissing: '还没有选择模型。在设置里添加一个模型服务。',
     keyMissing: (endpoint: string) => `${endpoint} 还没有填写 API Key。`,
-    /** What failed, followed by the error's own words. */
     failed: {
       load: (error: string) => `对话记录未能读取：${error}`,
       start: (error: string) => `Agent 未能启动：${error}`,
@@ -72,5 +68,4 @@ export const agentMessages = defineMessages({
   },
 });
 
-/** The Agent panel's text in one language, for helpers that word things for a component. */
 export type AgentText = (typeof agentMessages)[Locale];

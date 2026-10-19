@@ -326,7 +326,6 @@ describe('Mounts', () => {
 
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a];
 
-/** The smallest PNG a card can live in: a 1×1 header and the end. */
 function minimalPng(): Uint8Array {
   return Uint8Array.from([
     ...PNG_SIGNATURE,
@@ -335,7 +334,7 @@ function minimalPng(): Uint8Array {
   ]);
 }
 
-/** Length, type and data; the reader does not check the CRC, so it stays zero. */
+/** The reader does not check the CRC, so it stays zero. */
 function pngChunk(type: string, data: number[]): number[] {
   return [0, 0, 0, data.length, ...encoder.encode(type), ...data, 0, 0, 0, 0];
 }

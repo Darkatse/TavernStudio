@@ -1,9 +1,3 @@
-// P0 V6: the app-use engine from npm runs in the vendor page. `app.snapshot`
-// enters the JS-Slash-Runner card iframe, and `app.interact` clicks the card's
-// button, which the card then reports in its own DOM (docs/Agent.md §4).
-//
-// Usage: node scripts/p0/v6-app-use.mjs [--url http://localhost:3000/] [--vendor st|tt]
-
 import { parseArgs } from 'node:util';
 import { launch, openStudio, vendorFrame } from '../lib/studio.mjs';
 
@@ -18,7 +12,7 @@ const { values: options } = parseArgs({
 const CARD = 'iframe[id^="TH-message"]';
 const BUTTON = 'Rest by the spring';
 
-/** Calls the page's engine the way the Agent's tools will, from Studio's realm. */
+/** The Agent's tools call the page's engine from Studio's realm. */
 const call = (page, tool, args) =>
   page.evaluate(
     (request) => {
@@ -51,15 +45,14 @@ try {
     lines: overview.output.tree.split('\n').length,
   };
 
-  // Into the card: by the iframe's ref from a snapshot of its message, as the Agent would.
   const message = await call(page, 'snapshot', { selector: '#chat .last_mes .mes_text', depth: 6 });
   const frameRef = refOf(message.output.tree, 'iframe');
   if (!frameRef) throw new Error(`No iframe ref in the message snapshot:\n${message.output.tree}`);
   const inside = await call(page, 'snapshot', { root: frameRef, depth: 6 });
   result.enter = { ms: inside.ms, tree: inside.output.tree };
 
-  // As an Agent would: a button below the visible part of the chat needs the
-  // chat scrolled first, then a fresh look into the card.
+  // A button below the visible part of the chat needs the chat scrolled first,
+  // then a fresh snapshot of the card.
   result.scrolls = 0;
   let buttonRef = refOf(inside.output.tree, BUTTON);
   let click;

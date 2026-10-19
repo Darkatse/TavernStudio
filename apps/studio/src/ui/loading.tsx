@@ -1,12 +1,10 @@
 import { useEffect, useState } from 'react';
 
-/** Waits shorter than this show no progress at all (docs/UI.md §5). */
 export const QUIET_WAIT_MS = 300;
 
 /**
- * A hairline running along the top edge of its positioned container, for a
- * wait of unknown length. It shows only once the wait outlasts a quiet one;
- * the container says it is busy all along.
+ * Its container is positioned and says it is busy all along: the line shows
+ * only once the wait outlasts a quiet one.
  */
 export function LoadingLine({ label }: { label: string }) {
   const [shown, setShown] = useState(false);

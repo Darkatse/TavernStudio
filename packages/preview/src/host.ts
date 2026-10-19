@@ -2,13 +2,12 @@ import type { ElementTarget, JsonValue, ToolArguments } from '@tauritavern/app-u
 import type { BackendRequest, BackendResponse } from '@tavern-studio/backend';
 
 /**
- * What Studio offers a vendor page. Studio installs it on its own window as
- * `__TAVERN_STUDIO__`; Attach, running first in the page, connects through it.
+ * Studio installs it on its own window as `__TAVERN_STUDIO__`; Attach, running
+ * first in the page, connects through it.
  */
 export interface PreviewHost {
-  /** Registers the vendor page of a View. Throws for a frame Studio did not create. */
+  /** Throws for a frame Studio did not create. */
   connect(page: Window, agent: PageAgent): ViewConnection;
-  /** The Web Host options for the page of a TauriTavern View (docs/Vendors.md §3). */
   webHost(page: Window): WebHostOptions;
   /**
    * How the page exits before its View is removed: TauriTavern's Web Host
@@ -17,11 +16,7 @@ export interface PreviewHost {
   exitThrough(page: Window, exit: () => Promise<void>): void;
 }
 
-/**
- * The app-use engine running in a vendor page, for the Agent's `app.*` tools
- * (docs/Agent.md §4). Each call belongs to a Run; a new Run drops the refs of
- * the previous one.
- */
+/** Each call belongs to a Run; a new Run drops the refs of the previous one. */
 export interface PageAgent {
   snapshot(runId: string, args: ToolArguments): JsonValue;
   interact(runId: string, args: ToolArguments): JsonValue;
@@ -35,20 +30,19 @@ export interface PageAgent {
   resolve(runId: string, target: ElementTarget): Element;
   /** The refs of the Run's latest snapshot page, in its order; none before its first snapshot. */
   refs(runId: string): string[];
-  /** Renders the page, or one element of it, from its DOM: the screenshot fallback. */
+  /** Renders from the DOM, the whole page when `element` is undefined: the screenshot fallback. */
   capture(element: Element | undefined): Promise<PageCapture>;
 }
 
-/** A screenshot rendered in the page, with the degradations snapdom recorded. */
+/** `warnings` are the degradations snapdom recorded. */
 export interface PageCapture {
   blob: Blob;
   warnings: string[];
 }
 
 /**
- * How screenshots are encoded for the model, whichever way they are taken:
- * JPEG reads well for interfaces at a fraction of PNG's size, and every
- * provider takes it.
+ * How screenshots are encoded for the model, whichever way they are taken;
+ * every provider takes JPEG.
  */
 export const CAPTURE_IMAGE = {
   format: 'jpeg',
@@ -58,7 +52,6 @@ export const CAPTURE_IMAGE = {
   maxWidth: 1280,
 } as const;
 
-/** The frontend a vendor image ships. It decides how the page reaches the API. */
 export type VendorKind = 'st' | 'tt';
 
 export interface ViewConnection {
@@ -66,7 +59,6 @@ export interface ViewConnection {
   /** SillyTavern's API goes through ST 接入; TauriTavern's through its own host kernel and the Web Host. */
   vendorKind: VendorKind;
   device: DeviceIdentity;
-  /** Answers SillyTavern's HTTP API from the Session Backend. */
   handle(request: BackendRequest): BackendResponse | Promise<BackendResponse>;
   /** Reads a data file synchronously, for the synchronous XHR the Preview SW cannot see. */
   readData(path: string): Uint8Array | undefined;
@@ -75,7 +67,7 @@ export interface ViewConnection {
   ready(): void;
 }
 
-/** How the page identifies the device. Both describe the same device. */
+/** Both describe the same device. */
 export interface DeviceIdentity {
   /** What SillyTavern reads. Absent fields keep the browser's own values. */
   navigator: { userAgent?: string; platform?: string; maxTouchPoints?: number };

@@ -9,10 +9,9 @@ import type { ProjectStore, ReplacedContent } from '@tavern-studio/workspace';
 import { sha256 } from '@tavern-studio/workspace';
 import { db, type CheckpointFileRecord } from '../storage/db';
 
-/** How much kept content a project's Checkpoint holds, compressed (docs/Agent.md §1). */
+/** Bytes of compressed content a project's Checkpoint holds at most. */
 export const CHECKPOINT_LIMIT = 100 * 1024 * 1024;
 
-/** A file in a rollback the author is about to confirm. */
 export interface RollbackFile {
   path: string;
   /** The content to restore; null removes the file, which the rolled back operations created. */
@@ -28,11 +27,6 @@ export interface RollbackPlan {
   files: RollbackFile[];
 }
 
-/**
- * A project's Checkpoint (docs/Agent.md §1): for each Run and rollback, the
- * content each file had before the operation first changed it. Contents are
- * gzip-compressed and stored once per SHA-256.
- */
 export class Checkpoints {
   readonly #project: string;
   readonly #store: ProjectStore;
@@ -51,8 +45,8 @@ export class Checkpoints {
   }
 
   /**
-   * The project as a Run writes it: before the Run first changes a file, the
-   * content it replaces is kept, from the read the write's own check makes.
+   * Before a Run first changes a file, the content it replaces is kept, from
+   * the read the write's own check makes.
    */
   root(op: string): WorkspaceRoot {
     const store = this.#store;
@@ -79,7 +73,6 @@ export class Checkpoints {
     };
   }
 
-  /** What rolling back to before `target` changes, checked against the files as they are now. */
   async plan(
     events: readonly JournalEvent[],
     files: readonly CheckpointFile[],
@@ -102,7 +95,6 @@ export class Checkpoints {
     };
   }
 
-  /** Carries out a plan as operation `op`, keeping what it replaces so that it can be undone. */
   async rollback(op: string, plan: RollbackPlan): Promise<void> {
     for (const file of plan.files) {
       const before = await this.#keep(file.current);
@@ -117,10 +109,6 @@ export class Checkpoints {
     }
   }
 
-  /**
-   * Clears the oldest operations' kept content while the project holds more
-   * than the limit, and returns them: they can no longer be rolled back to.
-   */
   async prune(events: readonly JournalEvent[]): Promise<string[]> {
     const database = await db;
     let records = await database.getAllFromIndex('checkpointFiles', 'project', this.#project);
@@ -171,14 +159,12 @@ export class Checkpoints {
   }
 }
 
-/** The kept content a project's records refer to, each content counted once. */
 function keptSize(records: readonly CheckpointFileRecord[]): number {
   const sizes = new Map(records.map((record) => [record.before, record.size]));
   sizes.delete(null);
   return [...sizes.values()].reduce((sum, size) => sum + size, 0);
 }
 
-/** Deletes kept contents no project's records refer to any more. */
 async function collectGarbage(): Promise<void> {
   const database = await db;
   const transaction = database.transaction(['checkpointFiles', 'checkpointBlobs'], 'readwrite');

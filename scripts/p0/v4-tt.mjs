@@ -1,10 +1,3 @@
-// P0 V4: the TauriTavern image starts through its Web Host and renders the
-// showcase chat, on the desktop and the mobile identity. TauriTavern loads
-// third-party extensions after APP_READY, so the JS-Slash-Runner card is
-// checked once that has happened.
-//
-// Usage: node scripts/p0/v4-tt.mjs [--url http://localhost:3000/] [--out <dir>]
-
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { parseArgs } from 'node:util';
@@ -18,7 +11,7 @@ const { values: options } = parseArgs({
   },
 });
 
-/** What the page shows right after APP_READY, and how long the card takes after it. */
+/** TauriTavern loads third-party extensions after APP_READY, so the card comes later. */
 async function inspect(page, device) {
   const vendor = await vendorPage(page);
   const shown = await vendor.evaluate(() => ({

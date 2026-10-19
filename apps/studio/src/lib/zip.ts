@@ -5,7 +5,6 @@ import { unzip, zip, type Unzipped, type Zippable } from 'fflate';
  * the first screen: it brings the zip library.
  */
 
-/** Zips files at their paths. */
 export function zipFiles(files: Zippable): Promise<Blob> {
   return new Promise((resolve, reject) => {
     zip(files, { level: 6 }, (error, data) =>
@@ -16,7 +15,7 @@ export function zipFiles(files: Zippable): Promise<Blob> {
   });
 }
 
-/** The entries of a zip by their paths, folders included as paths ending in a slash. */
+/** Folders are included, as paths ending in a slash. */
 export function unzipFiles(bytes: Uint8Array): Promise<Unzipped> {
   return new Promise((resolve, reject) => {
     unzip(bytes, (error, data) => (error ? reject(error) : resolve(data)));

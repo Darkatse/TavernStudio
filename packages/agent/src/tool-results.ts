@@ -4,26 +4,21 @@ import { modelToolName } from './tool';
 import { READ_FILE, SEARCH_FILES, TOOL_RESULTS_ROOT } from './workspace';
 
 /**
- * The longest result the model gets inline, from any tool; a longer one is
- * stored under `tool-results/` and the model gets its beginning and where to
- * read the rest. TauriTavern stores only external tools' results, past 50,000
- * characters by default, since its own tools bound their output. Here every
- * result counts, so the limit stays above the longest `read_file` result
- * (80,000 characters plus line numbers): a stored result read back is never
- * stored again.
+ * TauriTavern stores only external tools' results, past 50,000 characters by
+ * default, since its own tools bound their output. Here every result counts,
+ * so the limit stays above the longest `read_file` result (80,000 characters
+ * plus line numbers): a stored result read back is never stored again.
  */
 export const RESULT_INLINE_CHAR_LIMIT = 100_000;
 
 /** Stored lines are cut at this length, so a reader can address any part by line. */
 const STORED_LINE_CHARS = 3_000;
 
-/** The storage behind the read-only `tool-results/` root, provided by the app. */
 export interface ToolResultStore {
-  /** Stores text at a path inside the `tool-results/` root. */
+  /** `path` is relative to the `tool-results/` root. */
   put(path: string, text: string): Promise<void>;
 }
 
-/** Which call a result answers. */
 export interface ToolCallOrigin {
   runId: string;
   round: number;
@@ -31,16 +26,14 @@ export interface ToolCallOrigin {
 }
 
 export interface ModelResult {
-  /** The result itself, or its beginning with where to read the rest. */
   text: string;
   /** The workspace path of the stored result, when it was too long to inline. */
   storedAt?: string;
 }
 
 /**
- * What the model gets for a tool's result. A result past
- * `RESULT_INLINE_CHAR_LIMIT` is stored at
- * `tool-results/<run>/round-<NNN>-call_<hash>.txt`, as TauriTavern names it.
+ * A long result is stored at `tool-results/<run>/round-<NNN>-call_<hash>.txt`,
+ * as TauriTavern names it.
  */
 export async function resultForModel(
   text: string,
@@ -73,7 +66,6 @@ export async function resultForModel(
   };
 }
 
-/** Breaks every line longer than `STORED_LINE_CHARS` characters into lines of that length. */
 function lineAddressable(text: string): string {
   const chunk = new RegExp(`[\\s\\S]{1,${STORED_LINE_CHARS}}`, 'gu');
   return text

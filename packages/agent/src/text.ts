@@ -1,6 +1,6 @@
-// Text as the workspace tools measure, number and search it, after
-// TauriTavern's `text_metrics.rs`, `text_lines.rs` and `text_search.rs`: a
-// character is a Unicode code point, and lines split on `\n` alone.
+// Follows TauriTavern's `text_metrics.rs`, `text_lines.rs` and
+// `text_search.rs`: a character is a Unicode code point, and lines split on
+// `\n` alone.
 
 import { ToolError } from './tool';
 
@@ -37,7 +37,6 @@ export function charCount(text: string): number {
   return text.length - (text.match(SURROGATE_PAIR)?.length ?? 0);
 }
 
-/** The first `count` characters of `text`. */
 export function takeChars(text: string, count: number): string {
   let end = 0;
   let taken = 0;
@@ -71,12 +70,10 @@ const CJK_WORD_UNITS: readonly (readonly [number, number])[] = [
   [0x3130, 0x318f],
 ];
 
-/** Empty text has no lines; otherwise a trailing `\n` ends with an empty line. */
 export function countLines(text: string): number {
   return text === '' ? 0 : text.split('\n').length;
 }
 
-/** Lines as `9 | text`, the numbers right-aligned to the widest one shown. */
 export function numberLines(lines: readonly string[], startLine: number, endLine: number): string {
   const width = String(endLine).length;
   return lines
@@ -94,11 +91,6 @@ export interface LineSelection {
   lineTruncated: boolean;
 }
 
-/**
- * Lines from `startLine`, at most `lineCount` of them, `maxLines` and
- * `maxChars` characters. A line that does not fit ends the selection; when
- * the first line does not fit, its beginning is returned alone.
- */
 export function selectLines(
   text: string,
   startLine: number,
@@ -149,7 +141,6 @@ export function selectLines(
 
 const INVALID_LINE_RANGE = 'workspace.invalid_line_range';
 
-/** Whether the selection leaves out any of the text. */
 export function isPartial(selection: LineSelection): boolean {
   return (
     selection.lineTruncated || selection.startLine > 1 || selection.endLine < selection.totalLines
@@ -160,18 +151,11 @@ export interface SearchHit {
   score: number;
   startLine: number;
   endLine: number;
-  /** The hit's lines, numbered. */
   snippet: string;
 }
 
 const MAX_QUERY_TOKENS = 64;
 
-/**
- * A plain-text search for the words of `query`. A line matches when it holds
- * any of them, case-insensitively for ASCII letters, and scores the share of
- * the query it holds, each word weighing its length up to 8. Each hit spans
- * `contextLines` around its line; of overlapping hits the best is kept.
- */
 export function textSearch(
   query: string,
   limit: number,
@@ -216,10 +200,6 @@ export function textSearch(
   };
 }
 
-/**
- * The query's words: lowercase runs of letters, digits and `_`. A query with
- * none, such as `——`, searches for its literal whitespace-separated parts.
- */
 function queryTokens(query: string): string[] {
   const literal = query.trim().toLowerCase();
   const normalized = splitWords(

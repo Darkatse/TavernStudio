@@ -7,7 +7,6 @@ export function useCurrentProject(): Project | undefined {
   return useSyncExternalStore(subscribeProject, currentProject);
 }
 
-/** Every project, the one opened last first. */
 export function useProjectRecords(): readonly ProjectRecord[] {
   return useSyncExternalStore(subscribeProject, projectRecords);
 }

@@ -3,9 +3,8 @@ import type { DiagnosticEntry } from '@tavern-studio/preview';
 const WORKER = '/_studio/preview-sw.js';
 
 /**
- * Registers the Preview SW unless it already is. Registering again would wait
- * behind the update checks every navigation starts (1.6 s after a few preview
- * reloads); those checks keep an existing registration current by themselves.
+ * Registering again would wait behind the update checks every navigation
+ * starts; those checks keep an existing registration current by themselves.
  */
 export async function registerWorker(): Promise<ServiceWorker> {
   const existing = await navigator.serviceWorker.getRegistration('/');
@@ -19,10 +18,7 @@ export async function registerWorker(): Promise<ServiceWorker> {
 
 let listening = false;
 
-/**
- * Reports the API requests the Preview SW answered 501: they came from a
- * context without an API layer (docs/Architecture.md §4).
- */
+/** The Preview SW answers 501 to API requests from a context without an API layer. */
 export function reportUnansweredRequests(report: (entry: DiagnosticEntry) => void): void {
   if (listening) return;
   listening = true;

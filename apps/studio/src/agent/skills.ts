@@ -1,6 +1,5 @@
 import { getJson } from '../preview/sources';
 
-/** A Skill Studio ships (docs/Knowledge.md §1): a folder under skills/ with a SKILL.md. */
 export interface Skill {
   /** The folder's name, which is also the Skill's `name`. */
   folder: string;
@@ -14,7 +13,6 @@ const SKILLS = '/_studio/skills/';
 const decoder = new TextDecoder();
 let skills: Promise<Skill[]> | undefined;
 
-/** The Skills published with Studio (apps/studio/build/published.ts), loaded once. */
 export function loadSkills(): Promise<Skill[]> {
   skills ??= loadAll().catch((error: unknown) => {
     // A failed load is not kept, so the next Run tries again.
@@ -24,7 +22,6 @@ export function loadSkills(): Promise<Skill[]> {
   return skills;
 }
 
-/** A Skill file's address. */
 export function skillUrl(folder: string, path: string): string {
   return `${SKILLS}${[folder, ...path.split('/')].map(encodeURIComponent).join('/')}`;
 }
@@ -50,7 +47,7 @@ async function loadAll(): Promise<Skill[]> {
   );
 }
 
-/** The `name` and `description` of SKILL.md's front matter, each on one line, as the format has them. */
+/** SKILL.md's format keeps `name` and `description` each on one line of the front matter. */
 function frontMatter(folder: string, text: string): { name: string; description: string } {
   const block = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1];
   const field = (key: string) =>

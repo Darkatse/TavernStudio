@@ -1,6 +1,5 @@
 import { isJsonObject, parsePointer, type JsonValue, type Pointer } from './json';
 
-/** The project file that declares the fixture and the Mounts (docs/Architecture.md §6). */
 export const MANIFEST = 'studio.json';
 
 export interface ProjectManifest {
@@ -16,7 +15,6 @@ export interface Mount {
   fence?: string;
 }
 
-/** A data path, optionally with a JSON Pointer into the document it names. */
 export interface MountPoint {
   path: string;
   pointer?: Pointer;

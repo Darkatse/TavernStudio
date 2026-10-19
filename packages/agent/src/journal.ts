@@ -1,8 +1,4 @@
-/**
- * What happened during a Run, appended in order and never rewritten
- * (docs/Agent.md §1). The Journal records progress and the end of a Run; the
- * messages themselves are in History.
- */
+/** Appended in order and never rewritten. */
 export type JournalEvent = { run: string; time: number } & (
   | { type: 'run_created' }
   | { type: 'model_request'; round: number }
@@ -30,14 +26,14 @@ export type JournalEvent = { run: string; time: number } & (
   | { type: 'run_failed'; code: string; message: string }
   /**
    * A rollback, itself an operation named by `run`: the project went back to
-   * before `target`, a Run or an earlier rollback (see `checkpoint.ts`).
+   * before `target`, a Run or an earlier rollback.
    */
   | { type: 'rolled_back'; target: string; files: number }
   /** The operation's Checkpoint was cleared for space; it can no longer be rolled back to. */
   | { type: 'checkpoint_pruned' }
 );
 
-/** The events that end a Run; a Run without one after a reload was interrupted. */
+/** A Run without one of these after a reload was interrupted. */
 export const TERMINAL_EVENTS = new Set<JournalEvent['type']>([
   'run_completed',
   'run_cancelled',

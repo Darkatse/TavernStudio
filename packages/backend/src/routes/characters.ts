@@ -13,8 +13,7 @@ import { empty, json, ok, plain, text, type BackendBody } from '../http';
 import { dirs, isFileName, sanitize } from '../paths';
 
 export const characterRoutes: Routes = {
-  // characters.js /edit: the card is rebuilt from the edit form and the
-  // stored JSON. Studio does not change images, so an uploaded avatar is refused.
+  // characters.js /edit. Studio does not change images, so an uploaded avatar is refused.
   'POST /api/characters/edit': ({ data, body }) => {
     const fields = formFields(body);
     if (fields === 'avatar') {
@@ -66,7 +65,7 @@ export const characterRoutes: Routes = {
   },
 };
 
-/** Reads, merges, validates and writes one card. Returns the failing field, if any. */
+/** Returns the failing field, if any. */
 function mergeOne(data: DataDirectory, avatar: string, update: Card): string | undefined {
   const bytes = data.read(`${dirs.characters}/${avatar}`);
   if (!bytes) throw new Error(`Character ${avatar} is missing`);

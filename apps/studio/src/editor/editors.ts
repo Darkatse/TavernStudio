@@ -9,7 +9,7 @@ import { OpenFile, type Conflict, type OpenFileHost } from './open-file';
 
 export type { Conflict } from './open-file';
 
-/** Nothing was created or moved: `path` is taken. */
+/** Thrown before anything was created or moved. */
 export class PathTakenError extends Error {
   override name = 'PathTakenError';
   readonly path: string;
@@ -20,7 +20,7 @@ export class PathTakenError extends Error {
   }
 }
 
-/** Nothing was moved: the open file at `path` has edits that could not be saved. */
+/** Thrown before anything was moved. */
 export class UnsavedEditsError extends Error {
   override name = 'UnsavedEditsError';
   readonly path: string;
@@ -31,16 +31,12 @@ export class UnsavedEditsError extends Error {
   }
 }
 
-/** What a tab shows of an open file. */
 export interface Tab {
   path: string;
-  /** The buffer has edits the file does not have yet. */
   dirty: boolean;
   /** A save has run long enough to show. */
   saving: boolean;
-  /** The file changed elsewhere while the buffer had unsaved edits; saving waits for a choice. */
   conflict: Conflict | undefined;
-  /** Why the last save failed, in the store's words. */
   error: string | undefined;
   /** False for a file that is not UTF-8 text, which has no buffer. */
   text: boolean;
@@ -52,12 +48,8 @@ export interface EditorsSnapshot {
 }
 
 /**
- * A project's open files and the one editor view that shows them. Each
- * buffer is a CodeMirror `EditorState` kept here, outside React, so switching
- * tabs swaps states without rebuilding them (docs/Architecture.md §8).
- *
- * The code view's file operations (create, rename, remove) go through here
- * too: they have to save, move or close the buffers they touch.
+ * The code view's file operations (create, rename, remove) go through here:
+ * they have to save, move or close the buffers they touch.
  */
 export class Editors implements OpenFileHost {
   readonly #store: ProjectStore;
@@ -69,7 +61,6 @@ export class Editors implements OpenFileHost {
   #snapshot: EditorsSnapshot = { tabs: [], active: undefined };
   readonly #listeners = new Set<() => void>();
   readonly #extensions: Extension;
-  /** The language the buffers speak CodeMirror's own words in. */
   #locale = locale();
   readonly #stop: () => void;
   readonly #stopLocale: () => void;
@@ -109,7 +100,6 @@ export class Editors implements OpenFileHost {
     return () => this.#listeners.delete(listener);
   };
 
-  /** Opens a file in a tab beside the active one, or shows its tab if it is open. */
   async open(path: string): Promise<void> {
     if (!this.#file(path)) {
       let opening = this.#opening.get(path);
@@ -136,7 +126,6 @@ export class Editors implements OpenFileHost {
     this.changed();
   }
 
-  /** Saves the file first; one that could not be saved stays open and shown. */
   async close(path: string): Promise<boolean> {
     const file = this.#file(path);
     if (!file) return true;
@@ -149,7 +138,6 @@ export class Editors implements OpenFileHost {
     return true;
   }
 
-  /** Saves now instead of after the typing pause. */
   save(path: string): Promise<void> {
     return this.#file(path)?.save() ?? Promise.resolve();
   }
@@ -166,7 +154,6 @@ export class Editors implements OpenFileHost {
     return this.#file(path)?.keepMine() ?? Promise.resolve();
   }
 
-  /** Shows the active buffer in `host`; returns the function that takes it out again. */
   attach(host: HTMLElement): () => void {
     this.#view ??= new EditorView({ state: EditorState.create({ extensions: this.#extensions }) });
     host.append(this.#view.dom);
@@ -179,14 +166,12 @@ export class Editors implements OpenFileHost {
     this.#view?.focus();
   }
 
-  /** Creates an empty file and opens it. */
   async create(path: string): Promise<void> {
     if (await this.#store.kind(path)) throw new PathTakenError(path);
     await this.#store.write(path, new Uint8Array(), null);
     await this.open(path);
   }
 
-  /** Renames a file or a folder. Open buffers are saved first and move along. */
   async rename(from: string, to: string): Promise<void> {
     if (await this.#store.kind(to)) throw new PathTakenError(to);
     const sources = (await this.#store.files('')).filter((path) => isWithin(path, from));
@@ -210,7 +195,6 @@ export class Editors implements OpenFileHost {
     for (const folder of foldersWithin(sources, [from])) await this.#store.remove(folder);
   }
 
-  /** Removes files and folders. Their tabs close, unsaved edits included. */
   async remove(paths: readonly string[]): Promise<void> {
     const files = (await this.#store.files('')).filter((file) =>
       paths.some((path) => isWithin(file, path)),
@@ -223,7 +207,6 @@ export class Editors implements OpenFileHost {
     for (const folder of foldersWithin(files, paths)) await this.#store.remove(folder);
   }
 
-  /** Stops following the project; unsaved edits get one last save. */
   dispose(): void {
     this.#stop();
     this.#stopLocale();
@@ -237,7 +220,6 @@ export class Editors implements OpenFileHost {
     return this.#view && this.#view.state === file.state ? this.#view : undefined;
   }
 
-  /** Closes a tab without saving; the tab beside it becomes active. */
   gone(file: OpenFile): void {
     file.discard();
     const index = this.#files.indexOf(file);
@@ -268,7 +250,6 @@ export class Editors implements OpenFileHost {
     return this.#files.find((file) => file.path === path);
   }
 
-  /** Puts the active buffer, and where it was scrolled, into the view. */
   #show(): void {
     const file = this.#active;
     const view = this.#view;
@@ -277,15 +258,13 @@ export class Editors implements OpenFileHost {
     if (file.scroll) view.dispatch({ effects: file.scroll });
   }
 
-  /** Remembers where the view is scrolled in the active buffer, before it shows another state. */
   #keepScroll(): void {
     const view = this.#active && this.viewOf(this.#active);
     if (this.#active && view) this.#active.scroll = view.scrollSnapshot();
   }
 
   /**
-   * Studio speaks another language: every buffer takes CodeMirror's words in
-   * it, and the view shows the active one again, as a tab switch does. A
+   * The view shows the rephrased active buffer again, as a tab switch does. A
    * dispatch would not do: CodeMirror redraws a view whose phrases change
    * without telling update listeners, so the buffer would miss the new state.
    *
@@ -308,7 +287,6 @@ export class Editors implements OpenFileHost {
     }
   };
 
-  /** Leaving the page with unsaved edits asks first. */
   #guard = (event: BeforeUnloadEvent) => {
     if (this.#files.some((file) => file.dirty)) event.preventDefault();
   };
@@ -316,7 +294,6 @@ export class Editors implements OpenFileHost {
 
 let current: { store: ProjectStore; editors: Editors } | undefined;
 
-/** The editors of the open project. Another project's store replaces them. */
 export function editorsOf(store: ProjectStore): Editors {
   if (current?.store !== store) {
     current?.editors.dispose();

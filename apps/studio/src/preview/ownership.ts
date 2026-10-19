@@ -1,23 +1,19 @@
 import type { DiagnosticEntry } from '@tavern-studio/preview';
 
 const LOCK = 'studio-session';
-/** How long the tab holding the Session may take to hand it over before it is taken. */
 const HANDOVER_TIMEOUT_MS = 5000;
 
 export interface Ownership {
   /** Unloads this tab's Views and lands its writes, before the Session goes to another tab. */
   handOver(): Promise<void>;
-  /** The Session is now another tab's. */
   lost(): void;
   report(entry: DiagnosticEntry): void;
 }
 
 /**
- * Makes this tab the one that holds the Session (docs/Architecture.md §4).
  * A Web Lock is the ownership, released by the browser if the tab dies; a
  * BroadcastChannel carries the request, so that the holder can unload its
- * Views and finish persisting before it lets go. Resolves once this tab
- * holds the Session.
+ * Views and finish persisting before it lets go.
  */
 export async function ownSession(ownership: Ownership): Promise<void> {
   const channel = new BroadcastChannel(LOCK);

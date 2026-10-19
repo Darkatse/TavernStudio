@@ -1,4 +1,3 @@
-/** Cache Storage holding the open Session's data subresources (docs/Architecture.md §7). */
 export const SESSION_CACHE = 'studio-session';
 
 /** A synthetic entry in the same cache telling the Preview SW which vendor image is open. */

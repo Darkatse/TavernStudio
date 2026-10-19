@@ -8,12 +8,10 @@ export interface ExportMenuItem {
   onClick: () => void;
 }
 
-/** A project's exports, when it has several (export-button.tsx). */
 export function ExportMenu({
   trigger,
   items,
 }: {
-  /** The button that opens the menu. */
   trigger: ReactElement;
   items: readonly ExportMenuItem[];
 }) {

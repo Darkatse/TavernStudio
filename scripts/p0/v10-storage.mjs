@@ -1,12 +1,3 @@
-// P0 V10: browser-side state and data subresources (docs/Architecture.md §4, §7).
-// - Lists what the vendor writes to origin storage.
-// - Checks that data subresources carry a content-hash ETag, and that
-//   replacing a background under the same name changes what is served.
-// - Opens Studio again as if another vendor image had run last, and checks
-//   that browser-side state is cleared while Studio's own storage stays.
-//
-// Usage: node scripts/p0/v10-storage.mjs [--url http://localhost:3000/]
-
 import { parseArgs } from 'node:util';
 import { launch, openStudio, reloadPreview, vendorPage } from '../lib/studio.mjs';
 
@@ -37,7 +28,6 @@ const head = (frame, url) =>
     };
   }, url);
 
-/** Leaves one marker in each kind of browser-side storage. */
 const plantMarkers = (frame) =>
   frame.evaluate(async () => {
     localStorage.setItem('v10-marker', '1');
@@ -78,7 +68,6 @@ try {
   frame = await vendorPage(page);
   result.servedAfterReload = await head(frame, BACKGROUND);
 
-  // Same vendor image: browser-side state stays.
   await plantMarkers(frame);
   await page.close();
   page = await openStudio(session, options.url);

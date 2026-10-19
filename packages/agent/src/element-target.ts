@@ -5,11 +5,7 @@ const SNAPSHOT = modelToolName(snapshotTool.name);
 
 export type { ElementTarget };
 
-/**
- * How the preview and inspect tools name one element of the page: as
- * `app.interact` does, by a ref of the latest `app.snapshot` page or by a CSS
- * selector matching exactly one observable element, optionally within a ref.
- */
+/** The preview and inspect tools name an element as `app.interact` does. */
 export const TARGET_PROPERTIES: JsonObject = {
   ref: {
     type: 'string',
@@ -27,8 +23,8 @@ export const TARGET_PROPERTIES: JsonObject = {
 };
 
 /**
- * The element a call of the tool `tool` (its id) names, or undefined when it
- * names none and `optional` allows that.
+ * `tool` is the tool's id. Undefined when the call names no element and
+ * `optional` allows that.
  */
 export function elementTarget(
   input: JsonObject,

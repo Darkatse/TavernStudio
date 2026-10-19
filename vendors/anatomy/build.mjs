@@ -1,10 +1,3 @@
-// Regenerates the anatomy of built vendor images (docs/Knowledge.md §1)
-// without rebuilding them. The image builds write it the same way.
-//
-// Usage: node vendors/anatomy/build.mjs [<id> ...], for example tt@2.3.0+39b053b0;
-// every image listed in index.json when no id is given.
-// Output: vendors/out/__vendor/anatomy/<id>/.
-
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { writeAnatomy } from '../lib/anatomy.mjs';

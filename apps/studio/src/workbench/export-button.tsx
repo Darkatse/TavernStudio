@@ -10,19 +10,12 @@ import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { workbenchMessages } from './messages';
 
-// Only a project with several exports lists them in a menu, which brings
-// Base UI's Menu; it loads then, behind a button that looks the same.
 const ExportMenu = lazy(() =>
   import('./export-menu').then((module) => ({ default: module.ExportMenu })),
 );
 
 const icons = { theme: Palette, extension: Puzzle } as const;
 
-/**
- * Exports the project as the frontend installs it (docs/plan/P1.md §9), when
- * its Mounts make something to export: one button for one export, a menu
- * for several.
- */
 export function ExportButton() {
   const project = useCurrentProject();
   return project ? <Exports key={project.record.id} project={project} /> : null;
@@ -45,7 +38,6 @@ function Exports({ project }: { project: Project }) {
     try {
       const outcome = await saveExport(project, item);
       if (outcome === 'cancelled') return;
-      // The toast speaks the language of the moment it shows.
       const text = messagesNow(workbenchMessages).exports;
       const kind = text[item.kind];
       showToast({

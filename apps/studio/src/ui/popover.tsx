@@ -1,10 +1,6 @@
 /*
  * Adapted from shadcn/ui's Base UI popover (MIT, Copyright (c) 2023 shadcn):
  * https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/bases/base/ui/popover.tsx
- *
- * Changed for docs/UI.md: a popover here is a panel, so it grows from its
- * anchor with `motion-popup` on the slow tier and keeps to the viewport; the
- * size is the caller's, as layout.
  */
 import { Popover as BasePopover } from '@base-ui/react/popover';
 import { clsx } from 'clsx';

@@ -21,10 +21,8 @@ import { Tooltip } from '../ui/tooltip';
 import { codeMessages } from './messages';
 import type { TreeNode } from './tree-model';
 
-/** The name being typed into a row, for a rename or a new file or folder. */
 export interface Naming {
   value: string;
-  /** Why the name cannot be used, in Studio's language. */
   problem: string | undefined;
   onChange: (value: string) => void;
   onCommit: () => void;
@@ -33,15 +31,12 @@ export interface Naming {
 
 export interface FileRowProps {
   item: ItemInstance<TreeNode>;
-  /** The file is the one shown in the editor. */
   active: boolean;
-  /** Where the file is mounted, if anywhere. */
   mountPoints: readonly string[] | undefined;
   naming: Naming | undefined;
   menu: MenuHandle<TreeNode>;
 }
 
-/** One flat row of the file tree, the compact control height (docs/UI.md §3). */
 export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProps) {
   const m = useMessages(codeMessages);
   const node = item.getItemData();
@@ -54,8 +49,6 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
       aria-selected={active}
       aria-description={mountPoints && m.mountedAtPoints(mountPoints)}
       data-path={node.path}
-      // Rows that appear, such as a folder's children as it opens, fade in.
-      // Their height changes at once (docs/UI.md §4).
       className="group/row relative flex h-(--size-control) cursor-default items-center gap-1.5 rounded-md pr-1 transition-opacity motion-fast outline-none select-none aria-selected:bg-selected starting:opacity-0"
       style={{ paddingInlineStart: `calc(var(--spacing) * ${1 + level * 3})` }}
     >
@@ -92,7 +85,6 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
               type="button"
               tabIndex={-1}
               aria-label={m.actionsFor(node.name)}
-              // Shown on hover, and always under keyboard focus or touch (docs/UI.md §5).
               className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-sm text-muted opacity-0 transition-[opacity,background-color,color] motion-fast group-hover/row:opacity-100 group-focus-visible/row:opacity-100 hover:bg-hover hover:text-fg data-popup-open:opacity-100 pointer-coarse:opacity-100"
               onClick={(event) => event.stopPropagation()}
             />
@@ -144,11 +136,6 @@ export function MountPointList({ points }: { points: readonly string[] }) {
   );
 }
 
-/**
- * The name field of a row. Enter keeps the name, Esc drops it; leaving the
- * field keeps a usable name. A name that cannot be used says why, under the
- * row, and the field stays.
- */
 function NameField({ naming, label }: { naming: Naming; label: string }) {
   const input = useRef<HTMLInputElement>(null);
   const problemId = useId();
@@ -156,7 +143,6 @@ function NameField({ naming, label }: { naming: Naming; label: string }) {
     const field = input.current;
     if (!field) return;
     field.focus();
-    // The name without its extension, as file managers select it.
     const dot = field.value.lastIndexOf('.');
     field.setSelectionRange(0, dot > 0 ? dot : field.value.length);
   }, []);
@@ -204,7 +190,7 @@ function Problem({ id, children }: { id: string; children: ReactNode }) {
     <span
       id={id}
       role="alert"
-      // As wide as the field at most: the tree's panel clips anything wider.
+      // The tree's panel clips anything wider than the field.
       className="absolute top-full left-0 z-20 mt-1 flex w-max max-w-full items-start gap-1.5 rounded-md bg-raised px-2 py-1.5 text-caption shadow-popover"
     >
       {children}

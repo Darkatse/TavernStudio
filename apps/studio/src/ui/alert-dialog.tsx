@@ -1,10 +1,6 @@
 /*
  * Adapted from shadcn/ui's Base UI alert dialog (MIT, Copyright (c) 2023 shadcn):
  * https://github.com/shadcn-ui/ui/blob/main/apps/v4/registry/bases/base/ui/alert-dialog.tsx
- *
- * Changed for docs/UI.md: the parts are folded into one content component
- * that requires a named action, keeps it out of red and gives the affected
- * items a place; motion is the slow tier.
  */
 import { AlertDialog as BaseAlertDialog } from '@base-ui/react/alert-dialog';
 import type { ReactNode } from 'react';
@@ -19,19 +15,15 @@ export const AlertDialogTrigger = BaseAlertDialog.Trigger;
 export interface AlertDialogContentProps {
   title: string;
   description?: string;
-  /** What the action will affect, for example the files a rollback changes. */
   children?: ReactNode;
-  /** The action, named for what it does: "Roll back to here", "Discard". */
   action: string;
   onAction: () => void;
-  /** The safe choice; "Cancel" unless the dialog names it otherwise. */
   cancel?: string;
 }
 
 /**
- * Confirms a destructive action (docs/UI.md §5). The action is not red, since
- * red only means an error. Focus starts on cancel, the safe choice, and goes
- * back to the trigger when the dialog closes.
+ * The action is not red, since red only means an error. Focus starts on
+ * cancel, the safe choice.
  */
 export function AlertDialogContent({
   title,

@@ -2,7 +2,6 @@ import { CAPTURE_IMAGE } from '@tavern-studio/preview';
 import { useSyncExternalStore } from 'react';
 import { previewSession } from './session';
 
-/** A screenshot of the preview, encoded for the model. */
 export interface PreviewShot {
   blob: Blob;
   method: 'element-capture' | 'snapdom';
@@ -11,16 +10,13 @@ export interface PreviewShot {
   region: DOMRect;
 }
 
-/** A label to draw on a screenshot over a box of the page, in the page's viewport coordinates. */
 export interface Mark {
   label: string;
+  /** In the page's viewport coordinates. */
   rect: DOMRect;
 }
 
-/**
- * The ink of a mark's label. Marks take Studio's accent (docs/UI.md §3), an
- * amber light enough in both schemes for dark ink to read on it.
- */
+/** Marks take Studio's accent, an amber light enough in both schemes for dark ink to read on it. */
 const MARK_INK = 'oklch(0.2 0.01 70)';
 const MARK_FONT = '600 12px system-ui, sans-serif';
 
@@ -30,33 +26,20 @@ interface RestrictableTrack extends MediaStreamTrack {
 }
 declare const RestrictionTarget: { fromElement(element: Element): Promise<unknown> };
 
-/** The shared tab: its track, a video playing it, and the frame it is restricted to. */
 interface Share {
   track: RestrictableTrack;
   video: HTMLVideoElement;
   frame?: HTMLIFrameElement;
 }
 
-/** How long to wait for the frame of a newly targeted View before using what the stream holds. */
 const FRAME_WAIT_MS = 500;
 
-/**
- * Screenshots of the preview for the Agent (docs/Agent.md §5).
- *
- * Element Capture shares Studio's own tab, restricted to the View's frame, so
- * a screenshot is exactly what the browser paints. Sharing needs the author's
- * click, so the Agent cannot start it; once shared, the stream stays open and
- * a screenshot reads its latest frame. Without it, or while the preview is not
- * on screen, the page renders itself from its DOM with snapdom.
- */
 class PreviewCapture {
   #share: Share | undefined;
   readonly #listeners = new Set<() => void>();
 
-  /** Whether this browser has Element Capture at all. */
   readonly supported = 'RestrictionTarget' in globalThis;
 
-  /** Whether screenshots come from the shared tab. */
   get shared(): boolean {
     return this.#share !== undefined;
   }
@@ -66,10 +49,9 @@ class PreviewCapture {
     return () => this.#listeners.delete(listener);
   };
 
-  /** Shares the tab for Element Capture. Call it from the author's click: the browser asks them. */
+  /** Call it from the author's click: the browser asks them. */
   async share(): Promise<void> {
     if (this.#share) return;
-    // Offers this tab first, so the author confirms rather than picks.
     const options: DisplayMediaStreamOptions & { preferCurrentTab: boolean } = {
       video: true,
       preferCurrentTab: true,
@@ -90,7 +72,6 @@ class PreviewCapture {
     this.#notify();
   }
 
-  /** The page, or one element of it, which may sit in a frame inside the page. */
   async take(element: Element | undefined): Promise<PreviewShot> {
     const page = previewSession.page();
     if (!page) throw new Error('The preview is still starting');
@@ -170,12 +151,7 @@ class PreviewCapture {
   }
 }
 
-/**
- * Draws marks over a screenshot (docs/Agent.md §4, set-of-marks): a box
- * around each, and its label at the box's top left. Studio draws them on the
- * image, not into the page, so the page stays as its code made it. A mark
- * outside the image, or around all of it, is left out.
- */
+/** Marks go on the image, not into the page, so the page stays as its code made it. */
 export async function drawMarks(
   shot: PreviewShot,
   marks: readonly Mark[],
@@ -219,8 +195,8 @@ export async function drawMarks(
 }
 
 /**
- * An element's box in the page's viewport: an element in a frame inside the
- * page, such as a frontend card, is offset by the frames around it.
+ * An element in a frame inside the page, such as a frontend card, is offset
+ * by the frames around it.
  */
 export function rectInPage(element: Element, page: Window): DOMRect {
   const rect = element.getBoundingClientRect();
@@ -245,10 +221,7 @@ function onScreen(frame: HTMLIFrameElement): boolean {
   return document.visibilityState === 'visible' && rect.width > 0 && rect.height > 0;
 }
 
-/**
- * The next frame of the stream, or none within a moment: a page that does
- * not repaint delivers no new frame, and the latest one is then current.
- */
+/** A page that does not repaint delivers no new frame, and the latest one is then current. */
 function nextFrame(video: HTMLVideoElement): Promise<void> {
   return new Promise((resolve) => {
     const timer = setTimeout(resolve, FRAME_WAIT_MS);

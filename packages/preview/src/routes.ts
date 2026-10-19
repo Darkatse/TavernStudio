@@ -1,15 +1,12 @@
 /**
- * The URL space of a preview (docs/Architecture.md §4). The Preview SW and the
- * in-page API layer both route with these functions, so a path means the same
- * thing whether the browser or SillyTavern requests it.
+ * The Preview SW and the in-page API layer both route with these functions, so
+ * a path means the same thing whether the browser or SillyTavern requests it.
  */
 
-/** Studio's own assets; nothing of the vendor lives here. */
+/** Nothing of the vendor lives here. */
 export const STUDIO_ASSETS = '/_studio/';
-/** Vendor images, served as static files. */
 export const VENDOR_IMAGES = '/__vendor/';
 
-/** Requests the in-page API layer answers from the Session Backend. */
 export function isApiPath(pathname: string): boolean {
   return pathname.startsWith('/api/') || pathname === '/csrf-token' || pathname === '/version';
 }

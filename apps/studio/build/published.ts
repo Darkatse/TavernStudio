@@ -4,15 +4,9 @@ import path from 'node:path';
 import type { RsbuildPlugin } from '@rsbuild/core';
 
 /**
- * Serves every directory under `root` (fixtures/, templates/, skills/,
- * knowledge/out/) at /_studio/<base>/<name>/, plus an index.json listing each
- * file with its size and SHA-256, and /_studio/<base>/index.json listing the
- * directories. Studio loads such a directory through its index; for a fixture
- * the hash is the file's identity in a Snapshot.
- *
- * A root that does not exist publishes nothing, not even its index, so Studio
- * fails where it loads it: knowledge/out/ exists once `pnpm knowledge` has
- * built it, and is published from then on.
+ * For a fixture the hash is the file's identity in a Snapshot. A root that
+ * does not exist publishes nothing, not even its index, so Studio fails where
+ * it loads it.
  */
 export function pluginPublished(root: string, base: string): RsbuildPlugin {
   return {

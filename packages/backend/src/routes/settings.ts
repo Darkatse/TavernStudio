@@ -37,8 +37,7 @@ export const settingsRoutes: Routes = {
       context: readParsed(data, dirs.context),
       sysprompt: readParsed(data, dirs.sysprompt),
       reasoning: readParsed(data, dirs.reasoning),
-      // Server configuration. Extension versions are pinned by the Session, so
-      // nothing updates itself.
+      // Extension versions are pinned by the Session, so nothing updates itself.
       enable_extensions: true,
       enable_extensions_auto_update: false,
       enable_accounts: false,

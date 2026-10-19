@@ -2,8 +2,8 @@ import { clsx } from 'clsx';
 import { Marked } from 'marked';
 
 /**
- * Model output is untrusted (docs/Agent.md §8): raw HTML is shown as text,
- * images are not loaded, and only http(s) and mailto links stay links.
+ * Model output is untrusted: raw HTML is shown as text, images are not
+ * loaded, and only http(s) and mailto links stay links.
  */
 const marked = new Marked({
   gfm: true,
@@ -20,10 +20,9 @@ const marked = new Marked({
 });
 
 /**
- * Markdown as the Transcript shows it. Streamed text is split into top-level
- * blocks: a finished block renders the same HTML every time, which React
- * leaves untouched, so only the last block changes and earlier lines never
- * reflow (docs/UI.md §3, streaming text).
+ * Streamed text is split into top-level blocks: a finished block renders the
+ * same HTML every time, which React leaves untouched, so only the last block
+ * changes and earlier lines never reflow.
  */
 export function Markdown({ text, streaming = false }: { text: string; streaming?: boolean }) {
   const blocks = marked.lexer(text).map((block) => block.raw);

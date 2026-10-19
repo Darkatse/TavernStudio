@@ -4,7 +4,7 @@ import { EXTENSION_CACHE } from './extensions';
 
 /**
  * Studio's own storage on the origin. Everything else is browser-side state
- * written by the vendor and the code it runs (docs/Architecture.md §7).
+ * written by the vendor and the code it runs.
  */
 const STUDIO_CACHES = new Set([SESSION_CACHE, EXTENSION_CACHE]);
 const STUDIO_DATABASES = new Set([DATABASE]);
@@ -12,9 +12,8 @@ const STUDIO_DATABASES = new Set([DATABASE]);
 const AGENT_KEYS = new Set(['tauritavern:in_app_agent_snapshot_sequence']);
 
 /**
- * Clears browser-side state. Call it with no vendor page open: a database
- * with an open connection cannot be deleted, and that fails here instead of
- * waiting forever.
+ * Call it with no vendor page open: a database with an open connection
+ * cannot be deleted, and that fails here instead of waiting forever.
  */
 export async function clearBrowserState(): Promise<void> {
   for (const key of Object.keys(localStorage)) {

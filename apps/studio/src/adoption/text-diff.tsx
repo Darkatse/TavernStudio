@@ -8,17 +8,12 @@ import { useMessages } from '../i18n/messages';
 import { adoptionMessages } from './messages';
 
 export interface TextDiffProps {
-  /** The project's text. */
   original: string;
-  /** The Session's text. */
   changed: string;
-  /** The project file, which picks the syntax. */
   path: string;
 }
 
 /**
- * Text from the project against the Session's, as one read-only document:
- * `@codemirror/merge`'s unified view, with unchanged stretches folded away.
  * A change of Studio's language builds it again, with its label and
  * CodeMirror's words in the new language.
  */

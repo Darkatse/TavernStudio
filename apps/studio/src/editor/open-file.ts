@@ -12,27 +12,20 @@ import { sha256, StaleFileError, type ProjectStore } from '@tavern-studio/worksp
 import { QUIET_WAIT_MS } from '../ui/loading';
 import { languageOf, phrasesNow } from './extensions';
 
-/** Typing pauses this long before the buffer is saved. */
 const SAVE_DELAY_MS = 300;
 
 const encoder = new TextEncoder();
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 const lenient = new TextDecoder();
 
-/** What the file holds now, when it no longer matches what the buffer was based on. */
 export type Conflict = { kind: 'changed'; content: string; sha: string } | { kind: 'removed' };
 
-/** What an open file needs from the editors that hold it. */
 export interface OpenFileHost {
-  /** The view, when it is showing this file. */
   viewOf(file: OpenFile): EditorView | undefined;
-  /** Something a tab shows has changed. */
   changed(): void;
-  /** The file went away and its buffer had nothing unsaved: the tab closes. */
   gone(file: OpenFile): void;
 }
 
-/** The parts of a buffer's setup that depend on its path. */
 const fileSlot = new Compartment();
 
 async function fileExtensions(path: string): Promise<Extension> {
@@ -40,27 +33,19 @@ async function fileExtensions(path: string): Promise<Extension> {
 }
 
 /**
- * A file open in a tab: its buffer, a CodeMirror `EditorState`, and how that
- * buffer stands against the file in the project store.
- *
- * The buffer saves itself a moment after typing stops, with compare-and-swap
- * against the content it was based on. When the file changes elsewhere, for
- * example by the Agent, a buffer without unsaved edits takes the new content
- * in; one with unsaved edits, or whose save was refused, holds a conflict
- * until the author chooses. Nothing is overwritten silently.
+ * Saves compare and swap against the content the buffer was based on. When
+ * the file changes elsewhere, a buffer without unsaved edits takes the new
+ * content in; one with unsaved edits, or whose save was refused, holds a
+ * conflict until the author chooses. Nothing is overwritten silently.
  */
 export class OpenFile {
   path: string;
   /** Undefined for a file that is not UTF-8 text, which is shown but not edited. */
   state: EditorState | undefined;
-  /** The buffer has edits the file does not have yet. */
   dirty = false;
-  /** A save has run longer than a quiet wait, so it shows. */
   slow = false;
   conflict: Conflict | undefined;
-  /** Why the last save or check failed, in the store's words. */
   error: string | undefined;
-  /** Where the view was scrolled when it last showed this file. */
   scroll: StateEffect<unknown> | undefined;
 
   /** The file's content as the buffer last knew it: loaded, saved or taken in. */
@@ -88,7 +73,6 @@ export class OpenFile {
     this.#sha = sha;
   }
 
-  /** Reads a file into a buffer; `extensions` is the setup every buffer shares. */
   static async read(
     store: ProjectStore,
     host: OpenFileHost,
@@ -116,16 +100,14 @@ export class OpenFile {
     return new OpenFile(store, host, path, state, await sha256(bytes));
   }
 
-  /** The view applied a transaction to this buffer. */
   updated(state: EditorState, docChanged: boolean): void {
     this.state = state;
     if (docChanged) this.#edited();
   }
 
   /**
-   * Saves when there are edits, after any save already running. `expected`
-   * is the content the write may replace, null for none; `force` writes even
-   * a buffer that matches what it was based on.
+   * `expected` is the SHA-256 of the content the write may replace, null for
+   * none; `force` writes even a buffer that matches what it was based on.
    */
   save(expected: string | null = this.#sha, force = false): Promise<void> {
     clearTimeout(this.#timer);
@@ -145,7 +127,7 @@ export class OpenFile {
     return this.save();
   }
 
-  /** Settles a conflict with the version from elsewhere. Undo brings the author's edits back. */
+  /** Undo brings the author's edits back. */
   takeTheirs(): void {
     const conflict = this.conflict;
     if (!this.state || !conflict) return;
@@ -161,7 +143,6 @@ export class OpenFile {
     this.#host.changed();
   }
 
-  /** Settles a conflict with the buffer: it replaces the version from elsewhere. */
   keepMine(): Promise<void> {
     const conflict = this.conflict;
     if (!conflict) return Promise.resolve();
@@ -170,31 +151,25 @@ export class OpenFile {
     return this.save(conflict.kind === 'changed' ? conflict.sha : null, true);
   }
 
-  /** The file moved, and the buffer with it; its language follows the new name. */
   async moveTo(path: string): Promise<void> {
     this.path = path;
     const perPath = await fileExtensions(path);
     if (this.path === path) this.#apply({ effects: fileSlot.reconfigure(perPath) });
   }
 
-  /**
-   * Takes CodeMirror's own words in the language Studio speaks now. Only the
-   * buffer changes; the editors put it into the view.
-   */
+  /** Only the buffer changes; the editors put it into the view. */
   rephrase(): void {
     if (this.state) this.state = this.state.update({ effects: phrasesNow() }).state;
   }
 
-  /** Closes without saving. */
   discard(): void {
     clearTimeout(this.#timer);
   }
 
   /**
-   * The store announced a change to the file. The store runs one operation
-   * at a time and announces each as it ends, so a change announced while the
-   * buffer writes is that write; a change from elsewhere before it makes the
-   * write's compare-and-swap fail instead.
+   * The store runs one operation at a time and announces each as it ends, so
+   * a change announced while the buffer writes is that write; a change from
+   * elsewhere before it makes the write's compare-and-swap fail instead.
    */
   async changedInStore(): Promise<void> {
     if (this.#writing || !this.state) return;
@@ -249,7 +224,6 @@ export class OpenFile {
     }
   }
 
-  /** The store refused a save: the file is no longer what the buffer was based on. */
   async #refused(): Promise<void> {
     try {
       this.#hold(await this.#readDisk());
@@ -258,7 +232,6 @@ export class OpenFile {
     }
   }
 
-  /** Holds the file's content against the buffer as a conflict, unless they agree. */
   #hold(disk: Disk | undefined): void {
     clearTimeout(this.#timer);
     if (disk && this.state && disk.text === this.state.sliceDoc()) {
@@ -274,7 +247,6 @@ export class OpenFile {
     this.#host.changed();
   }
 
-  /** Takes new content into a buffer without unsaved edits, keeping the cursor where it can. */
   #take(disk: Disk): void {
     if (!this.state) return;
     const next = this.state.toText(disk.text);
@@ -298,7 +270,6 @@ export class OpenFile {
     return { text: lenient.decode(bytes), sha: await sha256(bytes) };
   }
 
-  /** Applies a change, through the view when the view shows this buffer. */
   #apply(spec: TransactionSpec): void {
     if (!this.state) return;
     const view = this.#host.viewOf(this);
@@ -316,7 +287,7 @@ interface Disk {
   sha: string;
 }
 
-/** The one change that turns `from` into `to`: everything between their common start and end. */
+/** Only what differs changes, so the cursor stays where it can. */
 function smallestChange(from: Text, to: Text) {
   const a = from.toString();
   const b = to.toString();

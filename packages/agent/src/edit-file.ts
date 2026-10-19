@@ -18,8 +18,8 @@ import {
 } from './workspace';
 
 /**
- * Exact text replacement, TauriTavern's `workspace.apply_patch` under another
- * name (docs/Decisions.md); its error codes keep the `patch` wording.
+ * TauriTavern's `workspace.apply_patch` under another name; its error codes
+ * keep the `patch` wording.
  */
 export function editFileTool(workspace: AgentWorkspace): Tool {
   const read = modelToolName(READ_FILE);

@@ -7,11 +7,6 @@ import { loadSkills } from './skills';
 const decoder = new TextDecoder();
 const PROJECT_NOTES = 'AGENTS.md';
 
-/**
- * The system prompt (docs/Agent.md §6): what the preview runs, the Skills,
- * the project's studio.json and its own notes. Everything else the Agent
- * reads when it needs it, through the workspace tools.
- */
 export async function systemPrompt(project: Project): Promise<string> {
   const [manifest, notes, skills] = await Promise.all([
     readText(project, MANIFEST),

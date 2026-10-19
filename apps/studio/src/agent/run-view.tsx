@@ -29,11 +29,6 @@ import { runMessages } from './run-messages';
 import { resultsOf, textOf, type RunBlock, type RunStatus } from './runs';
 import { callDetail, callLabel, type CallState } from './tool-labels';
 
-/**
- * One Run: the author's message, a bar that folds the work in between, and
- * the final answer, which stays visible when the work is folded. Only the
- * latest Run starts unfolded (docs/Agent.md §7).
- */
 export const RunView = memo(function RunView({
   block,
   latest,
@@ -42,7 +37,6 @@ export const RunView = memo(function RunView({
 }: {
   block: RunBlock;
   latest: boolean;
-  /** The reply still streaming in this Run. */
   partial: AssistantMessage | undefined;
   onRollback: (block: RunBlock) => void;
 }) {
@@ -62,7 +56,7 @@ export const RunView = memo(function RunView({
       )}
     >
       <div className="relative ml-10 self-end">
-        {/* The Checkpoint before this Run (docs/plan/P1.md): shown on hover, focus and touch. */}
+        {/* The Checkpoint before this Run: shown on hover, focus and touch. */}
         {block.restorable && (
           <div data-density="compact" className="absolute top-1 right-full mr-1.5">
             <Tooltip content={m.rollBackHere} side="top">
@@ -111,10 +105,6 @@ export const RunView = memo(function RunView({
   );
 });
 
-/**
- * A failed Run: advice when the Agent can explain the failure, and the
- * failure as the Agent recorded it; the rest speak for themselves.
- */
 function Failure({ code, message }: { code: string; message: string }) {
   const m = useMessages(runMessages);
   const failureAdvice: Partial<Record<string, string>> = m.failureAdvice;
@@ -140,7 +130,6 @@ const STATUS_ICONS: Partial<Record<RunStatus, { icon: LucideIcon; className: str
   interrupted: { icon: Unplug, className: '' },
 };
 
-/** "Worked for 1 min 2 s · 5 calls", ticking while the Run is running. */
 function RunBar({ block }: { block: RunBlock }) {
   const m = useMessages(runMessages);
   const c = useMessages(common);
@@ -194,7 +183,6 @@ function WorkEntry({
   return null; // Tool results show in the row of their call.
 }
 
-/** An assistant reply: its reasoning first, then its text and calls in order. */
 function Reply({
   message,
   results,
@@ -262,7 +250,6 @@ const CALL_ICONS: Record<CallState, { icon: LucideIcon; className: string }> = {
   unanswered: { icon: CircleSlash, className: 'text-muted' },
 };
 
-/** A tool call, in the words of what it does, opening to its arguments and result. */
 function ToolCallRow({
   call,
   result,
@@ -312,10 +299,6 @@ function ToolCallRow({
   );
 }
 
-/**
- * Screenshots stay visible under their call (docs/Agent.md §7). One rendered
- * from the DOM says so, and offers the author the accurate way.
- */
 function Screenshots({ result }: { result: ToolResultMessage }) {
   const m = useMessages(runMessages);
   const [enlarged, setEnlarged] = useState(false);
@@ -323,7 +306,7 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
   const images = result.content.filter((part) => part.type === 'image');
   const method = isRecord(result.details) ? result.details['method'] : undefined;
   if (images.length === 0) {
-    // Only the latest Runs keep their screenshots (docs/Agent.md §1).
+    // Only the latest Runs keep their screenshots.
     return method === undefined ? null : (
       <p className="pt-1 pb-1 pl-5 text-caption text-muted">{m.screenshotsCleared}</p>
     );

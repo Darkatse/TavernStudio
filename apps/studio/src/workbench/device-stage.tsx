@@ -9,13 +9,10 @@ import { PreviewView } from './preview-view';
 const CAPTION_SPACE = 28;
 
 /**
- * Fits the device frame into the stage without ever enlarging it. The frame
- * keeps the device's viewport size and is scaled as a whole, so the page
- * inside lays out exactly as it would on the device.
- *
- * The View runs whether or not the stage is shown: a hidden stage measures
- * 0 × 0 and only scales the frame to nothing, while the page inside keeps its
- * viewport and keeps running, as the workbench promises (docs/UI.md §1).
+ * The frame keeps the device's viewport size and is scaled as a whole, so the
+ * page inside lays out exactly as it would on the device. A hidden stage
+ * measures 0 × 0 and only scales the frame to nothing, while the page inside
+ * keeps its viewport and keeps running.
  */
 export function DeviceStage({ device, generation }: { device: Device; generation: number }) {
   const m = useMessages(workbenchMessages);

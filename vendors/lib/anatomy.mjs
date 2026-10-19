@@ -1,19 +1,3 @@
-// Writes the theme part of a vendor image's anatomy (docs/Knowledge.md §1),
-// read from the image's own source, so that theme hot-apply
-// (docs/Architecture.md §5) and the Agent never depend on hand-kept lists.
-//
-// Output: vendors/out/__vendor/anatomy/<id>/, served as /__vendor/anatomy/<id>/
-// and mounted read-only for the Agent as vendor/anatomy/.
-// - theme.json: each field of getThemeObject, the control whose input or
-//   change handler sets it, the CSS variables and classes it drives, and the
-//   element whose content it becomes.
-//   `control: null` means hot-apply has no entry for the field: reload.
-// - css-variables.json: the custom properties of the core stylesheet's :root
-//   and those theme fields set, with defaults and the fields setting them.
-// - landmarks.json: the region skeleton of index.html, the templates the
-//   vendor clones into it, and the classes power_user toggles on body and
-//   other elements.
-
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { OUT } from './image.mjs';
@@ -68,12 +52,10 @@ async function readAnatomy(image, id) {
       control: control ? describeControl(control, locale) : null,
       cssVariables: drives(module.variables, key),
       classes: Object.fromEntries(targets.filter(([, names]) => names.length)),
-      // The element whose content the value becomes, such as the <style> of custom_css.
       element: module.texts.get(key) ?? null,
     };
   }
 
-  // Declared in :root first; then those only theme fields set, with no default.
   const variables = {};
   const settersOf = (name) => module.fields.filter((key) => module.variables.get(name)?.has(key));
   for (const [name, declared] of await readRootVariables(read)) {
@@ -98,16 +80,8 @@ async function readAnatomy(image, id) {
   };
 }
 
-/** The names in `map` (name → power_user keys) that the theme field `key` drives. */
 const drives = (map, key) => [...map.keys()].filter((name) => map.get(name).has(key));
 
-// --- Controls ----------------------------------------------------------------
-
-/**
- * Theme field → `{ selector, element, event, commit }`: the element in
- * index.html whose handler sets the field. Each selector of a binding must
- * match exactly one element, and each field may have at most one control.
- */
 function findControls(module, doc) {
   const controls = new Map();
   for (const handler of module.handlers) {
@@ -152,12 +126,6 @@ function findControls(module, doc) {
   return controls;
 }
 
-/**
- * How hot-apply drives a control, as the author would by hand: write the
- * value, dispatch the event the handler listens for, then the `commit` event
- * when the vendor waits for one before applying the value. Also its label and
- * description as the vendor's settings panel shows them in Chinese.
- */
 function describeControl({ selector, element, event, commit }, locale) {
   const kind = controlKind(element);
   // toolcool-color-picker dispatches `change` with `detail.rgba` itself when
@@ -180,11 +148,6 @@ function controlKind(element) {
   throw new Error(`<${element.tag} id="${element.attrs.id}"> is not a known control`);
 }
 
-/**
- * The label is the first translated text in the closest ancestor that has
- * one outside the control. The description is the first translated title on
- * the control or its ancestors up to there, else within that ancestor.
- */
 function controlText(control, locale) {
   const outside = (node) => {
     for (let n = node; n; n = n.parent) if (n === control) return false;
@@ -218,9 +181,7 @@ function i18n(node) {
   return keys;
 }
 
-// --- Stylesheet and landmarks ------------------------------------------------
-
-/** :root custom properties of the core stylesheet and the sheets it imports, in cascade order. */
+/** Imported sheets come before the importing sheet's own properties, in cascade order. */
 async function readRootVariables(read) {
   const declared = new Map();
   const visit = async (file) => {
@@ -236,13 +197,9 @@ async function readRootVariables(read) {
 }
 
 /**
- * - `skeleton`: body and the elements reachable from it through an unbroken
- *   chain of ids. The vendor names its regions with ids; an element without
- *   one is a part inside a region.
- * - `templates`: the content of each template the vendor clones at runtime
- *   (`<template>` or `.template_element`), such as messages in #chat.
- * Each line is `tag#id.class[attribute]`, indented by depth; attributes are
- * listed when written without a value: render-time slots and boolean flags.
+ * The vendor names its regions with ids; an element without one is a part
+ * inside a region. Attributes written without a value are render-time slots
+ * and boolean flags.
  */
 function readLandmarks(doc) {
   const body = [...elements(doc)].find((node) => node.tag === 'body');
@@ -275,7 +232,6 @@ function readLandmarks(doc) {
 
 const isTemplate = (node) => node.tag === 'template' || classes(node).includes('template_element');
 
-/** The lines of `node` and of every element under it. */
 function outline(node, depth = 0) {
   const children = node.children.filter((child) => child.tag);
   return [line(node, depth), ...children.flatMap((child) => outline(child, depth + 1))];

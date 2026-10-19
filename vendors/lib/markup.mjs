@@ -1,5 +1,5 @@
-// Just enough HTML and CSS reading for the anatomy (anatomy.mjs): a vendor's
-// own index.html and style.css, which are hand-written and well-formed.
+// Reads only a vendor's own index.html and style.css, which are hand-written
+// and well-formed.
 
 const VOID = new Set([
   'area',
@@ -16,7 +16,6 @@ const VOID = new Set([
   'track',
   'wbr',
 ]);
-/** Elements whose content is text up to their end tag. */
 const TEXT_ONLY = new Set(['script', 'style', 'textarea', 'title']);
 const ENTITIES = {
   amp: '&',
@@ -27,11 +26,6 @@ const ENTITIES = {
   nbsp: String.fromCodePoint(0xa0),
 };
 
-/**
- * Parses HTML into `{ tag, attrs, children, parent }` elements and `{ text }`
- * nodes under a root `{ tag: '#document' }`. An end tag closes up to its open
- * element; a stray end tag is ignored.
- */
 export function parseHtml(html) {
   const root = { tag: '#document', attrs: {}, children: [], parent: null };
   const lower = html.toLowerCase();
@@ -72,7 +66,6 @@ export function parseHtml(html) {
         open = element;
       }
     } else if (html[lt + 1] === '!') {
-      // `<!DOCTYPE …>` and other declarations.
       i = after(html, '>', lt);
     } else {
       appendText('<');
@@ -132,7 +125,6 @@ function decode(text) {
   });
 }
 
-/** Elements under `node` in document order. */
 export function* elements(node) {
   for (const child of node.children ?? []) {
     if (!child.tag) continue;
@@ -145,7 +137,6 @@ export function classes(node) {
   return (node.attrs.class ?? '').split(/\s+/).filter(Boolean);
 }
 
-/** Text content with whitespace collapsed, as a reader sees it. */
 export function textOf(node) {
   const parts = [];
   const visit = (n) => (n.tag ? n.children.forEach(visit) : parts.push(n.text));
@@ -153,10 +144,6 @@ export function textOf(node) {
   return parts.join('').replace(/\s+/g, ' ').trim();
 }
 
-/**
- * Elements under `root` matching a selector list of compound selectors, such
- * as `#a, input[name="b"]`. Combinators and pseudo-classes are refused.
- */
 export function querySelectorAll(root, selectorList) {
   const compounds = selectorList.split(',').map((selector) => parseCompound(selector.trim()));
   return [...elements(root)].filter((node) => compounds.some((test) => test(node)));
@@ -184,11 +171,7 @@ function parseCompound(selector) {
   return (node) => tests.every((test) => test(node));
 }
 
-/**
- * Reads a stylesheet's top level: the `@import` targets, and the custom
- * properties of its unconditional `:root` rules in source order. Rules inside
- * at-rules (`@media`, `@supports`) are conditional and left out.
- */
+/** Rules inside at-rules (`@media`, `@supports`) are conditional and left out. */
 export function readStylesheet(css) {
   const text = stripComments(css);
   const imports = [];
@@ -236,11 +219,6 @@ function declarations(block) {
   return found;
 }
 
-/**
- * Index of the first of `stops` at nesting depth 0 from `from`, skipping
- * strings and bracketed blocks; the text length if there is none. A closing
- * bracket at depth 0 ends a `}` scan.
- */
 function scanTo(text, from, stops) {
   let depth = 0;
   for (let i = from; i < text.length; i++) {

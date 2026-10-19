@@ -5,10 +5,9 @@ import { Button, type ButtonProps } from '../ui/button';
 import { workbenchMessages } from './messages';
 
 /**
- * The open project's name, the button that opens the project menu. It stays
- * on the first screen to stand in while the menu loads. Unlike other buttons
- * it gives way in a crowded header: the name truncates before the controls
- * beside it are pushed out.
+ * It stays on the first screen to stand in while the project menu loads.
+ * Unlike other buttons it gives way in a crowded header: the name truncates
+ * before the controls beside it are pushed out.
  */
 export function ProjectButton(props: Omit<ButtonProps, 'children'>) {
   const m = useMessages(workbenchMessages);

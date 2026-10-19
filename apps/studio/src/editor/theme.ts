@@ -3,15 +3,14 @@ import { EditorView } from '@codemirror/view';
 import { tags } from '@lezer/highlight';
 
 /*
- * Studio's look for CodeMirror. Every color is a token from styles/index.css,
- * so switching between light and dark needs no reconfiguring: the variables
- * change and the editor follows (docs/UI.md §3).
+ * Every color is a token from styles/index.css, so switching between light
+ * and dark needs no reconfiguring: the variables change and the editor follows.
  */
 
 const accentWash = (percent: number) =>
   `color-mix(in oklch, var(--color-accent) ${percent}%, transparent)`;
 
-/** The syntax tokens and the Lezer tags each covers, as styles/index.css lists them. */
+/** Each token covers the Lezer tags styles/index.css lists for it. */
 const highlightStyle = HighlightStyle.define([
   {
     tag: [tags.keyword, tags.operatorKeyword, tags.modifier],
@@ -41,7 +40,6 @@ const highlightStyle = HighlightStyle.define([
     color: 'var(--color-syntax-punctuation)',
   },
   { tag: tags.invalid, color: 'var(--color-syntax-invalid)' },
-  // Markdown structure: weight and style only, color stays with the text.
   { tag: tags.heading, fontWeight: 'var(--font-weight-semibold)' },
   { tag: tags.strong, fontWeight: 'var(--font-weight-bold)' },
   { tag: tags.emphasis, fontStyle: 'italic' },
@@ -94,7 +92,6 @@ const theme = EditorView.theme({
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: accentWash(45) },
   '.cm-specialChar': { color: 'var(--color-syntax-invalid)' },
 
-  // The search panel, in Studio's controls.
   '.cm-panels': { backgroundColor: 'var(--color-sunken)', color: 'var(--color-fg)' },
   '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--color-line)' },
   '.cm-panels.cm-panels-bottom': { borderTop: '1px solid var(--color-line)' },
@@ -146,7 +143,6 @@ const theme = EditorView.theme({
     fontSize: 'var(--text-title)',
   },
 
-  // Tooltips and completions float like Studio's other popups.
   '.cm-tooltip': {
     border: 'none',
     borderRadius: 'var(--radius-lg)',
@@ -176,8 +172,8 @@ const theme = EditorView.theme({
   '.cm-completionDetail': { color: 'var(--color-muted)', fontStyle: 'normal' },
   '.cm-completionIcon': { color: 'var(--color-muted)', opacity: '1' },
 
-  // Diffs (docs/UI.md §3): low-chroma rows, and a sign on every changed line,
-  // with removed text struck through, so color is never the only cue.
+  // A sign on every changed line, with removed text struck through, so color
+  // is never the only cue.
   '.cm-changedLine': { backgroundColor: 'var(--color-diff-add)' },
   '.cm-deletedChunk': { backgroundColor: 'var(--color-diff-del)', paddingLeft: '0' },
   '.cm-changedLine, .cm-deletedChunk .cm-deletedLine': { position: 'relative' },
@@ -216,5 +212,4 @@ const theme = EditorView.theme({
   '@media (pointer: coarse)': { '.cm-content, .cm-gutters': { fontSize: 'max(16px, 1em)' } },
 });
 
-/** The theme and syntax colors, shared by the editor and the read-only diffs. */
 export const studioTheme = [theme, syntaxHighlighting(highlightStyle)];

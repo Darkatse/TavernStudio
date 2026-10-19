@@ -14,9 +14,8 @@ import { Workbench, type WorkbenchView } from '../workbench/workbench';
 import { shellMessages } from './messages';
 
 /**
- * The workspace: Agent beside the workbench on wide screens, one pane at a
- * time on narrow ones. Panes stay mounted when hidden, so the preview keeps
- * running while the Agent or the code is shown.
+ * Panes stay mounted when hidden, so the preview keeps running while the
+ * Agent or the code is shown.
  */
 export function Shell() {
   const wide = useMediaQuery('(min-width: 768px)');

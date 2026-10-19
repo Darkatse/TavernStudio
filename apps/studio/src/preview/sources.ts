@@ -1,7 +1,7 @@
 import type { VendorInfo } from '@tavern-studio/backend';
 import { VENDOR_IMAGES, type ThemeAnatomy, type VendorKind } from '@tavern-studio/preview';
 
-/** A built vendor image, as listed in /__vendor/index.json (vendors/lib/image.mjs). */
+/** As vendors/lib/image.mjs lists it in /__vendor/index.json. */
 export interface VendorImage {
   id: string;
   kind: VendorKind;
@@ -9,7 +9,7 @@ export interface VendorImage {
   label: string;
 }
 
-/** A directory Studio ships under /_studio/ (apps/studio/build/published.ts). */
+/** As apps/studio/build/published.ts ships it under /_studio/. */
 export interface PublishedDirectory {
   files: [path: string, bytes: Uint8Array][];
   /** SHA-256 of each file; for a fixture, its identity in a Snapshot. */
@@ -33,7 +33,7 @@ export async function loadVendorInfo(id: string): Promise<VendorInfo> {
 
 const imageFiles = new Map<string, Promise<ReadonlySet<string>>>();
 
-/** The files of a vendor image, by their path below its root; listed once, as an id never changes. */
+/** Paths below the image's root, listed once, as an image's id never changes. */
 export function loadVendorFiles(id: string): Promise<ReadonlySet<string>> {
   let files = imageFiles.get(id);
   if (!files) {
@@ -47,7 +47,6 @@ export function loadVendorFiles(id: string): Promise<ReadonlySet<string>> {
   return files;
 }
 
-/** The image's anatomy of its theme controls (vendors/lib/anatomy.mjs). */
 export function loadAnatomy(id: string): Promise<ThemeAnatomy> {
   return getJson<ThemeAnatomy>(
     `${VENDOR_IMAGES}anatomy/${id}/theme.json`,
@@ -86,7 +85,6 @@ async function loadPublished(
   };
 }
 
-/** Loads JSON Studio serves; what names it in the error. */
 export async function getJson<T>(url: string, what: string): Promise<T> {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`Could not load ${what}: HTTP ${response.status}`);

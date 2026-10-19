@@ -1,7 +1,6 @@
 import { isRelativePath } from './manifest';
 import type { ProjectReader } from './placements';
 
-/** The file changed since it was read: the write was refused (compare-and-swap). */
 export class StaleFileError extends Error {
   override name = 'StaleFileError';
 }
@@ -10,9 +9,8 @@ export class StaleFileError extends Error {
 export type ReplacedContent = { bytes: Uint8Array; sha256: string } | null;
 
 /**
- * A project's files under one directory handle. OPFS and a local folder opened
- * through File System Access are both a `FileSystemDirectoryHandle`, so this is
- * the only project store (docs/Architecture.md §6).
+ * OPFS and a local folder opened through File System Access are both a
+ * `FileSystemDirectoryHandle`, so this is the only project store.
  *
  * Operations run one at a time, so a compare-and-swap reads and writes with no
  * other write in between, as TauriTavern's workspace does under its write lock.
@@ -51,12 +49,11 @@ export class ProjectStore implements ProjectReader {
   }
 
   /**
-   * Writes a file, creating its folders. With `expected`, the write happens
-   * only if the file's content still has that SHA-256 (hex), or, for null,
-   * if the file does not exist yet. `keep` receives the content the write
-   * replaces, from the same read as that check, and the write waits for it:
-   * a Checkpoint saves the original this way (docs/Agent.md §1). Resolves to
-   * the new content's SHA-256.
+   * With `expected`, the write happens only if the file's content still has
+   * that SHA-256 (hex), or, for null, if the file does not exist yet. `keep`
+   * receives the content the write replaces, from the same read as that
+   * check, and the write waits for it: a Checkpoint saves the original this
+   * way. Resolves to the new content's SHA-256.
    */
   write(
     path: string,
@@ -80,7 +77,7 @@ export class ProjectStore implements ProjectReader {
     });
   }
 
-  /** Removes a file; with `expected`, only if its content still has that SHA-256. */
+  /** With `expected`, removes the file only if its content still has that SHA-256. */
   remove(path: string, expected?: string): Promise<void> {
     return this.#exclusive(async () => {
       if (expected !== undefined) checkExpected(path, await this.#current(path), expected);

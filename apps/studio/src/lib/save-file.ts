@@ -1,4 +1,3 @@
-/** How a save ended: written where the author chose, handed to the browser's downloads, or called off. */
 export type SaveOutcome = 'saved' | 'downloaded' | 'cancelled';
 
 export interface SaveOptions {
@@ -17,11 +16,7 @@ interface SaveFilePicker {
   }): Promise<FileSystemFileHandle>;
 }
 
-/**
- * Saves a file the author asked for (docs/plan/P1.md §9). Call it from their
- * click: the save dialog opens only then. Where the browser has no save
- * dialog, the file goes to its downloads, and the outcome says so.
- */
+/** Call it from the author's click: the save dialog opens only then. */
 export async function saveFile(content: Blob, options: SaveOptions): Promise<SaveOutcome> {
   const { showSaveFilePicker } = window as Window & Partial<SaveFilePicker>;
   if (!showSaveFilePicker) {

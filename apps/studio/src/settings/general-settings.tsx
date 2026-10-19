@@ -11,10 +11,6 @@ import { readColorScheme, setColorScheme, type ColorScheme } from '../lib/color-
 import { SegmentedControl } from '../ui/segmented-control';
 import { settingsMessages } from './messages';
 
-/**
- * Studio's own preferences: its colors and its language, each a choice of
- * three that applies at once (docs/UI.md §3, §6), and the storage it uses.
- */
 export function GeneralSettings() {
   const m = useMessages(settingsMessages);
   const [scheme, setScheme] = useState(readColorScheme);
@@ -54,7 +50,6 @@ export function GeneralSettings() {
   );
 }
 
-/** How much Studio keeps in this browser (docs/Agent.md §1, 存储上限). */
 function StorageUsage() {
   const m = useMessages(settingsMessages);
   const [usage, setUsage] = useState<number>();
@@ -63,7 +58,7 @@ function StorageUsage() {
   }, []);
   return (
     <Setting title={m.storage}>
-      {/* The estimate takes well under the 300 ms that would need a hint. */}
+      {/* No hint: the estimate arrives before one would show. */}
       {usage !== undefined && (
         <p className="text-caption text-pretty text-muted">{m.storageUsage(formatSize(usage))}</p>
       )}

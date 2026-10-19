@@ -3,12 +3,6 @@ import type { Realm } from './realm';
 
 type Report = (entry: DiagnosticEntry) => void;
 
-/**
- * Collects what goes wrong in one realm of the preview: uncaught errors,
- * unhandled rejections, failed resource loads and console.error. Studio's
- * diagnostics view and the Agent's app.read_logs read the same entries
- * (docs/Architecture.md §5).
- */
 const time = () => Date.now();
 
 export function installDiagnostics(win: Realm, report: Report): void {

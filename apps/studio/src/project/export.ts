@@ -11,12 +11,6 @@ const SETTINGS = 'default-user/settings.json';
 const EXTENSIONS = 'default-user/extensions/';
 const decoder = new TextDecoder();
 
-/**
- * What a project exports as, read from where its Mounts place it
- * (docs/Architecture.md §6), with the placements each export is made from:
- * - anything placed into `power_user` makes a theme;
- * - files placed into an extension's folder make that extension.
- */
 export type ProjectExport =
   | { kind: 'theme'; placements: Placement[] }
   | { kind: 'extension'; name: string; placements: FilePlacement[] };
@@ -44,19 +38,17 @@ export function exportsOf(placements: readonly Placement[]): ProjectExport[] {
   ];
 }
 
-/** The extension a data path belongs to: the folder under `default-user/extensions/`. */
 function extensionOf(path: string): string | undefined {
   if (!path.startsWith(EXTENSIONS)) return undefined;
   const [name, ...rest] = path.slice(EXTENSIONS.length).split('/');
   return rest.length > 0 ? name : undefined;
 }
 
-/** The name of the file an export saves as. */
 export function exportFileName(project: Project, item: ProjectExport): string {
   return item.kind === 'theme' ? `${project.record.name}.json` : `${item.name}.zip`;
 }
 
-/** Saves an export where the author chooses. Call it from their click. */
+/** Call it from the author's click: the save dialog opens only then. */
 export function saveExport(project: Project, item: ProjectExport): Promise<SaveOutcome> {
   const fileName = exportFileName(project, item);
   return item.kind === 'theme'
@@ -65,9 +57,9 @@ export function saveExport(project: Project, item: ProjectExport): Promise<SaveO
 }
 
 /**
- * The theme as SillyTavern imports it: `getThemeObject` over the Snapshot's
- * `power_user`, with the fields of the frontend the preview runs, named after
- * the project. Session writes not yet adopted are not part of it.
+ * SillyTavern's `getThemeObject` over the Snapshot's `power_user`, with the
+ * fields of the frontend the preview runs. Session writes not yet adopted are
+ * not part of it.
  */
 function exportTheme(project: Project, fileName: string): Promise<SaveOutcome> {
   const anatomy = previewSession.anatomy;
@@ -90,11 +82,10 @@ function exportTheme(project: Project, fileName: string): Promise<SaveOutcome> {
 }
 
 /**
- * The extension as an author installs it by hand, since neither SillyTavern
- * nor TauriTavern installs one from a zip: the files the project places in
- * its folder, read from the Snapshot, under one top folder named after it.
- * Unzipped into `data/default-user/extensions/`, it is that folder. Session
- * writes are not part of it.
+ * Neither SillyTavern nor TauriTavern installs an extension from a zip, so
+ * the files sit under one top folder named after it: unzipped into
+ * `data/default-user/extensions/`, it is that folder. Session writes are not
+ * part of it.
  */
 async function exportExtension(
   name: string,
@@ -108,7 +99,6 @@ async function exportExtension(
     if (!bytes) throw new Error(`The Snapshot has no ${path}`);
     files[`${name}/${path.slice(folder.length)}`] = bytes;
   }
-  // The zip library loads only when an extension is exported.
   const { zipFiles } = await import('../lib/zip');
   return saveFile(await zipFiles(files), {
     suggestedName: fileName,

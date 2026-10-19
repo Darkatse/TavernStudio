@@ -3,11 +3,7 @@ import { readDocument, sameContent, unfence } from './documents';
 import { formatPointer, getAt, jsonEqual, setAt, type JsonValue, type Pointer } from './json';
 import { intendedAt, type FilePlacement, type Placement, type ValuePlacement } from './placements';
 
-/**
- * Where the Session differs from what the project places: a session write on
- * a position the project owns. Echoes of the project's own content are not
- * differences, whatever their bytes (docs/Architecture.md §5).
- */
+/** Echoes of the project's own content are not differences, whatever their bytes. */
 export type Difference =
   | { kind: 'file'; placement: FilePlacement; session: Uint8Array | undefined }
   | {
@@ -41,11 +37,11 @@ export function findDifferences(
 }
 
 /**
- * The session writes a move from `previous` to `next` placements overwrites
- * (docs/Architecture.md §5): the differences on the mount points it replaces,
- * except those the new content takes over as it is, as after an adoption. A
- * position the project no longer owns goes back to the fixture, so a session
- * write there is lost as well.
+ * The session writes a move from `previous` to `next` placements overwrites:
+ * the differences on the mount points it replaces, except those the new
+ * content takes over as it is, as after an adoption. A position the project no
+ * longer owns goes back to the fixture, so a session write there is lost as
+ * well.
  */
 export function overwrittenBy(
   session: DataReader,
@@ -81,9 +77,9 @@ const encoder = new TextEncoder();
 const decoder = new TextDecoder();
 
 /**
- * Takes a Mount's differences back into its source file: the new content of
- * `placement.source`, or null when the Session deleted a whole file. All the
- * differences belong to one placement, since adopting is per mount point.
+ * Returns the new content of `placement.source`, or null when the Session
+ * deleted a whole file. All the differences belong to one placement, since
+ * adopting is per mount point.
  */
 export function adopt(differences: readonly Difference[], source: Uint8Array): Uint8Array | null {
   const [first] = differences;
@@ -127,7 +123,6 @@ function adoptText(placement: ValuePlacement, value: JsonValue | undefined): str
   return inner;
 }
 
-/** JSON in the author's own indentation, keeping a final newline if the file had one. */
 function formatLike(original: string, document: JsonValue): string {
   const indent = /\n([ \t]+)\S/.exec(original)?.[1] ?? '  ';
   const ending = original.endsWith('\n') ? '\n' : '';

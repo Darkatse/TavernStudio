@@ -18,16 +18,12 @@ export interface EditorAreaProps {
   tabs: readonly Tab[];
   active: string | undefined;
   mountPoints: ReadonlyMap<string, readonly string[]>;
-  /** Why the project could not be placed in the preview. */
   projectError: string | undefined;
-  /** The button that shows and hides the file tree. */
   filesToggle: ReactNode;
-  /** What to do when nothing is open; shown under the empty state. */
   emptyAction: ReactNode;
   panelId: string;
 }
 
-/** The open files: tabs, a compact toolbar, what needs the author's attention, and the editor. */
 export function EditorArea({
   editors,
   tabs,
@@ -98,7 +94,6 @@ export function EditorArea({
   );
 }
 
-/** Where the one editor view lives while the code view is mounted. */
 function EditorHost({ editors, hidden }: { editors: Editors; hidden: boolean }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -107,7 +102,6 @@ function EditorHost({ editors, hidden }: { editors: Editors; hidden: boolean }) 
   return <div ref={host} hidden={hidden} className="absolute inset-0 [&>.cm-editor]:h-full" />;
 }
 
-/** The file's path: its folder gives way before its name does. */
 function FilePath({ path }: { path: string }) {
   const folder = parentOf(path);
   return (
@@ -118,7 +112,6 @@ function FilePath({ path }: { path: string }) {
   );
 }
 
-/** Where the file is mounted. In a narrow toolbar it gives way first, down to its icon. */
 function MountPoints({ points }: { points: readonly string[] | undefined }) {
   const m = useMessages(codeMessages);
   const [first, ...rest] = points ?? [];
@@ -135,10 +128,7 @@ function MountPoints({ points }: { points: readonly string[] | undefined }) {
   );
 }
 
-/**
- * Where the buffer stands against its file. Saves quicker than a quiet wait
- * never show as saving, and while typing it says nothing: the tab's dot does.
- */
+/** While the buffer is dirty this says nothing: the tab's dot does. */
 function SaveStatus({ tab }: { tab: Tab }) {
   const { saveStatus } = useMessages(codeMessages);
   const status = tab.conflict
@@ -171,7 +161,6 @@ function SaveStatus({ tab }: { tab: Tab }) {
   );
 }
 
-/** A conflict or a failed save of the shown file, with the ways out. */
 function TabNotice({ editors, tab }: { editors: Editors; tab: Tab }) {
   const m = useMessages(codeMessages);
   const c = useMessages(common);
@@ -210,11 +199,7 @@ function TabNotice({ editors, tab }: { editors: Editors; tab: Tab }) {
   return null;
 }
 
-/**
- * A message that folds in above the editor (docs/UI.md §4): the height
- * changes at once and the content fades. It keeps its last content while it
- * folds away, so it fades out instead of going blank.
- */
+/** Keeps its last content while it folds away, so it fades out instead of going blank. */
 function Folding({ children }: { children: ReactNode }) {
   const present = Boolean(children);
   const [shown, setShown] = useState<ReactNode>(children);
