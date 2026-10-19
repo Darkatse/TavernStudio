@@ -251,7 +251,6 @@ Firefox 与 WebKit 用的是 Playwright 的构建，在 Windows 上未必代表�
 | 项 | 前置条件 |
 |---|---|
 | WebKit 的两处限制在真实 Safari 上的表现 | 在 macOS / iOS 上实测 |
-| View 的卸载方式：让 vendor 的 `pagehide` 在仍附着的 realm 中运行 | P1，与 V4 第 3 项一起处理 |
 | 设备的安全区：iframe 中 `env(safe-area-inset-*)` 为 0，移动 View 的顶栏被圆角遮住 | P1，Device 预设 |
 | 体积超过 50 MB 的扩展的安装来源 | P1 |
 | 第二个标签页接管 Session | P1，清理浏览器端状态的前置。V4 中已见到后果：同时开着的第二个 Studio 标签页发布了另一个 vendor 的 Session，第一个标签页的页面随即从错误的镜像加载文件 |

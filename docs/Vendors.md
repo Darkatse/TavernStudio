@@ -29,6 +29,7 @@ Session Backend 在 Session 数据上实现 ST HTTP API，是两种 vendor 共�
 - `tokenizer: 0`：避开 tokenizer 的同步 XHR 调用；
 - `enable_accounts: false`：跳过账户逻辑；
 - `auto_load_chat: true`：启动后自动打开聊天。
+- `auto_connect: true`，Chat Completion 来源为 `custom`，`custom_url` 为从不被请求的 `http://replay.invalid/v1`：启动即连接 Replay，状态与生成都由 Session Backend 应答。
 
 未实现的端点返回 501。
 

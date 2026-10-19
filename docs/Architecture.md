@@ -26,7 +26,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Vendor 镜像 | Vendor 的不可变静态文件，加上构建期注入的 Attach，见 [Vendors §1](Vendors.md#1-vendor-镜像) |
 | Device | 视口尺寸与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
 | Fixture（样板） | 一段数据目录：settings、角色、聊天、主题、世界书、扩展设置，以及 TT 的私有文件。可以附带 Replay |
-| Replay（回放） | Fixture 附带的一组 assistant 回复，由生成端点按节奏流式回放 |
+| Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条 |
 | Project | 作者的源文件，加上 `studio.json` |
 | Mount | `studio.json` 里的一条声明：把项目文件映射到数据路径。路径后可以用 `#` 接 JSON Pointer，指向文件里的某个字段 |
 | Snapshot | Fixture 与挂载后的 Project 合成的数据目录，内容寻址，不可变 |
@@ -90,6 +90,8 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 **静态托管**：只有 `/` 返回 Studio 外壳。vendor 路径和数据路径未命中时返回真正的 404，不做 SPA 回退。
 
 **Session 归属**：同一浏览器里打开第二个 Studio 标签页时，新标签页接管 Session，旧标签页会收到通知。
+
+**View 的卸载**：重载、切换设备或 vendor 之前，先让 vendor 页面在 iframe 仍在文档中时卸载，再移除 View，与真实页面重载的顺序一致。TT 页面先经 Web Host 的 `exit()` 走原生的关闭流程保存设置与聊天，Studio 等它完成；5 s 内没有完成时照常卸载，并在诊断中报告可能丢失的写入。随后 iframe 导航到 `about:blank`，vendor 的 `pagehide` 处理在仍附着的 realm 中运行。ST 没有卸载时的保存，防抖中尚未保存的写入与真实 ST 一样会丢失。
 
 **顶层窗口**：ST 与扩展默认自己就是顶层页面，Attach 因此把 `window.parent` 指回页面自身。`window.top` 不可重定义，在 vendor 页面及其下各层 iframe 中都指向 Studio。P0 抽样的生态代码都不受影响：LittleWhiteBox 会把 `XBTasks` 写到 Studio 的 window 上，但它自己不读取（[P0 报告 V9](plan/P0-Report.md#v9-windowtop)）。直接读取 `top.document`、`top.SillyTavern` 的作者代码会出错，诊断会记录这些错误。
 
