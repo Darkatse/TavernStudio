@@ -4,5 +4,5 @@
     "jsx": "react-jsx",
     "types": ["@rsbuild/core/types"]
   },
-  "include": ["src", "rsbuild.config.ts"]
+  "include": ["src"]
 }

@@ -3,3 +3,5 @@ dist/
 .cache/
 *.log
 *.tsbuildinfo
+vendors/.work/
+vendors/out/

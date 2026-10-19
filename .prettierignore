@@ -4,3 +4,5 @@ pnpm-lock.yaml
 LICENSE
 # Copied from Darkatse/conceptual-integrity; keep byte-identical.
 .agents/
+# Fixtures are data directories, kept as SillyTavern writes them.
+fixtures/

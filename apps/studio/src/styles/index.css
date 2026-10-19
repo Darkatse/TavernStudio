@@ -142,6 +142,25 @@
     1
   );
   --ease-exit: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Progress indicators: the only animations that loop. */
+  --animate-spin: spin 0.8s linear infinite;
+  --animate-indeterminate: indeterminate 1.4s var(--ease-spring) infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+
+  @keyframes indeterminate {
+    from {
+      transform: translateX(-100%);
+    }
+    to {
+      transform: translateX(300%);
+    }
+  }
 }
 
 @layer theme {
@@ -211,6 +230,8 @@
   @media (prefers-reduced-motion: reduce) {
     :root {
       --motion-popup-scale: 1;
+      --animate-spin: spin 2.4s linear infinite;
+      --animate-indeterminate: none;
     }
   }
 }

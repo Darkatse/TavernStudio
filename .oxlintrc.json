@@ -8,7 +8,10 @@
   "rules": {
     "max-lines": ["error", 500],
     "react/react-in-jsx-scope": "off",
-    "typescript/consistent-return": "off"
+    "typescript/consistent-return": "off",
+    "typescript/no-unsafe-type-assertion": "off",
+    "unicorn/require-post-message-target-origin": "off",
+    "no-underscore-dangle": "off"
   },
   "ignorePatterns": ["**/dist/**"]
 }

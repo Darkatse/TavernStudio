@@ -1,7 +1,7 @@
-import { MonitorPlay } from 'lucide-react';
 import { useElementSize } from '../lib/use-element-size';
-import { EmptyState } from '../ui/empty-state';
+import { useSessionStatus } from '../preview/use-session';
 import type { Device } from './devices';
+import { PreviewView } from './preview-view';
 
 /** Height of the caption line plus its gap to the frame. */
 const CAPTION_SPACE = 28;
@@ -11,8 +11,9 @@ const CAPTION_SPACE = 28;
  * keeps the device's viewport size and is scaled as a whole, so the page
  * inside lays out exactly as it would on the device.
  */
-export function DeviceStage({ device }: { device: Device }) {
+export function DeviceStage({ device, generation }: { device: Device; generation: number }) {
   const [stageRef, stage] = useElementSize();
+  const session = useSessionStatus();
   const { width, height } = device.viewport;
   const scale = stage
     ? Math.min(stage.width / width, (stage.height - CAPTION_SPACE) / height, 1)
@@ -29,16 +30,17 @@ export function DeviceStage({ device }: { device: Device }) {
           className="m-0 flex flex-col items-center gap-3 transition-opacity motion-moderate starting:opacity-0"
         >
           <div
-            className="relative grid place-items-center overflow-hidden bg-surface shadow-frame"
+            className="relative overflow-hidden bg-surface shadow-frame"
             style={{
               width: width * scale,
               height: height * scale,
               borderRadius: device.cornerRadius * scale,
             }}
           >
-            <EmptyState icon={<MonitorPlay />} title="预览尚未启动" />
+            <PreviewView key={generation} device={device} scale={scale} />
           </div>
           <figcaption className="text-caption text-muted tabular-nums">
+            {session.phase === 'open' && `${session.vendor.label} · `}
             {device.label} · {width} × {height} · {Math.round(scale * 100)}%
           </figcaption>
         </figure>

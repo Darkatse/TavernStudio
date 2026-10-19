@@ -1,0 +1,13 @@
+{
+  "name": "@tavern-studio/preview",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./attach": "./src/attach.ts",
+    "./sw": "./src/sw.ts"
+  },
+  "dependencies": {
+    "@tavern-studio/backend": "workspace:*"
+  }
+}

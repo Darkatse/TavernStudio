@@ -1,7 +1,10 @@
-import { Code2, Eye, Monitor, Smartphone } from 'lucide-react';
+import { Code2, Eye, Monitor, RotateCw, Smartphone } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
+import { useSessionStatus } from '../preview/use-session';
+import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
+import { Tooltip } from '../ui/tooltip';
 import { CodeView } from './code-view';
 import { DeviceStage } from './device-stage';
 import { devices, type DeviceId } from './devices';
@@ -40,6 +43,9 @@ export function Workbench({
   initialDevice = 'desktop',
 }: WorkbenchProps) {
   const [deviceId, setDeviceId] = useState(initialDevice);
+  // Each reload creates a new View: reloading is the authoritative path.
+  const [generation, setGeneration] = useState(0);
+  const session = useSessionStatus();
 
   return (
     <section
@@ -71,18 +77,32 @@ export function Workbench({
             </TabsList>
           )}
           {view === 'preview' && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-1.5">
               <SegmentedControl
                 label="设备"
                 value={deviceId}
                 options={deviceOptions}
                 onChange={setDeviceId}
               />
+              <Tooltip content="重新载入预览">
+                <Button
+                  variant="ghost"
+                  icon
+                  aria-label="重新载入预览"
+                  disabled={session.phase !== 'open'}
+                  onClick={() => setGeneration((count) => count + 1)}
+                >
+                  <RotateCw
+                    className="transition-[rotate] motion-slow motion-reduce:transition-none"
+                    style={{ rotate: `${generation * 360}deg` }}
+                  />
+                </Button>
+              </Tooltip>
             </div>
           )}
         </header>
         <TabsPanel value="preview" keepMounted className="flex min-h-0 flex-1">
-          <DeviceStage device={devices[deviceId]} />
+          <DeviceStage device={devices[deviceId]} generation={generation} />
         </TabsPanel>
         <TabsPanel value="code" keepMounted className="flex min-h-0 flex-1">
           <CodeView />
