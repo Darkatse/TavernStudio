@@ -3,7 +3,6 @@ import {
   canHotApply,
   hotApply,
   HOST_KEY,
-  type DeviceIdentity,
   type DiagnosticEntry,
   type PageAgent,
   type PreviewHost,
@@ -20,6 +19,8 @@ import {
 import { answer, answerSync, reportFailure } from './backend-port';
 import { clearBrowserState } from './browser-state';
 import { EXTENSIONS, installExtension } from './extensions';
+import { ownSession } from './ownership';
+import { overlayEntry, overlayOf, restoreFiles, SessionPersistence } from './persistence';
 import { publishChange, publishSession, readSessionState } from './publish';
 import {
   loadAnatomy,
@@ -28,39 +29,24 @@ import {
   loadVendorInfo,
   type VendorImage,
 } from './sources';
+import { Views, type View, type ViewHooks } from './views';
 import { registerWorker, reportUnansweredRequests } from './worker';
+
+export type { ViewHooks } from './views';
 
 export type OpeningStep = 'worker' | 'data';
 
 export type SessionStatus =
   | { phase: 'opening'; step: OpeningStep }
   | { phase: 'open'; vendor: VendorImage }
-  | { phase: 'failed'; error: string };
+  | { phase: 'failed'; error: string }
+  /** Another Studio tab holds the Session now (docs/Architecture.md §4). */
+  | { phase: 'elsewhere' };
 
 export interface VendorChoice {
   images: readonly VendorImage[];
   selected: string | undefined;
 }
-
-/** What a View's frame tells the Session, and how the Session tells it back. */
-export interface ViewHooks {
-  device: DeviceIdentity;
-  /** The vendor page emitted APP_READY. */
-  onReady(): void;
-  /** The vendor page is being unloaded, ahead of the View being removed. */
-  onRetire(): void;
-}
-
-interface View extends ViewHooks {
-  frame: HTMLIFrameElement;
-  /** Set once the vendor page has connected and emitted APP_READY. */
-  agent?: PageAgent;
-  /** The page's own way to save and close, when it has one (TauriTavern). */
-  exit?: () => Promise<void>;
-}
-
-/** How long a page may take to save on exit before its View is removed anyway. */
-const EXIT_TIMEOUT_MS = 5000;
 
 interface Opened {
   vendor: VendorImage;
@@ -94,9 +80,17 @@ export class PreviewSession implements PreviewHost {
   #published: Promise<void> = Promise.resolve();
   /** The Web Host's own document for a TauriTavern Session (docs/Vendors.md §3). */
   #webHostState: Record<string, unknown> | null = null;
-  /** Keyed by frame, which is how a connecting page finds its View. */
-  readonly #views = new Map<Element, View>();
-  readonly #viewsClosed = new Set<() => void>();
+  readonly #persistence = new SessionPersistence((error) => {
+    this.#report({
+      level: 'error',
+      kind: 'storage',
+      message: `The Session is no longer kept in IndexedDB, so reopening Studio would lose its writes: ${error instanceof Error ? error.message : String(error)}`,
+      frame: 'backend',
+      time: Date.now(),
+    });
+    for (const listener of this.#listeners) listener();
+  });
+  readonly #views = new Views((entry) => this.#report(entry));
   readonly #listeners = new Set<() => void>();
   readonly #dataListeners = new Set<(path: string) => void>();
   readonly #diagnostics: DiagnosticEntry[] = [];
@@ -192,12 +186,12 @@ export class PreviewSession implements PreviewHost {
         return;
       }
       const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
-      const pages = [...this.#views.values()].map((view) => view.agent && view.frame.contentWindow);
+      const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
       if (applied.writes.size === 0) {
-        this.#placements = placements;
+        this.#setPlacements(placements);
       } else if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
         this.#write(opened.data, applied);
-        this.#placements = placements;
+        this.#setPlacements(placements);
         const missed = pages.flatMap((page) =>
           page ? hotApply(page, opened.anatomy, applied.changes) : [],
         );
@@ -219,7 +213,7 @@ export class PreviewSession implements PreviewHost {
           opened.data,
           applyPlacements(opened.fixture, opened.data, previous, placements),
         );
-        this.#placements = placements;
+        this.#setPlacements(placements);
         this.#bumpGeneration();
       }
     });
@@ -229,6 +223,44 @@ export class PreviewSession implements PreviewHost {
   async reload(): Promise<void> {
     await this.retireViews();
     this.#bumpGeneration();
+  }
+
+  /**
+   * Discards every session write: the persisted Session goes, and a new one
+   * opens on the Snapshot (docs/Architecture.md §7).
+   */
+  async reset(): Promise<void> {
+    const fixture = this.#fixture;
+    if (fixture === undefined) throw new Error('The preview Session has not been opened');
+    await this.retireViews();
+    this.#opened = undefined;
+    await this.#persistence.clear();
+    await this.#restart(fixture, this.#placements);
+  }
+
+  /** False once a session write could not be kept in IndexedDB. */
+  get persisted(): boolean {
+    return !this.#persistence.failed;
+  }
+
+  /**
+   * Makes this tab the one that holds the Session, taking it from another
+   * Studio tab if one does (docs/Architecture.md §4). Call it before opening.
+   */
+  own(): Promise<void> {
+    return ownSession({
+      handOver: () =>
+        this.#queue(async () => {
+          await this.retireViews();
+          this.#opened = undefined;
+          await this.#persistence.flush();
+        }),
+      lost: () => {
+        this.#opened = undefined;
+        this.#setStatus({ phase: 'elsewhere' });
+      },
+      report: this.#report,
+    });
   }
 
   /** Reads the Session's data, session writes included. */
@@ -248,7 +280,7 @@ export class PreviewSession implements PreviewHost {
     this.#opened = undefined;
     this.#opening = undefined;
     this.#setStatus({ phase: 'opening', step: 'worker' });
-    await this.#closedViews();
+    await this.#views.closed();
     await this.open(fixture, placements);
   }
 
@@ -256,6 +288,11 @@ export class PreviewSession implements PreviewHost {
     const run = this.#placing.then(task);
     this.#placing = run.catch(() => undefined);
     return run;
+  }
+
+  #setPlacements(placements: readonly Placement[]): void {
+    this.#placements = placements;
+    this.#persistence.placements(placements);
   }
 
   #write(data: DataDirectory, { writes }: Applied): void {
@@ -275,64 +312,15 @@ export class PreviewSession implements PreviewHost {
    * connect. Returns the function that unregisters it.
    */
   addView(frame: HTMLIFrameElement, hooks: ViewHooks): () => void {
-    const created = performance.now();
-    this.#views.set(frame, {
-      ...hooks,
-      frame,
-      onReady: () => {
-        performance.measure('studio:view-ready', { start: created });
-        hooks.onReady();
-      },
-    });
-    return () => {
-      this.#views.delete(frame);
-      if (this.#views.size > 0) return;
-      for (const resolve of this.#viewsClosed) resolve();
-      this.#viewsClosed.clear();
-    };
+    return this.#views.add(frame, hooks);
   }
 
   /**
    * Unloads every View's vendor page while its frame is still in the
-   * document, as a reload of the real page would. Call it before anything
-   * removes a View: vendors save on pagehide (TauriTavern flushes its
-   * settings and chat then), and a frame that is already removed has a
-   * detached realm in which those saves fail.
+   * document (docs/Architecture.md §4). Call it before anything removes a View.
    */
-  async retireViews(): Promise<void> {
-    await Promise.all(
-      [...this.#views.values()].map(async (view) => {
-        view.onRetire();
-        await this.#exit(view);
-        await new Promise<void>((resolve) => {
-          view.frame.addEventListener('load', () => resolve(), { once: true });
-          view.frame.src = 'about:blank';
-        });
-      }),
-    );
-  }
-
-  /**
-   * Lets a page that can say when it has saved (TauriTavern) close through
-   * its own path first. A save that fails keeps such a page open; the View
-   * is removed anyway, since the user asked for it, and the loss is reported.
-   */
-  async #exit(view: View): Promise<void> {
-    if (!view.exit) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const timedOut = new Promise<true>((resolve) => {
-      timer = setTimeout(() => resolve(true), EXIT_TIMEOUT_MS);
-    });
-    const late = await Promise.race([view.exit().then(() => false), timedOut]);
-    clearTimeout(timer);
-    if (!late) return;
-    this.#report({
-      level: 'error',
-      kind: 'error',
-      message: `The vendor page did not finish saving within ${EXIT_TIMEOUT_MS / 1000} s; changes since its last save may be lost`,
-      frame: 'page',
-      time: Date.now(),
-    });
+  retireViews(): Promise<void> {
+    return this.#views.retire();
   }
 
   /**
@@ -387,6 +375,7 @@ export class PreviewSession implements PreviewHost {
         load: () => this.#webHostState && page.structuredClone(this.#webHostState),
         save: (value) => {
           this.#webHostState = structuredClone(value);
+          this.#persistence.webHost(this.#webHostState);
         },
       },
     };
@@ -397,7 +386,7 @@ export class PreviewSession implements PreviewHost {
   }
 
   #viewOf(page: Window): { view: View; opened: Opened } {
-    const view = page.frameElement && this.#views.get(page.frameElement);
+    const view = this.#views.get(page.frameElement);
     const opened = this.#opened;
     if (!view || !opened) throw new Error('A vendor page loaded outside a registered preview View');
     return { view, opened };
@@ -411,10 +400,13 @@ export class PreviewSession implements PreviewHost {
     const workerReady = performance.now();
 
     this.#setStatus({ phase: 'opening', step: 'data' });
-    const images = await loadVendorImages();
+    const [images, stored] = await Promise.all([loadVendorImages(), this.#persistence.load()]);
+    // Until the user picks one, Studio resumes the persisted Session's image.
     const { selected } = this.#vendors;
     const vendor =
-      selected === undefined ? images[0] : images.find((image) => image.id === selected);
+      selected === undefined
+        ? (images.find((image) => image.id === stored?.record.vendor) ?? images[0])
+        : images.find((image) => image.id === selected);
     if (!vendor) {
       throw new Error(
         selected === undefined
@@ -422,8 +414,10 @@ export class PreviewSession implements PreviewHost {
           : `Vendor image ${selected} is not built`,
       );
     }
+    const resumed =
+      stored?.record.fixture === fixture && stored.record.vendor === vendor.id ? stored : undefined;
     this.#vendors = { images, selected: vendor.id };
-    const [info, anatomy, files, extensions, previous] = await Promise.all([
+    const [info, anatomy, files, extensions, published] = await Promise.all([
       loadVendorInfo(vendor.id),
       loadAnatomy(vendor.id),
       loadFixture(fixture),
@@ -431,7 +425,7 @@ export class PreviewSession implements PreviewHost {
       readSessionState(),
     ]);
     // Browser-side state follows the vendor image that wrote it (docs/Architecture.md §7).
-    if (previous && previous.vendor !== vendor.id) await clearBrowserState();
+    if (published && published.vendor !== vendor.id) await clearBrowserState();
     const base: [string, Uint8Array][] = [
       ...files.files,
       ...extensions.map((file): [string, Uint8Array] => [file.path, file.bytes]),
@@ -440,21 +434,29 @@ export class PreviewSession implements PreviewHost {
       ...files.hashes,
       ...extensions.map((file): [string, string] => [file.path, file.sha256]),
     ]);
-    // The data starts as the Snapshot: the fixture with the project mounted (docs/Architecture.md §2).
+    // The data is the Snapshot, the fixture with the project mounted (docs/Architecture.md §2),
+    // or the persisted Session moved from the placements it reflects to the current ones (§7).
     const fixtureData = new DataDirectory(base);
     const data = new DataDirectory(base);
-    const { writes } = applyPlacements(fixtureData, fixtureData, [], placements);
-    for (const path of writes.keys()) hashes.delete(path);
-    this.#write(data, { writes, changes: [] });
+    restoreFiles(data, resumed?.files ?? []);
+    const reflected = resumed?.record.placements ?? [];
+    this.#write(data, applyPlacements(fixtureData, data, reflected, placements));
+    const overlay = overlayOf(fixtureData, data);
+    for (const { path } of overlay) hashes.delete(path);
+    this.#webHostState = resumed?.record.webHost ?? null;
+    void this.#persistence.begin(
+      { id: 'session', fixture, vendor: vendor.id, placements, webHost: this.#webHostState },
+      overlay,
+    );
     await publishSession(data, hashes, { vendor: vendor.id }, worker);
     data.onChange((path) => {
       this.#published = this.#published
         .then(() => publishChange(data, path))
         .catch((error: unknown) => reportFailure(this.#report, `Publishing ${path}`, error));
+      this.#persistence.file(path, overlayEntry(fixtureData, data, path));
       for (const listener of this.#dataListeners) listener(path);
     });
 
-    this.#webHostState = null;
     this.#opened = {
       vendor,
       anatomy,
@@ -466,11 +468,6 @@ export class PreviewSession implements PreviewHost {
     performance.measure('studio:session-worker', { start: started, end: workerReady });
     performance.measure('studio:session-data', { start: workerReady });
     this.#setStatus({ phase: 'open', vendor });
-  }
-
-  #closedViews(): Promise<void> {
-    if (this.#views.size === 0) return Promise.resolve();
-    return new Promise((resolve) => this.#viewsClosed.add(resolve));
   }
 
   #report = (entry: DiagnosticEntry): void => {

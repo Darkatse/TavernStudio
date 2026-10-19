@@ -88,9 +88,10 @@ export interface DiagnosticEntry {
   level: 'error' | 'warning';
   /**
    * Where the entry came from: an uncaught error, a rejection, console.error,
-   * a failed load, an unanswered request, or a hot-apply the vendor did not take.
+   * a failed load, an unanswered request, a hot-apply the vendor did not take,
+   * or a Session write IndexedDB did not keep.
    */
-  kind: 'error' | 'rejection' | 'console' | 'resource' | 'request' | 'hot-apply';
+  kind: 'error' | 'rejection' | 'console' | 'resource' | 'request' | 'hot-apply' | 'storage';
   message: string;
   stack?: string;
   url?: string;

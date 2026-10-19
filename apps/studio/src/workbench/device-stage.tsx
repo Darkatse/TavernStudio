@@ -10,13 +10,17 @@ const CAPTION_SPACE = 28;
  * Fits the device frame into the stage without ever enlarging it. The frame
  * keeps the device's viewport size and is scaled as a whole, so the page
  * inside lays out exactly as it would on the device.
+ *
+ * The View runs whether or not the stage is shown: a hidden stage measures
+ * 0 × 0 and only scales the frame to nothing, while the page inside keeps its
+ * viewport and keeps running, as the workbench promises (docs/UI.md §1).
  */
 export function DeviceStage({ device, generation }: { device: Device; generation: number }) {
   const [stageRef, stage] = useElementSize();
   const session = useSessionStatus();
   const { width, height } = device.viewport;
   const scale = stage
-    ? Math.min(stage.width / width, (stage.height - CAPTION_SPACE) / height, 1)
+    ? Math.max(0, Math.min(stage.width / width, (stage.height - CAPTION_SPACE) / height, 1))
     : 0;
 
   return (
@@ -24,27 +28,25 @@ export function DeviceStage({ device, generation }: { device: Device; generation
       ref={stageRef}
       className="flex min-h-0 flex-1 flex-col items-center justify-center overflow-hidden bg-sunken p-6"
     >
-      {scale > 0 && (
-        <figure
-          key={device.id}
-          className="m-0 flex flex-col items-center gap-3 transition-opacity motion-moderate starting:opacity-0"
+      <figure
+        key={device.id}
+        className="m-0 flex flex-col items-center gap-3 transition-opacity motion-moderate starting:opacity-0"
+      >
+        <div
+          className="relative overflow-hidden bg-surface shadow-frame"
+          style={{
+            width: width * scale,
+            height: height * scale,
+            borderRadius: device.cornerRadius * scale,
+          }}
         >
-          <div
-            className="relative overflow-hidden bg-surface shadow-frame"
-            style={{
-              width: width * scale,
-              height: height * scale,
-              borderRadius: device.cornerRadius * scale,
-            }}
-          >
-            <PreviewView key={generation} device={device} scale={scale} />
-          </div>
-          <figcaption className="text-caption text-muted tabular-nums">
-            {session.phase === 'open' && `${session.vendor.label} · `}
-            {device.label} · {width} × {height} · {Math.round(scale * 100)}%
-          </figcaption>
-        </figure>
-      )}
+          <PreviewView key={generation} device={device} scale={scale} />
+        </div>
+        <figcaption className="text-caption text-muted tabular-nums">
+          {session.phase === 'open' && `${session.vendor.label} · `}
+          {device.label} · {width} × {height} · {Math.round(scale * 100)}%
+        </figcaption>
+      </figure>
     </div>
   );
 }

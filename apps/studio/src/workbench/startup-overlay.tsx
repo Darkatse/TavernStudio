@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Check, TriangleAlert } from 'lucide-react';
+import { AppWindow, Check, TriangleAlert } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { previewSession, type SessionStatus } from '../preview/session';
 import { Button } from '../ui/button';
@@ -21,9 +21,11 @@ export function StartupOverlay({ session, booted }: { session: SessionStatus; bo
         hidden && 'invisible opacity-0',
       )}
     >
-      {!hidden && <Progress />}
+      {!hidden && session.phase !== 'elsewhere' && <Progress />}
       {session.phase === 'failed' ? (
         <Failure error={session.error} />
+      ) : session.phase === 'elsewhere' ? (
+        <Elsewhere />
       ) : (
         // A fixed width keeps the steps in place when the vendor's name arrives.
         <ol className="flex w-52 flex-col gap-2.5" aria-label="预览启动进度">
@@ -84,6 +86,24 @@ function Progress() {
     <span className="absolute inset-x-0 top-0 h-0.5 overflow-hidden" aria-hidden="true">
       <span className="absolute inset-y-0 w-1/3 animate-indeterminate bg-fg/35" />
     </span>
+  );
+}
+
+/** The Session moved to another Studio tab; opening Studio here again takes it back. */
+function Elsewhere() {
+  return (
+    <div className="flex max-w-72 flex-col items-center gap-3 text-center">
+      <span className="grid size-10 place-items-center rounded-xl bg-sunken text-muted shadow-[inset_0_0_0_1px_var(--color-line)]">
+        <AppWindow className="size-5" />
+      </span>
+      <div className="flex flex-col gap-1">
+        <h2 className="text-subtitle">已在另一个标签页打开</h2>
+        <p className="text-pretty text-muted">
+          同一时间只有一个标签页运行预览。回到这里继续时，另一个标签页会先保存再交出预览。
+        </p>
+      </div>
+      <Button onClick={() => location.reload()}>在这里继续</Button>
+    </div>
   );
 }
 

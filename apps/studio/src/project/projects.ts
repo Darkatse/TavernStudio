@@ -23,12 +23,14 @@ export function subscribeProject(listener: () => void): () => void {
 
 /**
  * Opens the preview once: on the project opened last, or on the default
- * fixture with nothing mounted. Asks the browser to keep Studio's storage,
- * since projects live in it (docs/Architecture.md §7).
+ * fixture with nothing mounted. The tab takes the Session first, and asks the
+ * browser to keep Studio's storage, since projects live in it
+ * (docs/Architecture.md §4, §7).
  */
 export function startStudio(): Promise<void> {
   started ??= (async () => {
     void navigator.storage.persist();
+    await previewSession.own();
     const last = await db.projects.orderBy('openedAt').last();
     if (last) await openProject(last);
     else await previewSession.open(DEFAULT_FIXTURE, []);
