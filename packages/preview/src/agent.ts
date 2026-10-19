@@ -1,5 +1,11 @@
 import { createObservation, interact, type InteractionOptions } from '@tauritavern/app-use';
 import type { PageAgent } from './host';
+import { STUDIO_ASSETS } from './routes';
+
+/** An async function body compiled in this page's realm, as TauriTavern's `app.evaluate` does. */
+const AsyncFunction = (async () => {}).constructor as new (code: string) => () => Promise<unknown>;
+
+const CAPTURE_MODULE = `${STUDIO_ASSETS}capture.js`;
 
 /**
  * The app-use engine of a vendor page. It is evaluated in the page's own
@@ -24,11 +30,15 @@ export function createPageAgent(): PageAgent {
       observation.clearCursor();
       return new AsyncFunction(code)();
     },
+    async capture(selector) {
+      // Loaded in this realm on first use; see capture.ts.
+      const module = (await import(/* webpackIgnore: true */ CAPTURE_MODULE)) as {
+        capture: PageAgent['capture'];
+      };
+      return module.capture(selector);
+    },
   };
 }
-
-/** An async function body compiled in this page's realm, as TauriTavern's `app.evaluate` does. */
-const AsyncFunction = (async () => {}).constructor as new (code: string) => () => Promise<unknown>;
 
 interface ChatSurfaceContext {
   scrollChatSurfaceTo?: (options: ScrollToOptions) => void;

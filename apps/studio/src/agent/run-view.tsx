@@ -17,8 +17,10 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import { formatDuration, useNow } from '../lib/use-now';
+import { previewCapture, useCaptureShared } from '../preview/capture';
 import { Button } from '../ui/button';
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible';
+import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { Markdown } from './markdown';
 import { resultsOf, textOf, type RunBlock, type RunStatus } from './runs';
@@ -287,8 +289,69 @@ function ToolCallRow({
           <Detail label={result.isError ? '错误' : '结果'} text={textOf(result.content)} />
         )}
       </CollapsiblePanel>
+      {result && <Screenshots result={result} />}
     </Collapsible>
   );
+}
+
+/**
+ * Screenshots stay visible under their call (docs/Agent.md §7). One rendered
+ * from the DOM says so, and offers the author the accurate way.
+ */
+function Screenshots({ result }: { result: ToolResultMessage }) {
+  const [enlarged, setEnlarged] = useState(false);
+  const shared = useCaptureShared();
+  const images = result.content.filter((part) => part.type === 'image');
+  if (images.length === 0) return null;
+  const fromDom = isRecord(result.details) && result.details['method'] === 'snapdom';
+  return (
+    <div className="flex flex-col items-start gap-1.5 pt-1.5 pb-1 pl-5">
+      {images.map((image, index) => (
+        <button
+          // oxlint-disable-next-line react/no-array-index-key -- a result's images never change.
+          key={index}
+          type="button"
+          aria-label={enlarged ? '缩小截图' : '放大截图'}
+          onClick={() => setEnlarged(!enlarged)}
+          className="cursor-zoom-in overflow-hidden rounded-lg shadow-control data-[enlarged]:cursor-zoom-out"
+          data-enlarged={enlarged || undefined}
+        >
+          {/* Studio took this image; it is not model output, so it may load. */}
+          <img
+            src={`data:${image.mimeType};base64,${image.data}`}
+            alt="预览截图"
+            className={clsx('block w-auto', enlarged ? 'max-w-full' : 'max-h-40')}
+          />
+        </button>
+      ))}
+      {fromDom && !shared && previewCapture.supported && (
+        <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted">
+          这张截图由页面结构渲染，背景和排版可能失真。
+          <Button
+            variant="ghost"
+            className="h-6 px-1.5 text-caption text-fg"
+            onClick={() => {
+              previewCapture.share().catch((error: unknown) => {
+                // Declining the browser's prompt is a choice, not a failure.
+                if (error instanceof DOMException && error.name === 'NotAllowedError') return;
+                showToast({
+                  kind: 'error',
+                  title: '没能开启精确截图',
+                  description: error instanceof Error ? error.message : String(error),
+                });
+              });
+            }}
+          >
+            开启精确截图
+          </Button>
+        </p>
+      )}
+    </div>
+  );
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
 function Detail({ label, text }: { label: string; text: string }) {

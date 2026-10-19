@@ -37,6 +37,8 @@ export interface ToolResult {
    * APIs that take images only there (docs/Agent.md §2).
    */
   images?: ImageContent[];
+  /** For the Transcript, never sent to the model: how a screenshot was taken, for example. */
+  details?: JsonObject;
 }
 
 /**

@@ -5,12 +5,14 @@
   "exports": {
     ".": "./src/index.ts",
     "./attach": "./src/attach.ts",
+    "./capture": "./src/capture.ts",
     "./web-host": "./src/web-host.ts",
     "./sw": "./src/sw.ts"
   },
   "dependencies": {
     "@tauritavern/app-use": "0.1.1",
     "@tavern-studio/backend": "workspace:*",
-    "@tavern-studio/workspace": "workspace:*"
+    "@tavern-studio/workspace": "workspace:*",
+    "@zumer/snapdom": "3.3.5"
   }
 }

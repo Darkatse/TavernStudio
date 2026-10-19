@@ -79,11 +79,19 @@ export default defineConfig({
       tools: { htmlPlugin: false },
       dev: { hmr: false, liveReload: false },
     },
-    // Installs TauriTavern's Web Host in a TT vendor page. It must be an ES
-    // module with a static import of the vendor's own install.js, so that it
-    // runs, with the host ready, before TT's init.js (docs/Vendors.md §3).
-    'web-host': {
-      source: { entry: { 'web-host': '@tavern-studio/preview/web-host' } },
+    // ES modules a vendor page imports, one file each:
+    // - web-host installs TauriTavern's Web Host in a TT page. Its static
+    //   import of the vendor's own install.js runs it, with the host ready,
+    //   before TT's init.js (docs/Vendors.md §3).
+    // - capture is the screenshot fallback, imported only when a screenshot
+    //   needs it (docs/Agent.md §5).
+    'page-modules': {
+      source: {
+        entry: {
+          'web-host': '@tavern-studio/preview/web-host',
+          capture: '@tavern-studio/preview/capture',
+        },
+      },
       output: {
         module: true,
         filenameHash: false,
@@ -91,7 +99,8 @@ export default defineConfig({
         externals: { '/tauri/web-host/install.js': 'module /tauri/web-host/install.js' },
       },
       splitChunks: false,
-      tools: { htmlPlugin: false },
+      // Entries keep their exports, so a page can import what a module offers.
+      tools: { htmlPlugin: false, rspack: { output: { library: { type: 'module' } } } },
       dev: { hmr: false, liveReload: false },
     },
   },

@@ -8,7 +8,7 @@ export { ENDPOINT_PRESETS, endpointModel, endpointStreams, probeEndpoint } from 
 export type { Endpoint, EndpointApi } from './endpoints';
 export type { HistoryEntry } from './history';
 export { previewTools } from './preview-tools';
-export type { PreviewControl } from './preview-tools';
+export type { PreviewControl, Screenshot } from './preview-tools';
 // The message types History stores, so that the app depends on pi-ai only through this package.
 export type {
   AssistantMessage,

@@ -180,6 +180,9 @@ importers:
       '@tavern-studio/workspace':
         specifier: workspace:*
         version: link:../workspace
+      '@zumer/snapdom':
+        specifier: 3.3.5
+        version: 3.3.5
 
   packages/st-data: {}
 

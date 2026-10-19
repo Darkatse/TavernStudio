@@ -1,7 +1,6 @@
 import type {
   Api,
   AssistantMessage,
-  ImageContent,
   Model,
   ProviderStreams,
   SimpleStreamOptions,
@@ -15,7 +14,7 @@ import { modelContext } from './context';
 import type { HistoryEntry } from './history';
 import type { JournalEvent } from './journal';
 import type { ReadState } from './read-state';
-import { modelToolName, ToolError, type Tool, type ToolContext } from './tool';
+import { modelToolName, ToolError, type Tool, type ToolContext, type ToolResult } from './tool';
 import { resultForModel, type ToolResultStore } from './tool-results';
 
 /** A model ready to stream: pi-ai's model description and the API that serves it. */
@@ -179,7 +178,7 @@ export async function runAgent(
       record({
         run: id,
         round,
-        message: toolResult(call, result.text, outcome.images, outcome.error, durationMs),
+        message: toolResult(call, { ...outcome, text: result.text }, durationMs),
       });
       journal({
         type: 'tool_call_completed',
@@ -208,7 +207,7 @@ async function callTool(
   call: ToolCall,
   calls: number,
   context: ToolContext,
-): Promise<{ text: string; images?: ImageContent[]; error?: string }> {
+): Promise<ToolResult & { error?: string }> {
   try {
     if (calls > MAX_TOOL_CALLS) {
       throw new ToolError(
@@ -229,9 +228,7 @@ async function callTool(
 
 function toolResult(
   call: ToolCall,
-  text: string,
-  images: readonly ImageContent[] | undefined,
-  error: string | undefined,
+  { text, images, details, error }: ToolResult & { error?: string },
   durationMs: number,
 ): ToolResultMessage {
   return {
@@ -239,6 +236,7 @@ function toolResult(
     toolCallId: call.id,
     toolName: call.name,
     content: [{ type: 'text', text }, ...(images ?? [])],
+    ...(details === undefined ? {} : { details }),
     isError: error !== undefined,
     timestamp: Date.now(),
     durationMs,

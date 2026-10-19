@@ -1,3 +1,4 @@
+import type { ImageContent } from '@earendil-works/pi-ai';
 import { ToolError, type Tool } from './tool';
 
 /** What the `preview.*` tools control: the View the author is looking at. */
@@ -15,11 +16,79 @@ export interface PreviewControl {
   configure(change: { vendor?: string; device?: string }, signal: AbortSignal): Promise<void>;
   /** Reloads the View and resolves once it is ready again. */
   reload(signal: AbortSignal): Promise<void>;
+  /** A screenshot of the View, or of the element `selector` matches. */
+  capture(selector: string | undefined): Promise<Screenshot>;
 }
 
-/** The preview tools (docs/Agent.md §4). */
-export function previewTools(preview: PreviewControl): Tool[] {
+/** A screenshot, and how it was taken (docs/Agent.md §5). */
+export interface Screenshot {
+  image: ImageContent;
+  width: number;
+  height: number;
+  /**
+   * `element-capture` is what the browser paints. `snapdom` renders the page
+   * from its DOM, with known distortions, when the author has not shared the
+   * tab for Element Capture or the preview is not on screen.
+   */
+  method: 'element-capture' | 'snapdom';
+  /** The degradations snapdom recorded. */
+  warnings: readonly string[];
+}
+
+const SNAPDOM_DISTORTIONS =
+  'It was rendered from the DOM (snapdom), not taken from the screen: background layers may be missing or darker, <q> quotes may appear twice and text may wrap differently. Judge those from computed styles via app.evaluate, not from this image.';
+
+/**
+ * The preview tools (docs/Agent.md §4). `preview.capture` is offered only
+ * when the model takes images.
+ */
+export function previewTools(preview: PreviewControl, { images }: { images: boolean }): Tool[] {
+  const capture: Tool = {
+    id: 'preview.capture',
+    description:
+      'Take a screenshot of the preview as the author sees it, or of one element by CSS selector, to judge the look: colors, contrast, spacing, layout. When a number matters, such as a color or a size, read the computed style with app.evaluate instead. The result says how the screenshot was taken.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        selector: {
+          type: 'string',
+          description:
+            'A CSS selector of one element in the preview page to capture alone. Omit for the whole page.',
+        },
+      },
+      additionalProperties: false,
+    },
+    async run(input) {
+      const selector = input['selector'];
+      if (selector !== undefined && (typeof selector !== 'string' || selector.trim() === '')) {
+        throw new ToolError(
+          'tool.invalid_arguments',
+          'preview.capture: selector must be a non-empty string',
+        );
+      }
+      let shot: Screenshot;
+      try {
+        shot = await preview.capture(selector);
+      } catch (error) {
+        throw new ToolError(
+          'preview.capture_failed',
+          error instanceof Error ? error.message : String(error),
+        );
+      }
+      const subject =
+        selector === undefined ? preview.describe() : `${selector} in ${preview.describe()}`;
+      const lines = [`Screenshot of ${subject}, ${shot.width}×${shot.height}.`];
+      if (shot.method === 'snapdom') lines.push(SNAPDOM_DISTORTIONS);
+      if (shot.warnings.length > 0) lines.push(`snapdom noted: ${shot.warnings.join(', ')}.`);
+      return {
+        text: lines.join('\n'),
+        images: [shot.image],
+        details: { method: shot.method },
+      };
+    },
+  };
   return [
+    ...(images ? [capture] : []),
     {
       id: 'preview.reload',
       description:

@@ -11,9 +11,10 @@ export function useNow(ticking: boolean, interval = 1000): number {
   return now;
 }
 
-/** A duration for people: "8 秒", "1 分 2 秒". */
+/** A duration for people: "不到 1 秒", "8 秒", "1 分 2 秒". */
 export function formatDuration(ms: number): string {
   const seconds = Math.max(0, Math.round(ms / 1000));
+  if (seconds === 0) return '不到 1 秒';
   if (seconds < 60) return `${seconds} 秒`;
   return `${Math.floor(seconds / 60)} 分 ${seconds % 60} 秒`;
 }

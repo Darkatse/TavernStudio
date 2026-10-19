@@ -43,7 +43,7 @@ export async function runInProject(
     systemPrompt: await systemPrompt(project),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
-      ...previewTools(previewControl),
+      ...previewTools(previewControl, { images: model.endpoint.images }),
       ...appTools(previewSurface),
     ],
     ...hooks,

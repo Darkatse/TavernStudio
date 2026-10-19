@@ -27,7 +27,28 @@ export interface PageAgent {
   interact(runId: string, args: ToolArguments): JsonValue;
   /** Runs an async function body in the page's realm; the result is the page's own value. */
   evaluate(runId: string, code: string): Promise<unknown>;
+  /** Renders the page, or the element `selector` matches, from its DOM: the screenshot fallback. */
+  capture(selector: string | undefined): Promise<PageCapture>;
 }
+
+/** A screenshot rendered in the page, with the degradations snapdom recorded. */
+export interface PageCapture {
+  blob: Blob;
+  warnings: string[];
+}
+
+/**
+ * How screenshots are encoded for the model, whichever way they are taken:
+ * JPEG reads well for interfaces at a fraction of PNG's size, and every
+ * provider takes it.
+ */
+export const CAPTURE_IMAGE = {
+  format: 'jpeg',
+  mimeType: 'image/jpeg',
+  quality: 0.85,
+  /** Wider screenshots are scaled down to this many pixels. */
+  maxWidth: 1280,
+} as const;
 
 /** The frontend a vendor image ships. It decides how the page reaches the API. */
 export type VendorKind = 'st' | 'tt';

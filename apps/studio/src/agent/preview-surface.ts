@@ -1,5 +1,6 @@
 import type { AppLogEntry, AppSurface, PreviewControl } from '@tavern-studio/agent';
-import type { DiagnosticEntry } from '@tavern-studio/preview';
+import { CAPTURE_IMAGE, type DiagnosticEntry } from '@tavern-studio/preview';
+import { previewCapture } from '../preview/capture';
 import { devices, isDeviceId } from '../preview/devices';
 import { previewSession } from '../preview/session';
 import type { VendorImage } from '../preview/sources';
@@ -56,7 +57,31 @@ export const previewControl: PreviewControl = {
     await previewSession.reload();
     await started(signal);
   },
+  async capture(selector) {
+    const shot = await previewCapture.take(selector);
+    const bitmap = await createImageBitmap(shot.blob);
+    const { width, height } = bitmap;
+    bitmap.close();
+    return {
+      // Both ways of taking a screenshot encode it the same way.
+      image: { type: 'image', data: await base64(shot.blob), mimeType: CAPTURE_IMAGE.mimeType },
+      width,
+      height,
+      method: shot.method,
+      warnings: shot.warnings,
+    };
+  },
 };
+
+async function base64(blob: Blob): Promise<string> {
+  const bytes = new Uint8Array(await blob.arrayBuffer());
+  let binary = '';
+  // In slices, since an argument list has a length limit.
+  for (let at = 0; at < bytes.length; at += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
+  }
+  return btoa(binary);
+}
 
 /** One image per frontend, the last built, as the workbench's switch offers them. */
 function imagesByKind(): Map<string, VendorImage> {
