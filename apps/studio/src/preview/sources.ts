@@ -1,10 +1,10 @@
 import type { VendorInfo } from '@tavern-studio/backend';
-import { VENDOR_IMAGES } from '@tavern-studio/preview';
+import { VENDOR_IMAGES, type VendorKind } from '@tavern-studio/preview';
 
-/** A built vendor image, as listed in /__vendor/index.json (vendors/st/build.mjs). */
+/** A built vendor image, as listed in /__vendor/index.json (vendors/lib/image.mjs). */
 export interface VendorImage {
   id: string;
-  kind: string;
+  kind: VendorKind;
   version: string;
   label: string;
 }

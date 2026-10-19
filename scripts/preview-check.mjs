@@ -2,8 +2,11 @@
 // and how fast it is (docs/plan/P0.md, V2, V3 and the measurements).
 //
 // Usage: node scripts/preview-check.mjs [--url http://localhost:3000/]
-//        [--browser chrome|msedge] [--device desktop|mobile] [--reloads 3]
-//        [--screenshot file.png]
+//        [--browser chrome|msedge|firefox|webkit] [--vendor st|tt]
+//        [--device desktop|mobile] [--reloads 3] [--screenshot file.png]
+//
+// Studio starts on SillyTavern, so for TauriTavern `ready` includes the
+// SillyTavern View it switches from; `data` and `vendor` are TauriTavern's own.
 //
 // Needs a running dev server (`pnpm dev`) and a built vendor image. Exits 1
 // when the preview did not become ready, an API request reached the network,
@@ -16,6 +19,7 @@ const { values: options } = parseArgs({
   options: {
     url: { type: 'string', default: 'http://localhost:3000/' },
     browser: { type: 'string', default: 'chrome' },
+    vendor: { type: 'string', default: 'st' },
     device: { type: 'string', default: 'desktop' },
     reloads: { type: 'string', default: '3' },
     screenshot: { type: 'string' },
@@ -24,9 +28,12 @@ const { values: options } = parseArgs({
 
 async function measure(page) {
   return page.evaluate(() => {
-    const [view] = performance.getEntriesByName('studio:view-ready').slice(-1);
-    const [worker] = performance.getEntriesByName('studio:session-worker');
-    const [data] = performance.getEntriesByName('studio:session-data');
+    // The latest of each: a vendor switch opens a second Session.
+    const [view, worker, data] = [
+      'studio:view-ready',
+      'studio:session-worker',
+      'studio:session-data',
+    ].map((name) => performance.getEntriesByName(name).at(-1));
     const frame = document.querySelector('iframe[title="预览"]');
     const resources = frame.contentWindow.performance.getEntriesByType('resource');
     return {
@@ -42,9 +49,10 @@ async function measure(page) {
 }
 
 const session = await launch(options);
+const target = { device: options.device, vendor: options.vendor };
 let report;
 try {
-  const page = await openStudio(session, options.url, options.device);
+  const page = await openStudio(session, options.url, target);
   const cold = await measure(page);
 
   const reloads = [];
@@ -53,13 +61,20 @@ try {
     reloads.push((await measure(page)).vendor);
   }
 
-  const warm = await measure(await openStudio(session, options.url, options.device));
-
   if (options.screenshot) await page.screenshot({ path: options.screenshot });
   for (const entry of await diagnostics(page)) {
     session.problems.push(`${entry.level} (${entry.frame}, ${entry.kind}): ${entry.message}`);
   }
-  report = { browser: options.browser, device: options.device, cold, warm, reloads };
+
+  // One Studio tab at a time: tabs share the Preview SW and the published
+  // Session, and a second tab does not take over the first yet.
+  await page.close();
+  const warmPage = await openStudio(session, options.url, target);
+  const warm = await measure(warmPage);
+  for (const entry of await diagnostics(warmPage)) {
+    session.problems.push(`${entry.level} (${entry.frame}, ${entry.kind}): ${entry.message}`);
+  }
+  report = { browser: options.browser, ...target, cold, warm, reloads };
 } catch (error) {
   session.problems.push(`Preview did not become ready: ${error.message}`);
 }

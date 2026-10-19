@@ -36,17 +36,34 @@ export async function launch({ url, browser: name = 'chrome', args = [], headles
   return { browser, context, problems };
 }
 
-/** Opens Studio in a new tab and waits until the preview of `device` is ready. */
-export async function openStudio({ context, problems }, url, device = 'desktop') {
+/**
+ * Opens Studio in a new tab and waits until the preview of `device` is ready.
+ * Studio starts on the first built image (SillyTavern); `vendor: 'tt'`
+ * switches to TauriTavern through Studio's own control.
+ */
+export async function openStudio(
+  { context, problems },
+  url,
+  { device = 'desktop', vendor = 'st' } = {},
+) {
   const page = await context.newPage();
   page.on('pageerror', (error) => problems.push(`Page error: ${error.message}`));
   await page.goto(url);
   await waitForViews(page, 1);
+  if (vendor !== 'st') await selectVendor(page, vendor);
   if (device !== 'desktop') {
+    const before = await viewCount(page);
     await page.getByRole('radio', { name: DEVICE_LABELS[device] }).click();
-    await waitForViews(page, 2);
+    await waitForViews(page, before + 1);
   }
   return page;
+}
+
+/** Switches the preview to the vendor of `kind` and waits for its View. */
+export async function selectVendor(page, kind) {
+  const before = await viewCount(page);
+  await page.getByRole('radio', { name: kind.toUpperCase() }).click();
+  await waitForViews(page, before + 1);
 }
 
 export function viewCount(page) {

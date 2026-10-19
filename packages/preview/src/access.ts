@@ -1,12 +1,11 @@
 /**
  * ST 接入 (docs/Architecture.md §4): answers SillyTavern's HTTP API inside the
  * vendor page and in every same-origin frame it creates, because the Preview
- * SW cannot see synchronous XHR and must not hold business logic.
+ * SW cannot see synchronous XHR and must not hold business logic. Attach
+ * installs it into each realm that `observeRealms` reports.
  *
  * fetch is replaced; XMLHttpRequest is patched in place, so requests the layer
- * does not answer keep the browser's own behaviour. Frames are patched when
- * they are inserted: the initial window of a srcdoc frame carries over to its
- * document, so card scripts start with the layer already installed.
+ * does not answer keep the browser's own behaviour.
  */
 import type { BackendBody, BackendResponse, FormEntries } from '@tavern-studio/backend';
 import type { ViewConnection } from './host';
@@ -15,64 +14,10 @@ import { dataPathForUrl, isApiPath, isStudioPath, vendorUrl } from './routes';
 
 type Connection = Pick<ViewConnection, 'handle' | 'readData' | 'vendorId'>;
 
-/**
- * Marks a window's current global as installed. A frame's WindowProxy keeps
- * its identity when the frame navigates, and WebKit puts a new global behind
- * it for a srcdoc document, so the mark lives on the global itself.
- */
-const INSTALLED = Symbol('Tavern Studio API layer');
-const observed = new WeakSet<Document>();
-
-/** Installs the layer into a window and everything it frames. Idempotent. */
-export function installAccess(
-  win: Realm,
-  connection: Connection,
-  onWindow: (win: Realm) => void,
-): void {
-  if (!Object.hasOwn(win, INSTALLED)) {
-    Object.defineProperty(win, INSTALLED, { value: true });
-    patchFetch(win, connection);
-    patchXhr(win, connection);
-    onWindow(win);
-    // A reused initial window gets a new document when its content loads.
-    win.addEventListener('DOMContentLoaded', () => observeFrames(win, connection, onWindow));
-  }
-  observeFrames(win, connection, onWindow);
-}
-
-function observeFrames(win: Realm, connection: Connection, onWindow: (win: Realm) => void): void {
-  const doc = win.document;
-  if (observed.has(doc)) return;
-  observed.add(doc);
-
-  const adopt = (frame: HTMLIFrameElement) => {
-    const install = () => {
-      const child = sameOriginWindow(frame);
-      if (child) installAccess(child, connection, onWindow);
-    };
-    install();
-    frame.addEventListener('load', install);
-  };
-
-  doc.querySelectorAll('iframe').forEach(adopt);
-  new win.MutationObserver((records) => {
-    for (const record of records) {
-      for (const node of record.addedNodes) {
-        if (!(node instanceof win.Element)) continue;
-        if (node instanceof win.HTMLIFrameElement) adopt(node);
-        node.querySelectorAll('iframe').forEach(adopt);
-      }
-    }
-  }).observe(doc, { childList: true, subtree: true });
-}
-
-function sameOriginWindow(frame: HTMLIFrameElement): Realm | null {
-  try {
-    const child = frame.contentWindow as Realm | null;
-    return child && child.origin === frame.ownerDocument.defaultView?.origin ? child : null;
-  } catch {
-    return null;
-  }
+/** Installs the layer into one realm. Call it once per realm. */
+export function installAccess(win: Realm, connection: Connection): void {
+  patchFetch(win, connection);
+  patchXhr(win, connection);
 }
 
 /** Resolves a request URL the way the page would; opaque base URLs fall back to the origin. */

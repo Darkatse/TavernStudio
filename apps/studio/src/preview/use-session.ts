@@ -1,5 +1,5 @@
 import { useEffect, useSyncExternalStore } from 'react';
-import { previewSession, type SessionStatus } from './session';
+import { previewSession, type SessionStatus, type VendorChoice } from './session';
 
 /** The fixture every preview starts from until projects choose their own. */
 export const DEFAULT_FIXTURE = 'showcase';
@@ -10,4 +10,9 @@ export function useSessionStatus(): SessionStatus {
     void previewSession.open(DEFAULT_FIXTURE);
   }, []);
   return useSyncExternalStore(previewSession.subscribe, () => previewSession.status);
+}
+
+/** The built vendor images and the one the preview runs. */
+export function useVendorChoice(): VendorChoice {
+  return useSyncExternalStore(previewSession.subscribe, () => previewSession.vendors);
 }

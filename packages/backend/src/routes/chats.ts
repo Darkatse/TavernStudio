@@ -70,8 +70,27 @@ export const chatRoutes: Routes = {
       .toSorted((a, b) => Number(isPinned(b)) - Number(isPinned(a)) || modified(b) - modified(a))
       .slice(0, max);
     return json(
-      recent.map((entry) => chatInfo(request.data, entry.path, entry.avatar, Boolean(metadata))),
+      recent.map((entry) =>
+        chatInfo(request.data, entry.path, Boolean(metadata), { avatar: entry.avatar }),
+      ),
     );
+  },
+
+  // One character's chats. ST answers `{ error: true }` when the character has
+  // no chat directory yet; an empty list says the same without the ambiguity
+  // (docs/Vendors.md §2).
+  'POST /api/characters/chats': (request) => {
+    const body = request.json();
+    const character = (text(body, 'avatar_url') ?? '').replace('.png', '');
+    const dir = `${dirs.chats}/${character}`;
+    const files = request.data.files(dir).filter((file) => file.endsWith('.jsonl'));
+    if ((body as { simple?: unknown }).simple) {
+      return json(
+        files.map((file) => ({ file_name: file, file_id: file.replace(/\.jsonl$/, '') })),
+      );
+    }
+    const metadata = Boolean((body as { metadata?: unknown }).metadata);
+    return json(files.map((file) => chatInfo(request.data, `${dir}/${file}`, metadata)));
   },
 };
 
@@ -95,8 +114,13 @@ function integrityOf(header: unknown): unknown {
     ?.integrity;
 }
 
-/** Summary of one chat file (chats.js getChatInfo). */
-function chatInfo(data: DataDirectory, path: string, avatar: string, withMetadata: boolean) {
+/** Summary of one chat file (chats.js getChatInfo), with the caller's extra fields. */
+function chatInfo(
+  data: DataDirectory,
+  path: string,
+  withMetadata: boolean,
+  extra: { avatar?: string } = {},
+) {
   const stat = data.stat(path);
   const items = parseChat(data.readText(path) ?? '');
   const header = items[0] as { chat_metadata?: unknown } | undefined;
@@ -110,7 +134,7 @@ function chatInfo(data: DataDirectory, path: string, avatar: string, withMetadat
     chat_items: Math.max(items.length - 1, 0),
     mes: items.length > 1 ? last?.mes || '[The message is empty]' : '[The chat is empty]',
     last_mes: last?.send_date ?? stat?.modified ?? 0,
-    avatar,
+    ...extra,
     ...(withMetadata && header?.chat_metadata ? { chat_metadata: header.chat_metadata } : {}),
   };
 }

@@ -1,4 +1,4 @@
-import type { DeviceIdentity } from '@tavern-studio/preview';
+import type { DeviceIdentity, HostIdentity } from '@tavern-studio/preview';
 
 export type DeviceId = 'desktop' | 'mobile';
 
@@ -12,7 +12,7 @@ export interface Device {
   viewport: { width: number; height: number };
   /** Corner radius of the screen or window, in viewport pixels. */
   cornerRadius: number;
-  /** SillyTavern tells mobile from desktop by the user agent. */
+  /** SillyTavern reads the user agent; TauriTavern reads its host identity. */
   identity: DeviceIdentity;
 }
 
@@ -22,7 +22,8 @@ export const devices: Record<DeviceId, Device> = {
     label: '桌面',
     viewport: { width: 1440, height: 900 },
     cornerRadius: 12,
-    identity: {},
+    // The browser Studio runs in, as it is.
+    identity: { navigator: {}, host: { platform: desktopPlatform(), kind: 'desktop' } },
   },
   mobile: {
     id: 'mobile',
@@ -30,10 +31,21 @@ export const devices: Record<DeviceId, Device> = {
     viewport: { width: 390, height: 844 },
     cornerRadius: 47,
     identity: {
-      userAgent:
-        'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
-      platform: 'iPhone',
-      maxTouchPoints: 5,
+      navigator: {
+        userAgent:
+          'Mozilla/5.0 (iPhone; CPU iPhone OS 18_5 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.5 Mobile/15E148 Safari/604.1',
+        platform: 'iPhone',
+        maxTouchPoints: 5,
+      },
+      host: { platform: 'ios', kind: 'mobile' },
     },
   },
 };
+
+/** The desktop platform of the browser Studio runs in. */
+function desktopPlatform(): HostIdentity['platform'] {
+  const platform = navigator.platform.toLowerCase();
+  if (platform.startsWith('mac')) return 'macos';
+  if (platform.startsWith('linux')) return 'linux';
+  return 'windows';
+}

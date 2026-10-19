@@ -1,6 +1,8 @@
+import type { VendorKind } from '@tavern-studio/preview';
 import { Code2, Eye, Monitor, RotateCw, Smartphone } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
-import { useSessionStatus } from '../preview/use-session';
+import { previewSession, type SessionStatus } from '../preview/session';
+import { useSessionStatus, useVendorChoice } from '../preview/use-session';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
@@ -15,6 +17,8 @@ const deviceOptions: SegmentedOption<DeviceId>[] = [
   { value: 'desktop', label: devices.desktop.label, icon: <Monitor /> },
   { value: 'mobile', label: devices.mobile.label, icon: <Smartphone /> },
 ];
+
+const vendorKindLabels: Record<VendorKind, string> = { st: 'ST', tt: 'TT' };
 
 function isWorkbenchView(value: unknown): value is WorkbenchView {
   return value === 'preview' || value === 'code';
@@ -78,6 +82,7 @@ export function Workbench({
           )}
           {view === 'preview' && (
             <div className="ml-auto flex items-center gap-1.5">
+              <VendorSwitch session={session} />
               <SegmentedControl
                 label="设备"
                 value={deviceId}
@@ -109,5 +114,26 @@ export function Workbench({
         </TabsPanel>
       </Tabs>
     </section>
+  );
+}
+
+/**
+ * Switches between frontends. ST and TT never run side by side (docs/Architecture.md
+ * §3), and a switch opens a new Session, so it waits while one is opening.
+ */
+function VendorSwitch({ session }: { session: SessionStatus }) {
+  const { images, selected } = useVendorChoice();
+  // One choice per frontend: the last built image of each kind.
+  const choices = [...new Map(images.map((image) => [image.kind, image])).values()];
+  if (choices.length < 2 || selected === undefined) return null;
+
+  return (
+    <SegmentedControl
+      label="前端"
+      value={selected}
+      options={choices.map((image) => ({ value: image.id, label: vendorKindLabels[image.kind] }))}
+      disabled={session.phase === 'opening'}
+      onChange={(id) => void previewSession.selectVendor(id)}
+    />
   );
 }

@@ -8,6 +8,8 @@ import type { BackendRequest, BackendResponse } from '@tavern-studio/backend';
 export interface PreviewHost {
   /** Registers the vendor page of a View. Throws for a frame Studio did not create. */
   connect(page: Window, agent: PageAgent): ViewConnection;
+  /** The Web Host options for the page of a TauriTavern View (docs/Vendors.md §3). */
+  webHost(page: Window): WebHostOptions;
 }
 
 /**
@@ -20,23 +22,58 @@ export interface PageAgent {
   interact(runId: string, args: ToolArguments): JsonValue;
 }
 
+/** The frontend a vendor image ships. It decides how the page reaches the API. */
+export type VendorKind = 'st' | 'tt';
+
 export interface ViewConnection {
   vendorId: string;
+  /** SillyTavern's API goes through ST 接入; TauriTavern's through its own host kernel and the Web Host. */
+  vendorKind: VendorKind;
   device: DeviceIdentity;
   /** Answers SillyTavern's HTTP API from the Session Backend. */
   handle(request: BackendRequest): BackendResponse | Promise<BackendResponse>;
   /** Reads a data file synchronously, for the synchronous XHR the Preview SW cannot see. */
   readData(path: string): Uint8Array | undefined;
   report(entry: DiagnosticEntry): void;
-  /** SillyTavern emitted APP_READY. */
+  /** The page emitted APP_READY. */
   ready(): void;
 }
 
-/** How the page identifies the device. Absent fields keep the browser's own values. */
+/** How the page identifies the device. Both describe the same device. */
 export interface DeviceIdentity {
-  userAgent?: string;
-  platform?: string;
-  maxTouchPoints?: number;
+  /** What SillyTavern reads. Absent fields keep the browser's own values. */
+  navigator: { userAgent?: string; platform?: string; maxTouchPoints?: number };
+  /** What TauriTavern reads from its host. Only real platforms exist. */
+  host: HostIdentity;
+}
+
+export interface HostIdentity {
+  platform: 'windows' | 'macos' | 'linux' | 'android' | 'ios' | 'ohos';
+  kind: 'desktop' | 'mobile';
+}
+
+/**
+ * `installWebHost` options (TauriTavern docs/CurrentState/WebHost.md). Every
+ * port answers synchronously; bodies are JSON strings, and a GET has none.
+ */
+export interface WebHostOptions {
+  identity: HostIdentity;
+  backend: { handle(request: WebHostRequest): WebHostResponse };
+  /** The Web Host's own document. Studio keeps it with the Session and never reads it. */
+  store: { load(): Record<string, unknown> | null; save(value: Record<string, unknown>): void };
+}
+
+export interface WebHostRequest {
+  method: string;
+  url: string;
+  headers: Record<string, string>;
+  body: string | null;
+}
+
+export interface WebHostResponse {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
 }
 
 export interface DiagnosticEntry {

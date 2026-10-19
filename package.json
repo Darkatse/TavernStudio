@@ -14,7 +14,8 @@
     "check:lint": "oxlint --type-aware --deny-warnings",
     "check:format": "prettier --check .",
     "format": "prettier --write .",
-    "vendor:st": "node vendors/st/build.mjs"
+    "vendor:st": "node vendors/st/build.mjs",
+    "vendor:tt": "node vendors/tt/build.mjs"
   },
   "devDependencies": {
     "@zumer/snapdom": "^3.3.5",

@@ -1,6 +1,6 @@
 /**
  * Attach: the first script of every vendor page (docs/Vendors.md §1). It runs
- * before any SillyTavern script, connects the page to its View in Studio and
+ * before any vendor script, connects the page to its View in Studio and
  * installs the device identity, diagnostics, the API layer and the Agent's
  * app-use engine.
  *
@@ -10,6 +10,7 @@ import { installAccess } from './access';
 import { createPageAgent } from './agent';
 import { installDiagnostics } from './diagnostics';
 import { HOST_KEY, type DeviceIdentity, type PreviewHost, type ViewConnection } from './host';
+import { observeRealms } from './realms';
 
 const studio = window.parent as Window & { [HOST_KEY]?: PreviewHost };
 const host = studio === window ? undefined : studio[HOST_KEY];
@@ -20,19 +21,24 @@ const view = host.connect(window, createPageAgent());
 // `parent` being the page itself. `top` cannot be redefined and stays Studio.
 Object.defineProperty(window, 'parent', { value: window, configurable: true, writable: true });
 
-applyDevice(window, view.device);
-installAccess(window, view, (realm) => installDiagnostics(realm, (entry) => view.report(entry)));
+applyDevice(window, view.device.navigator);
+observeRealms(window, (realm) => {
+  installDiagnostics(realm, (entry) => view.report(entry));
+  // TauriTavern reaches the API through its own host kernel and the Web Host,
+  // which /_studio/web-host.js installs next.
+  if (view.vendorKind === 'st') installAccess(realm, view);
+});
 reportReady(view);
 
-function applyDevice(win: Window, device: DeviceIdentity): void {
-  for (const [key, value] of Object.entries(device)) {
+function applyDevice(win: Window, identity: DeviceIdentity['navigator']): void {
+  for (const [key, value] of Object.entries(identity)) {
     if (value !== undefined)
       Object.defineProperty(win.navigator, key, { configurable: true, get: () => value });
   }
 }
 
 /**
- * Listens on SillyTavern's own event bus. The events module has no other
+ * Listens on the vendor's own event bus. The events module has no other
  * dependencies, and importing it by its URL shares the instance the page
  * uses; `getContext()` is not usable this early, since the module graph is
  * still evaluating. APP_READY is replayed to late listeners.

@@ -5,6 +5,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./attach": "./src/attach.ts",
+    "./web-host": "./src/web-host.ts",
     "./sw": "./src/sw.ts"
   },
   "dependencies": {

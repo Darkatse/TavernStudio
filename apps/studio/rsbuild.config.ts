@@ -58,5 +58,20 @@ export default defineConfig({
       tools: { htmlPlugin: false },
       dev: { hmr: false, liveReload: false },
     },
+    // Installs TauriTavern's Web Host in a TT vendor page. It must be an ES
+    // module with a static import of the vendor's own install.js, so that it
+    // runs, with the host ready, before TT's init.js (docs/Vendors.md §3).
+    'web-host': {
+      source: { entry: { 'web-host': '@tavern-studio/preview/web-host' } },
+      output: {
+        module: true,
+        filenameHash: false,
+        distPath: { js: assets },
+        externals: { '/tauri/web-host/install.js': 'module /tauri/web-host/install.js' },
+      },
+      splitChunks: false,
+      tools: { htmlPlugin: false },
+      dev: { hmr: false, liveReload: false },
+    },
   },
 });

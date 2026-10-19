@@ -17,6 +17,8 @@ export interface SegmentedControlProps<T extends string> {
   onChange: (value: T) => void;
   /** Stretch to the container and split it evenly between options. */
   fill?: boolean;
+  /** Shows the current choice but takes no input, for example while it is being applied. */
+  disabled?: boolean;
 }
 
 /** One choice out of a few, as a radio group. Tabs share its look. */
@@ -26,6 +28,7 @@ export function SegmentedControl<T extends string>({
   options,
   onChange,
   fill = false,
+  disabled = false,
 }: SegmentedControlProps<T>) {
   const group = useRef<HTMLDivElement>(null);
   const thumb = useItemBox(group, value);
@@ -36,7 +39,12 @@ export function SegmentedControl<T extends string>({
       aria-label={label}
       value={value}
       onValueChange={onChange}
-      className={clsx(segmented.track, fill && 'flex w-full')}
+      disabled={disabled}
+      className={clsx(
+        segmented.track,
+        'transition-opacity motion-fast data-disabled:opacity-60',
+        fill && 'flex w-full',
+      )}
     >
       {thumb && (
         <span
