@@ -132,10 +132,12 @@ export async function runAgent(
       });
     }
     if (reply.stopReason === 'length') {
+      // pi-ai lowers the output limit as the conversation fills the window, so both decide it.
+      const { input, cacheRead, cacheWrite, output } = reply.usage;
       return end({
         status: 'failed',
         code: 'agent.output_truncated',
-        message: 'The reply reached the output limit, so its tool calls were not run',
+        message: `The reply stopped at the output limit after ${output} tokens, so its tool calls were not run (input ${input + cacheRead + cacheWrite} tokens; output limit ${agent.model.maxTokens}, context window ${agent.model.contextWindow})`,
       });
     }
     if (reply.stopReason !== 'stop' && reply.stopReason !== 'toolUse') {

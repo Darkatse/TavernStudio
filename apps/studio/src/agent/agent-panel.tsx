@@ -7,17 +7,21 @@ import { EmptyState } from '../ui/empty-state';
 import { Tooltip } from '../ui/tooltip';
 import { Composer } from './composer';
 import type { Conversation } from './conversation';
-import { SettingsDialog } from './settings-dialog';
 import { useConversation, useConversationState } from './use-conversation';
 
 // The Transcript brings Markdown with it, so it loads with the first Run to show.
 const Transcript = lazy(() =>
   import('./transcript').then((module) => ({ default: module.Transcript })),
 );
+// The settings bring the model list's combobox, so they load when first opened.
+const SettingsDialog = lazy(() =>
+  import('./settings-dialog').then((module) => ({ default: module.SettingsDialog })),
+);
 
 export function AgentPanel() {
   const conversation = useConversation();
-  const [settingsOpen, setSettingsOpen] = useState(false);
+  // Undefined until the settings are first opened; they stay mounted from then on, to animate out.
+  const [settingsOpen, setSettingsOpen] = useState<boolean>();
   return (
     <aside
       aria-label="Agent"
@@ -47,8 +51,12 @@ export function AgentPanel() {
         <Welcome description="新建一个项目，再描述你想要的主题、前端卡或脚本。" />
       )}
       <Composer conversation={conversation} onOpenSettings={() => setSettingsOpen(true)} />
-      <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-        <SettingsDialog />
+      <Dialog open={settingsOpen ?? false} onOpenChange={setSettingsOpen}>
+        {settingsOpen !== undefined && (
+          <Suspense>
+            <SettingsDialog />
+          </Suspense>
+        )}
       </Dialog>
     </aside>
   );

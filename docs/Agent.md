@@ -43,6 +43,13 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
   - Anthropic 需要带上 `anthropic-dangerous-direct-browser-access`；
   - 基于 new-api / one-api 的中转默认放开所有源；
   - 其余不返回 CORS 的端点，经可自部署的 CORS 中继访问。
+- 模型与上限：
+  - 填好地址和 API Key 后，可以向服务获取模型列表。OpenAI 与 OpenAI 兼容接口用 `GET /models`，Anthropic 用 `GET /v1/models`，Gemini 用 `GET /models`。也可以直接填写模型 id。
+  - 选中模型时，表单填入它的上下文窗口、单次输出上限，以及会不会思考、能不能看图。来源依次是：服务在列表里给出的值（OpenRouter、Gemini、Anthropic 给出上限），pi-ai 自带的模型资料，默认值（128K / 16K，会思考、能看图）。用了默认值时，提示作者按服务文档核对。所有值都可以修改，以作者填写的为准。
+  - 中转服务用原厂的 id 提供别家的模型，模型的上限跟着模型走。所以查 pi-ai 资料时，先查端点自己的 provider，再查其余预设的 provider。
+  - 调用时，如果 pi-ai 认识这个模型（provider、模型 id、API 都相同），就沿用 pi-ai 对它请求格式的描述，例如 DeepSeek 的推理格式和 `max_tokens` 字段；地址、上限和能力仍取作者的设置。
+  - 每个 provider 的资料单独分块，只在获取模型列表或调用模型时加载。
+  - pi-ai 会随对话增长收紧单次输出上限，使它不超过“上下文窗口 − 已用 − 4096”。回复写满上限时 Run 失败（`agent.output_truncated`），失败信息带上输入与输出的 token 数，便于判断是上限太低还是对话太长。
 - 图片：截图作为工具结果里的图片返回。OpenAI 兼容格式只接受 user 消息里的图片，pi-ai 在这类接口上把工具结果里的图片移到紧随其后的 user 消息里，Studio 不另做一套。
 - History 原样保存 pi-ai 的 assistant 消息，各家签名都在里面，回放时原样交回。
   - 签名的编码属于 pi-ai 的内部格式，升级前用录制的 History 做回放测试。

@@ -4,8 +4,16 @@ export { normalizeArguments } from './arguments';
 export { operations, restorePlan, undoneOperations } from './checkpoint';
 export type { CheckpointFile, RestoreStep } from './checkpoint';
 export { closeToolGroups, keepLatestImages, modelContext, withoutImages } from './context';
-export { ENDPOINT_PRESETS, endpointModel, endpointStreams, probeEndpoint } from './endpoints';
+export {
+  ENDPOINT_PRESETS,
+  MODEL_DEFAULTS,
+  endpointModel,
+  endpointStreams,
+  probeEndpoint,
+} from './endpoints';
 export type { Endpoint, EndpointApi } from './endpoints';
+export { listModels } from './models';
+export type { ModelInfo } from './models';
 export type { HistoryEntry } from './history';
 export { previewTools } from './preview-tools';
 export type { PreviewControl, Screenshot } from './preview-tools';

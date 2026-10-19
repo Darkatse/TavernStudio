@@ -6,12 +6,15 @@ export type InputProps = Omit<ComponentProps<'input'>, 'className'> & {
   className?: string;
 };
 
-/** A one-line field, the height of every control (docs/UI.md §3, density). */
+/**
+ * A one-line field, the height of every control (docs/UI.md §3, density).
+ * Numbers go without spin buttons: Studio's are counts typed whole, not stepped.
+ */
 export function Input({ className, ...props }: InputProps) {
   return (
     <input
       className={clsx(
-        'h-(--size-control) w-full min-w-0 rounded-md bg-surface px-3 shadow-control transition-shadow motion-fast outline-none placeholder:text-muted focus-visible:shadow-focus disabled:opacity-45',
+        'h-(--size-control) w-full min-w-0 [appearance:textfield] rounded-md bg-surface px-3 shadow-control transition-shadow motion-fast outline-none placeholder:text-muted focus-visible:shadow-focus disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none',
         className,
       )}
       {...props}

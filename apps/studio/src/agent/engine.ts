@@ -35,12 +35,12 @@ export async function runInProject(
   hooks: RunHooks,
 ): Promise<void> {
   const preview = agentPreview(project);
+  const [agentModel, streams] = await Promise.all([
+    endpointModel(model.endpoint),
+    endpointStreams(model.endpoint.api),
+  ]);
   await runAgent(run, history, message, {
-    agent: {
-      model: endpointModel(model.endpoint),
-      streams: await endpointStreams(model.endpoint.api),
-      options: { apiKey: model.apiKey },
-    },
+    agent: { model: agentModel, streams, options: { apiKey: model.apiKey } },
     systemPrompt: await systemPrompt(project),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),

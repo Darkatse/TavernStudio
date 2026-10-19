@@ -24,7 +24,9 @@ export interface ListHighlightOptions {
  *   a click hits.
  * - When the pointer comes in, it fades in at the nearest item instead of
  *   sliding there from where it was last.
- * - Keyboard focus moves it at once, without animation.
+ * - Keyboard focus moves it at once, without animation. In a combobox the
+ *   input keeps DOM focus and the active row is virtual; pass that row to
+ *   `follow`.
  * - Touch has no hover, so it gets no block.
  *
  * Spread `listProps` on the list, which must be positioned, and render
@@ -127,5 +129,8 @@ export function useListHighlight(
     />
   );
 
-  return { listProps, block: element };
+  /** Marks the row the keyboard made active while focus stays outside the list; null for none. */
+  const follow = (item: HTMLElement | null) => place(item, { instant: true, focus: true });
+
+  return { listProps, block: element, follow };
 }

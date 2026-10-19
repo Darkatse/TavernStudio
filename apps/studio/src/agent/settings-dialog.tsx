@@ -1,8 +1,16 @@
-import { ENDPOINT_PRESETS, probeEndpoint, type Endpoint } from '@tavern-studio/agent';
+import {
+  ENDPOINT_PRESETS,
+  listModels,
+  MODEL_DEFAULTS,
+  probeEndpoint,
+  type Endpoint,
+  type ModelInfo,
+} from '@tavern-studio/agent';
 import { clsx } from 'clsx';
 import { Check, ChevronDown, Plus, TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../ui/alert-dialog';
+import { Autocomplete } from '../ui/autocomplete';
 import { Button } from '../ui/button';
 import { DialogContent } from '../ui/dialog';
 import { Field, Input } from '../ui/input';
@@ -147,15 +155,51 @@ function draft(preset: string): Endpoint {
         api: 'openai-completions',
         baseUrl: '',
         model: '',
-        reasoning: true,
-        images: true,
-        contextWindow: 128_000,
-        maxTokens: 16_000,
+        ...MODEL_DEFAULTS,
       };
 }
 
 type Probe =
   { state: 'idle' } | { state: 'running' } | { state: 'ok' } | { state: 'failed'; message: string };
+
+type Listing =
+  | { state: 'idle' }
+  | { state: 'running' }
+  | { state: 'done'; models: ModelInfo[] }
+  | { state: 'failed'; message: string };
+
+/** Who filled the limits in; undefined once the author sets them. */
+type LimitsFrom = ModelInfo['limitsFrom'] | 'nobody';
+
+const LIMITS_HINT: Record<NonNullable<LimitsFrom>, string> = {
+  service: '上限按服务的模型列表填好了，可以修改。',
+  'pi-ai': '上限按 pi-ai 的模型资料填好了，可以修改。',
+  nobody: '服务和 pi-ai 都没有给出这个模型的上限，这里是默认值，请按服务文档核对。',
+};
+
+/**
+ * What picking a model fills in: what is known of it, and the defaults for
+ * the rest, so nothing carries over from the model picked before.
+ */
+function prefill(model: ModelInfo): Partial<Endpoint> {
+  return {
+    reasoning: model.reasoning ?? MODEL_DEFAULTS.reasoning,
+    images: model.images ?? MODEL_DEFAULTS.images,
+    contextWindow: model.contextWindow ?? MODEL_DEFAULTS.contextWindow,
+    maxTokens: model.maxTokens ?? MODEL_DEFAULTS.maxTokens,
+  };
+}
+
+/** A token count the way services write it: 128K, 1M. */
+function formatTokens(tokens: number): string {
+  if (tokens >= 1_000_000) return `${Math.round(tokens / 100_000) / 10}M`;
+  if (tokens >= 1000) return `${Math.round(tokens / 1000)}K`;
+  return String(tokens);
+}
+
+function isLimit(tokens: number): boolean {
+  return Number.isSafeInteger(tokens) && tokens > 0;
+}
 
 function EndpointForm({
   endpoint,
@@ -171,17 +215,67 @@ function EndpointForm({
   const [key, setKey] = useState(apiKey);
   // A probe speaks for the values it tested, so any edit clears it.
   const [probe, setProbe] = useState<Probe>({ state: 'idle' });
+  // A model list speaks for the address and key it was fetched with.
+  const [listing, setListing] = useState<Listing>({ state: 'idle' });
+  const listingRequest = useRef<AbortController>(null);
+  const [limitsFrom, setLimitsFrom] = useState<LimitsFrom>();
+  const [choosing, setChoosing] = useState(false);
+  const modelInput = useRef<HTMLInputElement>(null);
   const known = settings.endpoints.some((candidate) => candidate.id === endpoint.id);
   const custom = !ENDPOINT_PRESETS.some((preset) => preset.id === value.id);
   const presets = ENDPOINT_PRESETS.filter(
     (preset) =>
       preset.id === value.id || !settings.endpoints.some((existing) => existing.id === preset.id),
   );
-  const complete = value.baseUrl.trim() !== '' && value.model.trim() !== '' && key.trim() !== '';
+  const reachable = value.baseUrl.trim() !== '' && key.trim() !== '';
+  const complete =
+    reachable &&
+    value.model.trim() !== '' &&
+    isLimit(value.contextWindow) &&
+    isLimit(value.maxTokens);
+  const models = listing.state === 'done' ? listing.models : [];
 
   const edit = (change: Partial<Endpoint>) => {
     setValue((current) => ({ ...current, ...change }));
     setProbe({ state: 'idle' });
+  };
+
+  /** The address or key changed, so the model list, fetched or on its way, no longer holds. */
+  const forgetModels = () => {
+    listingRequest.current?.abort();
+    setListing({ state: 'idle' });
+  };
+
+  const fetchModels = () => {
+    const request = new AbortController();
+    listingRequest.current = request;
+    setListing({ state: 'running' });
+    void listModels(trimmed(value), key.trim(), request.signal).then(
+      (listed) => {
+        if (request.signal.aborted) return;
+        setListing({ state: 'done', models: listed });
+        modelInput.current?.focus();
+        setChoosing(true);
+      },
+      (error: unknown) => {
+        if (request.signal.aborted) return;
+        setListing({
+          state: 'failed',
+          message: error instanceof Error ? error.message : String(error),
+        });
+      },
+    );
+  };
+
+  const editModel = (model: string) => {
+    const picked = models.find((candidate) => candidate.id === model.trim());
+    edit(picked ? { model, ...prefill(picked) } : { model });
+    if (picked) setLimitsFrom(picked.limitsFrom ?? 'nobody');
+  };
+
+  const editLimit = (change: Partial<Endpoint>) => {
+    edit(change);
+    setLimitsFrom(undefined);
   };
 
   const test = () => {
@@ -239,6 +333,8 @@ function EndpointForm({
                 onChange={(event) => {
                   setValue(draft(event.target.value));
                   setProbe({ state: 'idle' });
+                  forgetModels();
+                  setLimitsFrom(undefined);
                 }}
                 className="h-(--size-control) w-full cursor-pointer appearance-none rounded-md bg-surface pr-9 pl-3 shadow-control transition-shadow motion-fast outline-none focus-visible:shadow-focus"
               >
@@ -275,17 +371,10 @@ function EndpointForm({
             value={value.baseUrl}
             inputMode="url"
             spellCheck={false}
-            onChange={(event) => edit({ baseUrl: event.target.value })}
-          />
-        )}
-      </Field>
-      <Field label="模型" hint="服务方的模型 id。">
-        {(id) => (
-          <Input
-            id={id}
-            value={value.model}
-            spellCheck={false}
-            onChange={(event) => edit({ model: event.target.value })}
+            onChange={(event) => {
+              edit({ baseUrl: event.target.value });
+              forgetModels();
+            }}
           />
         )}
       </Field>
@@ -299,10 +388,88 @@ function EndpointForm({
             onChange={(event) => {
               setKey(event.target.value);
               setProbe({ state: 'idle' });
+              forgetModels();
             }}
           />
         )}
       </Field>
+      <Field
+        label="模型"
+        hint={
+          listing.state === 'done'
+            ? `服务提供了 ${listing.models.length} 个模型。可以从列表里选，也可以直接填写模型 id。`
+            : '服务方的模型 id。填好地址和 API Key 后，可以从服务获取模型列表。'
+        }
+        error={listing.state === 'failed' ? probeAdvice(listing.message) : undefined}
+      >
+        {(id) => (
+          <div className="flex gap-2">
+            <Autocomplete
+              value={value.model}
+              onValueChange={editModel}
+              items={models}
+              itemToString={(model) => model.id}
+              empty="没有匹配的模型，也可以直接填写。"
+              open={choosing}
+              onOpenChange={setChoosing}
+              input={{ id, ref: modelInput, className: 'flex-1' }}
+            >
+              {(model) => (
+                <>
+                  <span className="truncate">{model.id}</span>
+                  {model.contextWindow !== undefined && (
+                    <span className="ml-auto shrink-0 pl-3 text-caption text-muted tabular-nums">
+                      {formatTokens(model.contextWindow)}
+                    </span>
+                  )}
+                </>
+              )}
+            </Autocomplete>
+            <Button
+              type="button"
+              disabled={!reachable || listing.state === 'running'}
+              onClick={fetchModels}
+            >
+              {listing.state === 'running' ? '正在获取…' : '获取模型'}
+            </Button>
+          </div>
+        )}
+      </Field>
+      <div className="flex flex-col gap-1.5">
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="上下文窗口（tokens）">
+            {(id) => (
+              <Input
+                id={id}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                value={value.contextWindow || ''}
+                onChange={(event) => editLimit({ contextWindow: event.target.valueAsNumber || 0 })}
+              />
+            )}
+          </Field>
+          <Field label="单次输出上限（tokens）">
+            {(id) => (
+              <Input
+                id={id}
+                type="number"
+                inputMode="numeric"
+                min={1}
+                step={1}
+                value={value.maxTokens || ''}
+                onChange={(event) => editLimit({ maxTokens: event.target.valueAsNumber || 0 })}
+              />
+            )}
+          </Field>
+        </div>
+        <p className="text-caption text-pretty text-muted">
+          {limitsFrom
+            ? LIMITS_HINT[limitsFrom]
+            : '上下文窗口是模型一次能读的 token 数，单次输出上限是一次回复最多写的 token 数；对话越长，留给回复的越少。'}
+        </p>
+      </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         <Toggle
           label="会思考（推理模型）"

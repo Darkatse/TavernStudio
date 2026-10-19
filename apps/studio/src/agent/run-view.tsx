@@ -100,15 +100,7 @@ export const RunView = memo(function RunView({
           streaming={tail === partial}
         />
       )}
-      {block.status === 'failed' && block.failure && (
-        <p className="flex items-start gap-2 text-danger">
-          <TriangleAlert className="mt-0.5 size-(--size-icon) shrink-0" />
-          <span>
-            运行失败：{block.failure.message}
-            <span className="ml-1.5 font-mono text-caption text-muted">{block.failure.code}</span>
-          </span>
-        </p>
-      )}
+      {block.status === 'failed' && block.failure && <Failure {...block.failure} />}
       {block.status === 'cancelled' && (
         <p className="text-muted">已停止。已经生效的文件修改都保留着。</p>
       )}
@@ -118,6 +110,29 @@ export const RunView = memo(function RunView({
     </section>
   );
 });
+
+/** What the author can do about a failure the Agent can explain; the rest speak for themselves. */
+const FAILURE_ADVICE: Partial<Record<string, string>> = {
+  'agent.output_truncated':
+    '回复写到单次输出上限就停了，其中的工具调用没有执行。对话越长，留给回复的空间越少：可以在「模型」设置里调高单次输出上限，或核对上下文窗口。',
+};
+
+/** A failed Run: the advice when there is one, and the failure as the Agent recorded it. */
+function Failure({ code, message }: { code: string; message: string }) {
+  const advice = FAILURE_ADVICE[code];
+  return (
+    <p className="flex items-start gap-2 text-danger">
+      <TriangleAlert className="mt-0.5 size-(--size-icon) shrink-0" />
+      <span className="flex flex-col gap-0.5">
+        <span className="text-pretty">运行失败：{advice ?? message}</span>
+        <span className="text-caption text-pretty text-muted">
+          {advice && `${message} `}
+          <span className="font-mono">{code}</span>
+        </span>
+      </span>
+    </p>
+  );
+}
 
 const STATUS_ICONS: Partial<Record<RunStatus, { icon: LucideIcon; className: string }>> = {
   running: { icon: LoaderCircle, className: 'animate-spin' },
