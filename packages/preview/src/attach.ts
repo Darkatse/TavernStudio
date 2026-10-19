@@ -1,18 +1,20 @@
 /**
  * Attach: the first script of every vendor page (docs/Vendors.md §1). It runs
  * before any SillyTavern script, connects the page to its View in Studio and
- * installs the device identity, diagnostics and the API layer.
+ * installs the device identity, diagnostics, the API layer and the Agent's
+ * app-use engine.
  *
  * Built as a classic script and served at /_studio/attach.js.
  */
 import { installAccess } from './access';
+import { createPageAgent } from './agent';
 import { installDiagnostics } from './diagnostics';
 import { HOST_KEY, type DeviceIdentity, type PreviewHost, type ViewConnection } from './host';
 
 const studio = window.parent as Window & { [HOST_KEY]?: PreviewHost };
 const host = studio === window ? undefined : studio[HOST_KEY];
 if (!host) throw new Error('This page only runs inside a Tavern Studio preview');
-const view = host.connect(window);
+const view = host.connect(window, createPageAgent());
 
 // In production SillyTavern is the top-level page, and extensions rely on
 // `parent` being the page itself. `top` cannot be redefined and stays Studio.

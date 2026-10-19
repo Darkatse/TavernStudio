@@ -1,3 +1,4 @@
+import type { JsonValue, ToolArguments } from '@tauritavern/app-use';
 import type { BackendRequest, BackendResponse } from '@tavern-studio/backend';
 
 /**
@@ -6,7 +7,17 @@ import type { BackendRequest, BackendResponse } from '@tavern-studio/backend';
  */
 export interface PreviewHost {
   /** Registers the vendor page of a View. Throws for a frame Studio did not create. */
-  connect(page: Window): ViewConnection;
+  connect(page: Window, agent: PageAgent): ViewConnection;
+}
+
+/**
+ * The app-use engine running in a vendor page, for the Agent's `app.*` tools
+ * (docs/Agent.md §4). Each call belongs to a Run; a new Run drops the refs of
+ * the previous one.
+ */
+export interface PageAgent {
+  snapshot(runId: string, args: ToolArguments): JsonValue;
+  interact(runId: string, args: ToolArguments): JsonValue;
 }
 
 export interface ViewConnection {

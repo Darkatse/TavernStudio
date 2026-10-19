@@ -9,6 +9,7 @@ import {
   HOST_KEY,
   type DeviceIdentity,
   type DiagnosticEntry,
+  type PageAgent,
   type PreviewHost,
   type ViewConnection,
 } from '@tavern-studio/preview';
@@ -27,6 +28,8 @@ export type SessionStatus =
 interface View {
   device: DeviceIdentity;
   onReady(): void;
+  /** Set once the vendor page has connected and emitted APP_READY. */
+  agent?: PageAgent;
 }
 
 interface Opened {
@@ -113,7 +116,15 @@ export class PreviewSession implements PreviewHost {
     return this.#published;
   }
 
-  connect(page: Window): ViewConnection {
+  /** The app-use engine of a View's vendor page, for the Agent's `app.*` tools. */
+  pageAgent(frame: HTMLIFrameElement): PageAgent {
+    const agent = this.#views.get(frame)?.agent;
+    if (!agent)
+      throw new Error('The vendor page is still starting. Wait until the preview is ready.');
+    return agent;
+  }
+
+  connect(page: Window, agent: PageAgent): ViewConnection {
     const view = page.frameElement && this.#views.get(page.frameElement);
     const opened = this.#opened;
     if (!view || !opened) throw new Error('A vendor page loaded outside a registered preview View');
@@ -123,7 +134,10 @@ export class PreviewSession implements PreviewHost {
       handle: (request) => this.#handle(opened.backend, request),
       readData: (path) => opened.data.read(path),
       report: (entry) => this.#report(entry),
-      ready: () => view.onReady(),
+      ready: () => {
+        view.agent = agent;
+        view.onReady();
+      },
     };
   }
 

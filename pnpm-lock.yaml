@@ -87,6 +87,9 @@ importers:
 
   packages/preview:
     dependencies:
+      '@tauritavern/app-use':
+        specifier: 0.1.0
+        version: 0.1.0
       '@tavern-studio/backend':
         specifier: workspace:*
         version: link:../backend
@@ -544,6 +547,9 @@ packages:
   '@tailwindcss/postcss@4.3.3':
     resolution: {integrity: sha512-JTSZZGQi1AyKirbLN3azmjVzef92tcX7h+iSqPdaeStyFpGpDlKvvpxeOE8njhbUanbRwr3z8DyzhICWnMtQeg==}
 
+  '@tauritavern/app-use@0.1.0':
+    resolution: {integrity: sha512-6r4iouQPbvYPt2kqh8gs0v6safPAY+RbkYP7RXqV9VnWW08AordjqLZBvnV3PVxIUS7AEJ+UulNBgQXMJGc87g==}
+
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
 
@@ -688,6 +694,9 @@ packages:
   detect-libc@2.1.2:
     resolution: {integrity: sha512-Btj2BOOO83o3WyH59e8MgXsxEQVcarkUOpEYrubB0urwnN10yQ364rsiByU11nZlqWYZm05i/of7io4mzihBtQ==}
     engines: {node: '>=8'}
+
+  dom-accessibility-api@0.7.1:
+    resolution: {integrity: sha512-vdnCeZD+3wZ+8h8xXL/ZtBlvvoobOFyPzSiIfO6sGOZDqjFx4aLMAjZhl4rawj5xYz3UwP6Tgvyh0iH4IOCVnQ==}
 
   enhanced-resolve@5.26.0:
     resolution: {integrity: sha512-9vhedylFonb2YGogzUKX6+Ja72gOJbN1QHAqdrvqLwhdl/QWbKopzoUC9EbQNVsAns/bx/4uyqalrQAoy1IByw==}
@@ -1261,6 +1270,10 @@ snapshots:
       postcss: 8.5.30
       tailwindcss: 4.3.3
 
+  '@tauritavern/app-use@0.1.0':
+    dependencies:
+      dom-accessibility-api: 0.7.1
+
   '@tybys/wasm-util@0.10.4':
     dependencies:
       tslib: 2.8.1
@@ -1343,6 +1356,8 @@ snapshots:
   csstype@3.2.3: {}
 
   detect-libc@2.1.2: {}
+
+  dom-accessibility-api@0.7.1: {}
 
   enhanced-resolve@5.26.0:
     dependencies:

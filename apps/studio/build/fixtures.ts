@@ -15,13 +15,16 @@ export function pluginFixtures(root: string): RsbuildPlugin {
       api.processAssets(
         { stage: 'additional', environments: ['studio'] },
         ({ compilation, sources }) => {
+          // The directory for added and removed files, each file for its content.
           compilation.contextDependencies.add(root);
           for (const fixture of fs.readdirSync(root, { withFileTypes: true })) {
             if (!fixture.isDirectory()) continue;
             const dir = path.join(root, fixture.name);
             const files: Record<string, { size: number; sha256: string }> = {};
             for (const file of walk(dir)) {
-              const bytes = fs.readFileSync(path.join(dir, file));
+              const full = path.join(dir, file);
+              compilation.fileDependencies.add(full);
+              const bytes = fs.readFileSync(full);
               files[file] = {
                 size: bytes.length,
                 sha256: createHash('sha256').update(bytes).digest('hex'),

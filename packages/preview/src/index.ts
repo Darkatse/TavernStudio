@@ -3,6 +3,7 @@ export {
   HOST_KEY,
   type DeviceIdentity,
   type DiagnosticEntry,
+  type PageAgent,
   type PreviewHost,
   type ViewConnection,
 } from './host';
