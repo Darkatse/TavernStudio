@@ -15,7 +15,12 @@ import { dataPathForUrl, isApiPath, isStudioPath, vendorUrl } from './routes';
 
 type Connection = Pick<ViewConnection, 'handle' | 'readData' | 'vendorId'>;
 
-const installed = new WeakSet<Realm>();
+/**
+ * Marks a window's current global as installed. A frame's WindowProxy keeps
+ * its identity when the frame navigates, and WebKit puts a new global behind
+ * it for a srcdoc document, so the mark lives on the global itself.
+ */
+const INSTALLED = Symbol('Tavern Studio API layer');
 const observed = new WeakSet<Document>();
 
 /** Installs the layer into a window and everything it frames. Idempotent. */
@@ -24,8 +29,8 @@ export function installAccess(
   connection: Connection,
   onWindow: (win: Realm) => void,
 ): void {
-  if (!installed.has(win)) {
-    installed.add(win);
+  if (!Object.hasOwn(win, INSTALLED)) {
+    Object.defineProperty(win, INSTALLED, { value: true });
     patchFetch(win, connection);
     patchXhr(win, connection);
     onWindow(win);

@@ -62,13 +62,16 @@ async function serveData(request: Request, dataPath: string): Promise<Response> 
   return rehome(stored);
 }
 
+/** Statuses whose responses have no body. WebKit still gives them an empty stream. */
+const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
+
 /**
  * A fresh Response without a URL, so the document keeps the URL it asked for.
  * Module scripts resolve imports against their response URL: serving
  * `/script.js` with the image URL would load a second copy of every module.
  */
 function rehome(response: Response): Response {
-  return new Response(response.body, {
+  return new Response(NULL_BODY_STATUSES.has(response.status) ? null : response.body, {
     status: response.status,
     statusText: response.statusText,
     headers: response.headers,

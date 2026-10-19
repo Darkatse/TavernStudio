@@ -1,16 +1,21 @@
 // Drives Studio in a headless browser for checks and experiments.
 
-import { chromium } from 'playwright-core';
+import { chromium, firefox, webkit } from 'playwright-core';
 
 const API = /^\/(api\/|csrf-token$|version$)/;
 const DEVICE_LABELS = { desktop: '桌面', mobile: '移动' };
+/** Firefox and WebKit are Playwright's own builds; Chrome and Edge are the installed browsers. */
+const ENGINES = { firefox, webkit };
 
 /**
  * Launches a browser and collects what goes wrong across every page: API
  * requests reaching the network, same-origin error responses, page errors.
  */
-export async function launch({ url, browser: channel = 'chrome', args = [], headless = true }) {
-  const browser = await chromium.launch({ channel, headless, args });
+export async function launch({ url, browser: name = 'chrome', args = [], headless = true }) {
+  const engine = ENGINES[name];
+  const browser = engine
+    ? await engine.launch({ headless, args })
+    : await chromium.launch({ channel: name, headless, args });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
   const origin = new URL(url).origin;
   const problems = [];
