@@ -9,16 +9,20 @@
   "scripts": {
     "dev": "pnpm --filter @tavern-studio/studio dev",
     "build": "pnpm --filter @tavern-studio/studio build",
-    "check": "pnpm run check:types && pnpm run check:lint && pnpm run check:format && pnpm run build",
-    "check:types": "tsc -p apps/studio && tsc -p apps/studio/tsconfig.node.json && tsc -p packages/st-data && tsc -p packages/backend && tsc -p packages/preview && tsc -p packages/preview/tsconfig.sw.json",
+    "check": "pnpm run check:types && pnpm run check:lint && pnpm run check:format && pnpm run test && pnpm run build",
+    "check:types": "tsc -p apps/studio && tsc -p apps/studio/tsconfig.node.json && tsc -p packages/st-data && tsc -p packages/backend && tsc -p packages/preview && tsc -p packages/preview/tsconfig.sw.json && tsc -p packages/workspace",
     "check:lint": "oxlint --type-aware --deny-warnings",
     "check:format": "prettier --check .",
     "format": "prettier --write .",
+    "test": "rstest run",
     "vendor:st": "node vendors/st/build.mjs",
     "vendor:tt": "node vendors/tt/build.mjs"
   },
   "devDependencies": {
+    "@rstest/core": "^0.12.3",
     "@zumer/snapdom": "^3.3.5",
+    "acorn": "^8.19.0",
+    "acorn-walk": "^8.3.5",
     "oxlint": "^1.88.0",
     "oxlint-tsgolint": "^7.0.2004",
     "playwright-core": "^1.64.1",

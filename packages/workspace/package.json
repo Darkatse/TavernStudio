@@ -1,0 +1,11 @@
+{
+  "name": "@tavern-studio/workspace",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "@tavern-studio/st-data": "workspace:*"
+  }
+}

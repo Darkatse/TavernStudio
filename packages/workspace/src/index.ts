@@ -1,0 +1,12 @@
+export { adopt, AdoptionError, findDifferences } from './adopt';
+export type { Difference } from './adopt';
+export { applyPlacements } from './apply';
+export type { DataReader } from './apply';
+export { fence, unfence } from './documents';
+export { formatPointer, parsePointer } from './json';
+export type { JsonValue, Pointer } from './json';
+export { MANIFEST, MountError, parseManifest } from './manifest';
+export type { Mount, MountPoint, ProjectManifest } from './manifest';
+export { resolveMounts } from './placements';
+export type { FilePlacement, Placement, ProjectReader, ValuePlacement } from './placements';
+export { ProjectStore, sha256, StaleFileError } from './project-store';
