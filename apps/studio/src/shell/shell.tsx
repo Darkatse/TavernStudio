@@ -102,7 +102,7 @@ function NarrowShell({ view, onViewChange }: ShellLayoutProps) {
           initialDevice="mobile"
         />
       </div>
-      <nav aria-label="面板">
+      <nav>
         <SegmentedControl
           label="面板"
           fill
