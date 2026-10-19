@@ -1,5 +1,6 @@
 import {
   undoneOperations,
+  withoutImages,
   type AssistantMessage,
   type CheckpointFile,
   type HistoryEntry,
@@ -10,6 +11,9 @@ import type { Project } from '../project/project';
 import { db } from '../storage/db';
 import { Checkpoints, type RollbackPlan } from './checkpoints';
 import { agentSettings, selectedEndpoint, settingsLoaded } from './settings';
+
+/** How many of the latest Runs keep their screenshots and long tool results (docs/Agent.md §1). */
+const RUNS_WITH_MEDIA = 20;
 
 /** The Run in progress, with the reply as it streams. */
 export interface ActiveRun {
@@ -176,6 +180,7 @@ export class Conversation {
       this.#controller = undefined;
       this.#set({ active: undefined });
       await this.#prune();
+      this.#retain();
     }
   }
 
@@ -230,6 +235,41 @@ export class Conversation {
         problem: `Checkpoint 未能清理：${error instanceof Error ? error.message : String(error)}`,
       });
     }
+  }
+
+  /**
+   * Screenshots and long tool results stay for the latest Runs only
+   * (docs/Agent.md §1). An older Run's screenshots become the note the model
+   * reads wherever an image is gone, and its long results are deleted; its
+   * words stay.
+   */
+  #retain(): void {
+    const runs = [...new Set(this.#state.entries.map((entry) => entry.run))];
+    const old = new Set(runs.slice(0, -RUNS_WITH_MEDIA));
+    if (old.size === 0) return;
+    const entries = this.#state.entries.map((entry) =>
+      old.has(entry.run) ? { ...entry, message: withoutImages(entry.message) } : entry,
+    );
+    if (entries.some((entry, index) => entry.message !== this.#state.entries[index]?.message)) {
+      this.#set({ entries });
+    }
+    const project = this.#project.record.id;
+    this.#save(async () => {
+      const database = await db;
+      const transaction = database.transaction(['history', 'toolResults'], 'readwrite');
+      const history = transaction.objectStore('history');
+      for (const record of await history.index('project').getAll(project)) {
+        if (!old.has(record.run)) continue;
+        const message = withoutImages(record.message);
+        if (message !== record.message) void history.put({ ...record, message });
+      }
+      const results = transaction.objectStore('toolResults');
+      for (const path of await results.index('project').getAllKeys(project)) {
+        // A stored result's path starts with its Run.
+        if (old.has(path.slice(0, path.indexOf('/')))) void results.delete(path);
+      }
+      await transaction.done;
+    });
   }
 
   #keptFile(file: CheckpointFile): void {

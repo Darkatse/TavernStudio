@@ -303,8 +303,14 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
   const [enlarged, setEnlarged] = useState(false);
   const shared = useCaptureShared();
   const images = result.content.filter((part) => part.type === 'image');
-  if (images.length === 0) return null;
-  const fromDom = isRecord(result.details) && result.details['method'] === 'snapdom';
+  const method = isRecord(result.details) ? result.details['method'] : undefined;
+  if (images.length === 0) {
+    // Only the latest Runs keep their screenshots (docs/Agent.md §1).
+    return method === undefined ? null : (
+      <p className="pt-1 pb-1 pl-5 text-caption text-muted">截图已清理，较早的运行不保留截图。</p>
+    );
+  }
+  const fromDom = method === 'snapdom';
   return (
     <div className="flex flex-col items-start gap-1.5 pt-1.5 pb-1 pl-5">
       {images.map((image, index) => (

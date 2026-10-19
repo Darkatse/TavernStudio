@@ -104,6 +104,19 @@ function textOf(result: ToolResultMessage): string {
   return result.content.flatMap((part) => (part.type === 'text' ? [part.text] : [])).join('\n');
 }
 
+/**
+ * A message with its images replaced by the note the model reads wherever an
+ * image is gone: for a Run whose screenshots were cleared from storage.
+ */
+export function withoutImages<T extends Message>(message: T): T {
+  if (message.role === 'assistant' || typeof message.content === 'string') return message;
+  if (!message.content.some((part) => part.type === 'image')) return message;
+  return {
+    ...message,
+    content: message.content.map((part) => (part.type === 'image' ? IMAGE_REMOVED : part)),
+  };
+}
+
 /** Replaces all but the latest `kept` images with a note, from the end of the context. */
 export function keepLatestImages(messages: readonly Message[], kept: number): Message[] {
   let seen = 0;

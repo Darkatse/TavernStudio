@@ -1,7 +1,7 @@
 import { ENDPOINT_PRESETS, probeEndpoint, type Endpoint } from '@tavern-studio/agent';
 import { clsx } from 'clsx';
 import { Check, ChevronDown, Plus, TriangleAlert } from 'lucide-react';
-import { useId, useState } from 'react';
+import { useEffect, useId, useState } from 'react';
 import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
 import { DialogContent } from '../ui/dialog';
@@ -100,8 +100,29 @@ function Endpoints() {
           </p>
         </div>
       </div>
+      <StorageUsage />
     </>
   );
+}
+
+/** How much Studio keeps in this browser (docs/Agent.md §1, 存储上限). */
+function StorageUsage() {
+  const [usage, setUsage] = useState<number>();
+  useEffect(() => {
+    void navigator.storage.estimate().then((estimate) => setUsage(estimate.usage));
+  }, []);
+  if (usage === undefined) return null;
+  return (
+    <p className="text-caption text-pretty text-muted">
+      Studio 在这个浏览器里占用 {formatSize(usage)}
+      。只有最近 20 次运行保留截图和长结果；Checkpoint 每个项目最多保留 100 MB，超出时从最早的清理。
+    </p>
+  );
+}
+
+function formatSize(bytes: number): string {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`;
 }
 
 /**
