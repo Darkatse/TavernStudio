@@ -86,6 +86,9 @@
   --text-caption--line-height: 16px;
   --text-micro: 11px;
   --text-micro--line-height: 14px;
+  /* Reading text: the Transcript and Markdown. Chinese paragraphs need a line height of at least 1.6. */
+  --text-prose: 14px;
+  --text-prose--line-height: 23px;
 
   /* Nested corners are concentric: inner = outer − inset − border. */
   --radius-sm: 6px;
@@ -239,6 +242,8 @@
 
     --size-control: 36px;
     --size-icon: 16px;
+    /* Dialogs hang from here, so content that changes does not move them. */
+    --dialog-top: 12dvh;
 
     @variant dark {
       color-scheme: dark;
@@ -363,6 +368,112 @@
   }
 }
 
+@layer components {
+  /*
+   * Markdown in the Transcript (agent/markdown.tsx), in the prose role. Each
+   * top-level block sits in a `display: contents` wrapper.
+   */
+  .markdown {
+    font-size: var(--text-prose);
+    line-height: var(--text-prose--line-height);
+    overflow-wrap: anywhere;
+
+    & :is(p, ul, ol, pre, blockquote, table) {
+      margin-block: 0.6em;
+    }
+    & > div:first-child > :first-child {
+      margin-top: 0;
+    }
+    & > div:last-child > :last-child {
+      margin-bottom: 0;
+    }
+    & :is(h1, h2, h3, h4) {
+      margin-block: 1em 0.4em;
+      font-size: var(--text-subtitle);
+      line-height: var(--text-subtitle--line-height);
+      font-weight: var(--font-weight-semibold);
+    }
+    & ul {
+      padding-inline-start: 1.25em;
+      list-style: disc;
+    }
+    & ol {
+      padding-inline-start: 1.5em;
+      list-style: decimal;
+    }
+    & li + li {
+      margin-top: 0.2em;
+    }
+    & strong {
+      font-weight: var(--font-weight-semibold);
+    }
+    & code {
+      padding: 0.1em 0.35em;
+      border-radius: var(--radius-sm);
+      background: var(--color-sunken);
+      font-family: var(--font-mono);
+      font-size: 0.9em;
+    }
+    & pre {
+      overflow-x: auto;
+      padding: 0.75em 0.9em;
+      border-radius: var(--radius-lg);
+      background: var(--color-sunken);
+      box-shadow: inset 0 0 0 1px var(--color-line);
+      font-family: var(--font-mono);
+      font-size: var(--text-caption);
+      line-height: 1.6;
+    }
+    & pre code {
+      padding: 0;
+      background: none;
+      font-size: inherit;
+    }
+    & blockquote {
+      padding-inline-start: 0.9em;
+      border-inline-start: 2px solid var(--color-line-strong);
+      color: var(--color-muted);
+    }
+    & a {
+      text-decoration: underline;
+      text-decoration-color: var(--color-line-strong);
+      text-underline-offset: 3px;
+      &:hover {
+        text-decoration-color: currentColor;
+      }
+    }
+    & hr {
+      margin-block: 1em;
+      border: 0;
+      border-top: 1px solid var(--color-line);
+    }
+    & table {
+      border-collapse: collapse;
+      font-size: var(--text-body);
+    }
+    & :is(th, td) {
+      padding: 0.35em 0.6em;
+      border: 1px solid var(--color-line);
+    }
+    & th {
+      background: var(--color-sunken);
+      font-weight: var(--font-weight-semibold);
+    }
+  }
+
+  /* A solid caret at the end of a reply while it streams. It does not blink. */
+  .markdown-streaming > div:last-child > :last-child::after {
+    content: '';
+    display: inline-block;
+    width: 0.5em;
+    height: 1.1em;
+    margin-inline-start: 2px;
+    border-radius: 1px;
+    background: currentColor;
+    vertical-align: text-bottom;
+  }
+}
+
 /*
  * Motion tiers. A component sets `transition-property` and one tier; the tier
  * supplies duration and easing, and exits run one step faster on an ease-out.
@@ -392,6 +503,15 @@
     transition-duration: var(--motion-slow-exit);
     transition-timing-function: var(--ease-exit);
   }
+}
+
+/*
+ * A Run in the Transcript. Off screen it skips layout and paint and keeps its
+ * last size, so a long conversation scrolls lightly (docs/plan/P1.md, performance).
+ */
+@utility run-block {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 160px;
 }
 
 /* Floating popups grow from their anchor. Pair with a tier. */

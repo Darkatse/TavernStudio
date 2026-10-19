@@ -40,6 +40,22 @@ export default defineConfig({
         pluginPublished(path.join(repo, 'templates'), 'templates'),
       ],
       source: { entry: { index: './src/main.tsx' } },
+      // Dev tooling lives under `/__` and hot updates under `/_studio/`, the
+      // paths the Preview SW leaves to the dev server.
+      dev: { lazyCompilation: { entries: false, imports: true, prefix: '/__rspack/lazy' } },
+      tools: {
+        rspack: {
+          output: {
+            hotUpdateMainFilename: `${assets}/hot/[runtime].[fullhash].hot-update.json`,
+            hotUpdateChunkFilename: `${assets}/hot/[id].[fullhash].hot-update.js`,
+          },
+          // pi-ai probes for credential files through a variable `import()` of
+          // node:fs; in a browser it fails and pi-ai catches it.
+          ignoreWarnings: [
+            { module: /pi-ai[\\/]dist[\\/]auth[\\/]context\.js$/, message: /Critical dependency/ },
+          ],
+        },
+      },
       html: {
         template: './src/index.html',
         title: 'Tavern Studio',

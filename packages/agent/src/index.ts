@@ -1,6 +1,6 @@
 export { normalizeArguments } from './arguments';
 export { closeToolGroups, keepLatestImages, modelContext } from './context';
-export { ENDPOINT_PRESETS, endpointModel, endpointStreams } from './endpoints';
+export { ENDPOINT_PRESETS, endpointModel, endpointStreams, probeEndpoint } from './endpoints';
 export type { Endpoint, EndpointApi } from './endpoints';
 export type { HistoryEntry } from './history';
 // The message types History stores, so that the app depends on pi-ai only through this package.

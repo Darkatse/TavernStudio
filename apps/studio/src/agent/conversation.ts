@@ -1,20 +1,12 @@
-import {
-  endpointModel,
-  endpointStreams,
-  runAgent,
-  workspaceTools,
-  type AssistantMessage,
-  type HistoryEntry,
-  type JournalEvent,
-  type RunEnvironment,
-  type Tool,
-  type UserMessage,
+import type {
+  AssistantMessage,
+  HistoryEntry,
+  JournalEvent,
+  UserMessage,
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
 import { db } from '../storage/db';
-import { selectedEndpoint, settingsLoaded } from './settings';
-import { systemPrompt } from './system-prompt';
-import { agentWorkspace } from './workspace';
+import { agentSettings, selectedEndpoint, settingsLoaded } from './settings';
 
 /** The Run in progress, with the reply as it streams. */
 export interface ActiveRun {
@@ -24,6 +16,8 @@ export interface ActiveRun {
 }
 
 export interface ConversationState {
+  /** Whether History and Journal have been read from IndexedDB. */
+  loaded: boolean;
   entries: readonly HistoryEntry[];
   events: readonly JournalEvent[];
   active: ActiveRun | undefined;
@@ -41,6 +35,7 @@ export interface ConversationState {
 export class Conversation {
   readonly #project: Project;
   #state: ConversationState = {
+    loaded: false,
     entries: [],
     events: [],
     active: undefined,
@@ -57,6 +52,11 @@ export class Conversation {
     this.#project = project;
   }
 
+  /** The project's id; each project has one conversation. */
+  get id(): string {
+    return this.#project.record.id;
+  }
+
   get state(): ConversationState {
     return this.#state;
   }
@@ -68,26 +68,35 @@ export class Conversation {
 
   async load(): Promise<void> {
     const project = this.#project.record.id;
-    const database = await db;
-    // Within one project, the index orders records by their primary key, the sequence.
-    const [history, journal] = await Promise.all([
-      database.getAllFromIndex('history', 'project', project),
-      database.getAllFromIndex('journal', 'project', project),
-    ]);
-    this.#set({
-      entries: history.map(({ run, round, message }) => ({ run, round, message })),
-      events: journal.map((record) => record.event),
-    });
+    try {
+      const database = await db;
+      // Within one project, the index orders records by their primary key, the sequence.
+      const [history, journal] = await Promise.all([
+        database.getAllFromIndex('history', 'project', project),
+        database.getAllFromIndex('journal', 'project', project),
+      ]);
+      this.#set({
+        loaded: true,
+        entries: history.map(({ run, round, message }) => ({ run, round, message })),
+        events: journal.map((record) => record.event),
+      });
+    } catch (error) {
+      // A Run must not continue a History it could not read; the conversation stays closed.
+      this.#set({
+        problem: `对话记录未能读取：${error instanceof Error ? error.message : String(error)}`,
+      });
+    }
   }
 
   /** Starts a Run with the author's message, or adds it as Guidance to the Run in progress. */
   async send(text: string): Promise<void> {
+    if (!this.#state.loaded) throw new Error('The conversation is not loaded yet');
     if (this.#state.active) {
       this.#set({ guidance: [...this.#state.guidance, text] });
       return;
     }
     await settingsLoaded();
-    const selected = selectedEndpoint();
+    const selected = selectedEndpoint(agentSettings());
     if ('problem' in selected) {
       this.#set({ problem: selected.problem });
       return;
@@ -98,19 +107,12 @@ export class Conversation {
     this.#set({ active: { id, round: 0, partial: undefined }, problem: undefined });
     const message: UserMessage = { role: 'user', content: text, timestamp: Date.now() };
     try {
-      const environment: RunEnvironment = {
-        agent: {
-          model: endpointModel(selected.endpoint),
-          streams: await endpointStreams(selected.endpoint.api),
-          options: { apiKey: selected.apiKey },
-        },
-        systemPrompt: await systemPrompt(this.#project),
-        tools: this.#tools(),
+      const { runInProject } = await import('./engine');
+      await runInProject(this.#project, id, this.#state.entries, message, selected, {
         toolResults: {
           put: async (path, result) => {
-            await (
-              await db
-            ).put('toolResults', {
+            const database = await db;
+            await database.put('toolResults', {
               path,
               project: this.#project.record.id,
               text: result,
@@ -126,17 +128,22 @@ export class Conversation {
           return [...guidance];
         },
         signal: controller.signal,
-      };
-      await runAgent(id, this.#state.entries, message, environment);
+      });
     } catch (error) {
       // Anything runAgent did not turn into an outcome is Studio's own failure.
-      this.#journal({
-        type: 'run_failed',
-        run: id,
-        time: Date.now(),
-        code: 'agent.internal',
-        message: error instanceof Error ? error.message : String(error),
-      });
+      const reason = error instanceof Error ? error.message : String(error);
+      if (this.#state.entries.some((entry) => entry.run === id)) {
+        this.#journal({
+          type: 'run_failed',
+          run: id,
+          time: Date.now(),
+          code: 'agent.internal',
+          message: reason,
+        });
+      } else {
+        // Nothing of the Run reached History, so the Transcript has nowhere to show it.
+        this.#set({ problem: `Agent 未能启动：${reason}` });
+      }
     } finally {
       cancelAnimationFrame(this.#frame);
       this.#controller = undefined;
@@ -147,10 +154,6 @@ export class Conversation {
   /** Stops the Run; what it already changed stays (docs/Agent.md §1). */
   cancel(): void {
     this.#controller?.abort();
-  }
-
-  #tools(): Tool[] {
-    return workspaceTools(agentWorkspace(this.#project));
   }
 
   #record(entry: HistoryEntry): void {

@@ -55,11 +55,17 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
   });
 }
 
-/** The selected endpoint and its key, or why a Run cannot start. */
-export function selectedEndpoint(): { endpoint: Endpoint; apiKey: string } | { problem: string } {
-  const endpoint = settings.endpoints.find((candidate) => candidate.id === settings.selected);
-  if (!endpoint) return { problem: '还没有选择模型。在设置里添加一个模型服务。' };
-  const apiKey = settings.keys[endpoint.id];
-  if (!apiKey) return { problem: `${endpoint.label} 还没有填写 API Key。` };
+/**
+ * The selected endpoint and its key, or why a Run cannot start. It takes the
+ * settings rather than reading them, so a component that renders it re-renders
+ * with them (the React Compiler memoizes calls by their arguments).
+ */
+export function selectedEndpoint(
+  current: AgentSettings,
+): { endpoint: Endpoint; apiKey: string } | { endpoint: Endpoint | undefined; problem: string } {
+  const endpoint = current.endpoints.find((candidate) => candidate.id === current.selected);
+  if (!endpoint) return { endpoint, problem: '还没有选择模型。在设置里添加一个模型服务。' };
+  const apiKey = current.keys[endpoint.id];
+  if (!apiKey) return { endpoint, problem: `${endpoint.label} 还没有填写 API Key。` };
   return { endpoint, apiKey };
 }

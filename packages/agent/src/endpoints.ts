@@ -68,8 +68,38 @@ export function endpointModel(endpoint: Endpoint): Model<Api> {
 }
 
 /**
+ * Asks the endpoint for a one-word reply, to tell the author whether the
+ * address, model and key work before a Run depends on them.
+ */
+export async function probeEndpoint(
+  endpoint: Endpoint,
+  apiKey: string,
+  signal?: AbortSignal,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const [streams, { normalizeContext }] = await Promise.all([
+    endpointStreams(endpoint.api),
+    import('@earendil-works/pi-ai/utils/transcript'),
+  ]);
+  const context = normalizeContext({
+    messages: [{ role: 'user', content: 'Reply with OK.', timestamp: Date.now() }],
+  });
+  const reply = await streams
+    .streamSimple(endpointModel(endpoint), context, {
+      apiKey,
+      maxTokens: 32,
+      maxRetries: 0,
+      ...(signal ? { signal } : {}),
+    })
+    .result();
+  return reply.stopReason === 'error' || reply.stopReason === 'aborted'
+    ? { ok: false, message: reply.errorMessage ?? 'The request failed' }
+    : { ok: true };
+}
+
+/**
  * The API implementation, loaded on first use: each lives in its own chunk
  * with its provider SDK, so none of them weighs on Studio's first screen.
+ * Whatever calls a model loads pi-ai this way, the probe included.
  */
 export function endpointStreams(api: EndpointApi): Promise<ProviderStreams> {
   switch (api) {

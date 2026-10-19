@@ -17,6 +17,8 @@ export async function launch({ url, browser: name = 'chrome', args = [], headles
     ? await engine.launch({ headless, args })
     : await chromium.launch({ channel: name, headless, args });
   const context = await browser.newContext({ viewport: { width: 1600, height: 1000 } });
+  // A vendor page loads several hundred resources; the default buffer keeps 250.
+  await context.addInitScript(() => performance.setResourceTimingBufferSize(10_000));
   const origin = new URL(url).origin;
   const problems = [];
 
