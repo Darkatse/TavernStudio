@@ -57,11 +57,11 @@ async function startStreamingModel(port) {
 function seed({ runs, calls }) {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open('tavern-studio');
-    request.onerror = () => reject(request.error);
-    request.onsuccess = () => {
+    request.addEventListener('error', () => reject(request.error), { once: true });
+    request.addEventListener('success', () => {
       const database = request.result;
       const projects = database.transaction('projects').objectStore('projects').getAll();
-      projects.onsuccess = () => {
+      projects.addEventListener('success', () => {
         const project = projects.result[0].id;
         const transaction = database.transaction(['history', 'journal'], 'readwrite');
         const history = transaction.objectStore('history');
@@ -154,10 +154,10 @@ function seed({ runs, calls }) {
           time += 60_000;
           journal.add({ project, event: { type: 'run_completed', run: id, time } });
         }
-        transaction.oncomplete = () => resolve(project);
-        transaction.onerror = () => reject(transaction.error);
-      };
-    };
+        transaction.addEventListener('complete', () => resolve(project), { once: true });
+        transaction.addEventListener('error', () => reject(transaction.error), { once: true });
+      });
+    });
   });
 }
 
@@ -202,8 +202,8 @@ try {
 
   // A long conversation: open it, then scroll it from the newest to the oldest.
   await page.reload();
-  const log = page.locator('[role=log]');
-  await log.waitFor({ timeout: 60_000 });
+  const transcript = page.locator('[role=log]');
+  await transcript.waitFor({ timeout: 60_000 });
   await page.waitForFunction(
     (runs) => document.querySelectorAll('[role=log] section').length === runs,
     RUNS,
@@ -212,7 +212,7 @@ try {
   await vendorPage(page);
   await page.waitForTimeout(3000);
   await page.evaluate(watch);
-  const box = await log.boundingBox();
+  const box = await transcript.boundingBox();
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   for (let step = 0; step < 120; step++) {
     await page.mouse.wheel(0, -1500);
