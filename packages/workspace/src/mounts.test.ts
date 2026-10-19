@@ -74,7 +74,7 @@ async function placements(files: Files): Promise<Placement[]> {
 }
 
 function compose(fixture: Data, placed: Placement[]): Data {
-  return fixture.with(applyPlacements(fixture, fixture, [], placed));
+  return fixture.with(applyPlacements(fixture, fixture, [], placed).writes);
 }
 
 const fixture = new Data({
@@ -157,13 +157,34 @@ describe('Mounts', () => {
       'theme.json': '{ "theme": "Bamboo", "main_text_color": "red" }',
     });
 
-    const updated = session.with(applyPlacements(fixture, session, before, after));
+    const updated = session.with(applyPlacements(fixture, session, before, after).writes);
     expect(updated.json(SETTINGS)).toEqual(
       vendorSaves(compose(fixture, after), (settings) => {
         settings.power_user.chat_width = 70;
       }).json(SETTINGS),
     );
     expect((updated.json(SETTINGS) as any).power_user).not.toHaveProperty('blur_strength');
+  });
+
+  test('a change to one mount point keeps session writes on another, and reports what moved', async () => {
+    const before = await placements(theme);
+    const session = vendorSaves(compose(fixture, before), (settings) => {
+      settings.power_user.main_text_color = 'rgba(200, 0, 0, 1)';
+    });
+    const after = await placements({ ...theme, 'theme.css': 'body { color: green; }\n' });
+
+    const { writes, changes } = applyPlacements(fixture, session, before, after);
+    expect((session.with(writes).json(SETTINGS) as any).power_user).toMatchObject({
+      main_text_color: 'rgba(200, 0, 0, 1)',
+      custom_css: 'body { color: green; }\n',
+    });
+    expect(changes).toEqual([
+      { path: SETTINGS, pointer: ['power_user', 'custom_css'], value: 'body { color: green; }\n' },
+    ]);
+    expect(applyPlacements(fixture, session.with(writes), after, after)).toEqual({
+      writes: new Map(),
+      changes: [],
+    });
   });
 
   test('adopting differences writes them back until the project matches the Session', async () => {
@@ -267,9 +288,9 @@ describe('Mounts', () => {
       `${extension}/manifest.json`,
       SETTINGS,
     ]);
-    expect([...snapshot.with(applyPlacements(fixture, snapshot, placed, [])).files.keys()]).toEqual(
-      [SETTINGS],
-    );
+    expect([
+      ...snapshot.with(applyPlacements(fixture, snapshot, placed, []).writes).files.keys(),
+    ]).toEqual([SETTINGS]);
   });
 
   test('two Mounts writing the same position are refused', async () => {
