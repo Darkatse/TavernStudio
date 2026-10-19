@@ -16,10 +16,10 @@
 | V7 | 通过，默认方式改为 Element Capture | Element Capture 与浏览器截图一致；snapdom 在 ST 上有系统性失真 |
 | V8 | 通过 | 两条主题热应用路径都在 3 ms 内生效，与重载结果一致 |
 | V9 | 已记录 | 抽样代码在 `top` 指向 Studio 时都不出错 |
-| V10 | ST 部分通过；TT 部分待 V4 | 换镜像时清理干净，Studio 自有存储与 Agent 计数键保留；数据子资源带内容哈希 ETag |
+| V10 | 通过（TT 部分含 V4 第 1 项的改正） | 换镜像时清理干净，Studio 自有存储与 Agent 计数键保留；数据子资源带内容哈希 ETag，TT 校验缩略图所依赖的 `HEAD` 在替换后返回新 ETag |
 | V11 | 通过 | 三类来源的语法错误与运行时错误全部捕获；文件的行列号准确，srcdoc 内联脚本按固定偏移可映射 |
 
-退出条件尚未全部满足：V4 与 V6 各自等一处上游修复，V10 的 TT 部分随 V4 完成，见末节。
+退出条件尚未全部满足：V4 与 V6 各自等一处上游修复，见末节。
 
 ## V1 ST 镜像
 
@@ -179,7 +179,8 @@ StageDog 的 tavern_helper_template 与另外十余个本地缓存的扩展、�
 - 数据子资源的 ETag 是内容的 SHA-256。替换同名背景后 5 ms 内即提供新内容，重载后依然正确。
 - 同一镜像再次启动时，埋入的 localStorage、sessionStorage、IndexedDB 与 Cache 标记全部保留。换用另一镜像时全部清理，只留下 Studio 的两个 Cache 和 app-use 的计数键。
 - 清理时不能有打开的 vendor 页面，否则删除数据库会被阻塞；Studio 会报错，而不是一直等待。第二个标签页接管 Session（Architecture §4）是 P1 的前置工作。
-- ST 自己的背景缩略图缓存不校验 ETag，替换同名背景后 ST 的缩略图不会更新。真实 ST 也是如此，属于 vendor 行为。TT 缩略图的部分随 V4 验证。
+- ST 自己的背景缩略图缓存不校验 ETag，替换同名背景后 ST 的缩略图不会更新。真实 ST 也是如此，属于 vendor 行为。
+- TT 复用背景预览前，先用 `HEAD` 取 ETag 与缓存比较，缺少 ETag 时报错（`backgrounds.js` 的 `getCustomBackgroundPreview`）。在 TT 页面里，经 TT 自己包装过的 `fetch` 实测（含 V4 第 1 项的改正）：`HEAD /backgrounds/tavern%20day.jpg` 返回内容哈希 ETag；替换同名背景后 ETag 随之改变，重载后保持。TT 依赖的这个契约成立。这条界面路径本身没有走到，因为样板里没有自定义聊天背景。
 
 ## V11 运行时诊断
 
@@ -250,7 +251,6 @@ Firefox 与 WebKit 用的是 Playwright 的构建，在 Windows 上未必代表�
 | 项 | 前置条件 |
 |---|---|
 | V4 | TauriTavern 改正 W1 第 1 项后重跑 `scripts/p0/v4-tt.mjs`；第 2 项决定范围外命令在 Web Host 下的表现 |
-| V10 的 TT 部分：替换同名背景后 TT 缩略图随之更新 | V4 |
 | V6 的 `app.interact` | `@tauritavern/app-use@0.1.1`：去掉 `perspective` 拒绝。之后 Studio 升级依赖并重跑 V6 |
 | WebKit 的两处限制在真实 Safari 上的表现 | 在 macOS / iOS 上实测 |
 | View 的卸载方式：让 vendor 的 `pagehide` 在仍附着的 realm 中运行 | P1，与 V4 第 3 项一起处理 |
