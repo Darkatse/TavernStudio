@@ -1,4 +1,5 @@
 import type { ImageContent } from '@earendil-works/pi-ai';
+import { interactTool, readLogsTool, snapshotTool } from '@tauritavern/app-use';
 import { optionalBoolean } from './arguments';
 import { elementTarget, TARGET_PROPERTIES, type ElementTarget } from './element-target';
 import { modelToolName, ToolError, type Tool } from './tool';
@@ -48,11 +49,16 @@ export interface Screenshot {
   marks?: { page: string; drawn: number; refs: number };
 }
 
+/** `capture` was asked for marks, and the Run has taken no snapshot page to number. */
+export class NoSnapshotError extends Error {
+  override name = 'NoSnapshotError';
+}
+
 const STYLES = modelToolName('inspect.styles');
 const AUDIT = modelToolName('inspect.audit');
-const SNAPSHOT = modelToolName('app.snapshot');
-const INTERACT = modelToolName('app.interact');
-const READ_LOGS = modelToolName('app.read_logs');
+const SNAPSHOT = modelToolName(snapshotTool.name);
+const INTERACT = modelToolName(interactTool.name);
+const READ_LOGS = modelToolName(readLogsTool.name);
 const CONFIGURE = modelToolName('preview.configure');
 
 const SNAPDOM_DISTORTIONS = `It was rendered from the DOM (snapdom), not taken from the screen: background layers may be missing or darker, <q> quotes may appear twice and text may wrap differently. Judge those with ${STYLES} and ${AUDIT}, not from this image.`;
@@ -85,6 +91,12 @@ With marks, the refs of your latest ${SNAPSHOT} page are boxed and labelled on t
         shot = await preview.capture(run, target, { marks }, signal);
       } catch (error) {
         if (signal.aborted) throw error;
+        if (error instanceof NoSnapshotError) {
+          throw new ToolError(
+            'preview.no_snapshot',
+            `Marks number the refs of the latest ${SNAPSHOT} page, and this Run has none yet. Call ${SNAPSHOT} first.`,
+          );
+        }
         throw new ToolError(
           'preview.capture_failed',
           error instanceof Error ? error.message : String(error),

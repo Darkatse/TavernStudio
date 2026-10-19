@@ -18,7 +18,7 @@ export type { HistoryEntry } from './history';
 export type { ElementTarget } from './element-target';
 export { DEFAULT_STYLE_PROPERTIES, inspectTools } from './inspect-tools';
 export type { InspectSurface } from './inspect-tools';
-export { previewTools } from './preview-tools';
+export { NoSnapshotError, previewTools } from './preview-tools';
 export type { PreviewControl, Screenshot } from './preview-tools';
 // The message types History stores, so that the app depends on pi-ai only through this package.
 export type {

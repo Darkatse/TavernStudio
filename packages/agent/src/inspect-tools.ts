@@ -1,3 +1,4 @@
+import { interactTool } from '@tauritavern/app-use';
 import type { JsonValue } from '@tavern-studio/workspace';
 import { elementTarget, TARGET_PROPERTIES, type ElementTarget } from './element-target';
 import { modelToolName, ToolError, type Tool, type ToolResult } from './tool';
@@ -28,7 +29,7 @@ export const DEFAULT_STYLE_PROPERTIES = [
   'opacity',
 ];
 
-const INTERACT = modelToolName('app.interact');
+const INTERACT = modelToolName(interactTool.name);
 const STYLES = modelToolName('inspect.styles');
 
 /**

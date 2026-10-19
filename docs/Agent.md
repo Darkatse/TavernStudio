@@ -78,7 +78,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 
 ## 4. 工具
 
-工具的稳定 ID 用点分组。发给模型时把点换成下划线，例如 `workspace_read_file`，与 TT 同一规则：OpenAI 与 Anthropic 的工具名都不允许点号。提示词、工具说明和报错里引用的，都是模型实际看到的名字，由 `modelToolName` 从 ID 得出；ID 只用于注册、Journal 和文档。app-use 自带的说明与报错还写着 ID，随它的下一个版本改正（T 线）。
+工具的稳定 ID 用点分组。发给模型时把点换成下划线，例如 `workspace_read_file`，与 TT 同一规则：OpenAI 与 Anthropic 的工具名都不允许点号。提示词、工具说明和报错里引用的，都是模型实际看到的名字，由 `modelToolName` 从 ID 得出；ID 只用于注册、Journal 和文档。`app.*` 的 ID 取自 app-use 导出的工具定义（`snapshotTool.name` 等），Studio 不另写一份；app-use 自带的说明与报错从 0.1.4 起也写别名。
 
 | 组 | 工具 | 说明 |
 |---|---|---|

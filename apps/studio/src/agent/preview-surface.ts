@@ -1,6 +1,6 @@
 import {
   DEFAULT_STYLE_PROPERTIES,
-  modelToolName,
+  NoSnapshotError,
   type AppLogEntry,
   type AppSurface,
   type InspectSurface,
@@ -128,11 +128,7 @@ function snapshotMarks(
 ): { page: string; refs: number; marks: Mark[] } {
   const refs = page.agent.refs(run);
   const [first] = refs;
-  if (first === undefined) {
-    throw new Error(
-      `Marks number the refs of the latest ${modelToolName('app.snapshot')} page, and this Run has none yet. Call ${modelToolName('app.snapshot')} first.`,
-    );
-  }
+  if (first === undefined) throw new NoSnapshotError();
   const view = page.frame.contentWindow;
   if (!view) throw new Error('The preview frame has no page');
   const marks = refs.flatMap((ref) => {

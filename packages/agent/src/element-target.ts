@@ -1,7 +1,7 @@
-import type { ElementTarget } from '@tauritavern/app-use';
+import { snapshotTool, type ElementTarget } from '@tauritavern/app-use';
 import { modelToolName, ToolError, type JsonObject } from './tool';
 
-const SNAPSHOT = modelToolName('app.snapshot');
+const SNAPSHOT = modelToolName(snapshotTool.name);
 
 export type { ElementTarget };
 

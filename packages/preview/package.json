@@ -11,7 +11,7 @@
     "./sw": "./src/sw.ts"
   },
   "dependencies": {
-    "@tauritavern/app-use": "0.1.3",
+    "@tauritavern/app-use": "0.1.4",
     "@tavern-studio/backend": "workspace:*",
     "@tavern-studio/workspace": "workspace:*",
     "@zumer/snapdom": "3.3.5"
