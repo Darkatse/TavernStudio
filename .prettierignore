@@ -1,0 +1,6 @@
+# Prose is written by hand; Prettier would realign CJK tables.
+*.md
+pnpm-lock.yaml
+LICENSE
+# Copied from Darkatse/conceptual-integrity; keep byte-identical.
+.agents/

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Conceptual Integrity"
+  short_description: "One kind of thing, one path: converge the architecture instead of piling up patches"
+  default_prompt: "Use $conceptual-integrity: trace the shared need, converge at the source, and complete this request without leaving a second path behind."
