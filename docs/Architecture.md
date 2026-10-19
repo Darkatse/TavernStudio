@@ -115,7 +115,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 | 数据路径 | 热应用入口 |
 |---|---|
-| `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• `font_scale` 等滑块在 `input` 之后还要派发 `mouseup`，否则 CSS 变量等到松手才更新；<br>• 其余字段用各自的控件。<br>之后读回 vendor 内存中的 `power_user` 核对，不一致就报告并重载 |
+| `settings.json#/power_user` 的主题字段 | 驱动 ST 自己的主题控件，控件 id 取自 Vendor 解剖图：<br>• `#customCSS` 赋值后派发 `input`；<br>• 取色器设置 `color` 属性即可，它会自己派发带 `detail.rgba` 的 `change`（再手动派发一次会让 ST 的处理器抛错）；<br>• `font_scale` 等滑块在 `input` 之后还要派发 `mouseup`，否则 CSS 变量等到松手才更新；<br>• 其余字段用各自的控件。<br>之后读回 vendor 内存中的 `power_user` 核对，不一致就报告并重载；值由 vendor 自己保存 |
 | 扩展的 CSS 文件 | 原位替换 `<link id="third-party_<name>-css">` 的 href。不重新插入，以保持层叠顺序 |
 | 扩展的 JS 文件 | 重载 View（ESM 无法卸载） |
 | 酒馆助手脚本：`settings.json` 与角色卡中的 `tavern_helper` 脚本 | TavernHelper 的公开 API `replaceScriptTrees`，只作用于当前角色或预设 |
@@ -126,9 +126,10 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - **vendor 在内存里持有的数据。** 如果 vendor 在内存里持有一份数据、保存时整体写回，那么只改 Session 不会生效，vendor 之后保存时还会用旧值把它覆盖。
   - 这类路径只能走 vendor 的公开入口，做不到就重载。
   - 目前已知的有：`settings.json` 的全部字段、酒馆助手脚本、世界书、Quick Reply。
-- **vendor 守护的数据。** 有的 vendor 只在数据仍是页面加载时的内容时才保存：TT 的 Web Host 保存 `settings.json` 前比对加载时的版本。Studio 在运行中的 TT 页面底下改写它，这个页面之后的每次保存都会被拒绝，作者在预览里的改动随之丢失。
-  - 所以 TT 守护的数据不热应用，走重载路径：页面先经退出流程保存，Studio 再写入，然后重载。
-  - 代价是 TT 上的主题改动要重载一次，约 1.3 s。TT 的 Web Host 提供"嵌入方写入后同步版本"的入口之后，再恢复热应用。
+- **运行中的页面是它数据的唯一写入者。** 热应用只驱动 vendor 自己的控件，由 vendor 走自己的保存路径写入，Studio 不在运行中的页面底下写数据。
+  - 数据里出现这些值之后，放置才算完成；在此之前比较差异，仍以上一次的放置为准，不会把旧值误报为会话写入。
+  - 控件没取到值（读回不一致），或 vendor 在 5 s 内没有保存，就改走重载路径：页面先经退出流程保存，Studio 再写入，然后重载。没有热应用入口的路径也走这条路。
+  - 理由：TT 的 Web Host 保存 `settings.json` 前会比对页面加载时的版本。Studio 若既驱动控件、又直接写数据，就是同一个值写了两次，第二次让页面的版本过期，这个页面之后的每次保存都会被拒绝。ST 没有这项校验，但同样只走控件，两种 vendor 是同一条路。
 - **观察跟上项目。** Agent 写下的文件要经过 Mount 和 Session 才到达预览，可能还要重载。所以观察预览的工具（`app.*`、截图）先等预览放置完项目的最新文件、页面就绪，再动手。
 - **重载是权威。** 热应用只是优化，结果必须与重载一致。重载也改变不了的内容如实呈现，与真实 ST 一致：
   - 已有聊天里的开场白：`first_mes` 只在新建聊天时复制；

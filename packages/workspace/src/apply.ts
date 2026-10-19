@@ -70,6 +70,18 @@ export function applyPlacements(
 }
 
 /**
+ * Whether the data holds a change's value at its position, as after a
+ * vendor's own save of a hot-applied value. Only values are hot-applied; a
+ * whole-file change is never held this way.
+ */
+export function holdsChange(data: DataReader, change: DataChange): boolean {
+  if (change.pointer === undefined) return false;
+  const bytes = data.read(change.path);
+  const document = bytes && readDocument(change.path, bytes);
+  return jsonEqual(getAt(document, change.pointer), change.value);
+}
+
+/**
  * The previous placements a move replaces: their content changed or went
  * away. Session writes on the positions they own do not survive the move.
  */

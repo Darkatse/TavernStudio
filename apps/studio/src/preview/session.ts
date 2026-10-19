@@ -13,7 +13,9 @@ import {
 import {
   applyPlacements,
   formatPointer,
+  holdsChange,
   type Applied,
+  type DataChange,
   type Placement,
 } from '@tavern-studio/workspace';
 import { answer, answerSync, reportFailure } from './backend-port';
@@ -34,6 +36,12 @@ import { Views, type View, type ViewHooks } from './views';
 import { registerWorker, reportUnansweredRequests } from './worker';
 
 export type { ViewHooks } from './views';
+
+/**
+ * How long a page may take to save hot-applied values. SillyTavern and
+ * TauriTavern save settings a second after the last change.
+ */
+const SAVE_WAIT_MS = 5000;
 
 export type OpeningStep = 'worker' | 'data';
 
@@ -210,11 +218,12 @@ export class PreviewSession implements PreviewHost {
   }
 
   /**
-   * Moves the Session to new placements (docs/Architecture.md §5). When every
-   * View is running and every change has a hot-apply entry, the data and the
-   * vendor pages change in one task, so no stale save of a vendor can come in
-   * between. Otherwise the Views unload first, letting TauriTavern save on
-   * exit, and the data changes before they load again.
+   * Moves the Session to new placements (docs/Architecture.md §5). A running
+   * page is the only writer of its data: when every View is running and every
+   * change has a hot-apply entry, the pages' own controls take the values and
+   * the pages save them, and the placements count as moved once the data
+   * shows it. Otherwise the Views unload first, saving on exit, and Studio
+   * writes the data before they load again.
    */
   place(placements: readonly Placement[]): Promise<void> {
     return this.#queue(() => this.#move((current) => current, placements));
@@ -243,36 +252,58 @@ export class PreviewSession implements PreviewHost {
       return;
     }
     const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
-    const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
     if (applied.writes.size === 0) {
       this.#setPlacements(placements);
-    } else if (
-      pages.every(Boolean) &&
-      canHotApply(opened.anatomy, opened.vendor.kind, applied.changes)
-    ) {
-      this.#write(opened.data, applied);
-      this.#setPlacements(placements);
+      return;
+    }
+    const pages = this.#views.all().map((view) => view.agent && view.frame.contentWindow);
+    if (pages.every(Boolean) && canHotApply(opened.anatomy, applied.changes)) {
+      // A running page is the only writer of its data: its own controls take
+      // the values, and it saves them itself, through its own checks.
       const missed = pages.flatMap((page) =>
         page ? hotApply(page, opened.anatomy, applied.changes) : [],
       );
-      if (missed.length === 0) return;
-      const positions = missed.map(
+      const unsaved = missed.length > 0 ? [] : await this.#savedBy(opened.data, applied.changes);
+      if (missed.length === 0 && unsaved.length === 0) {
+        this.#setPlacements(placements);
+        return;
+      }
+      const positions = (missed.length > 0 ? missed : unsaved).map(
         (change) => `${change.path}#${formatPointer(change.pointer ?? [])}`,
       );
       this.#report({
         level: 'warning',
         kind: 'hot-apply',
-        message: `The vendor did not take ${[...new Set(positions)].join(', ')} through its controls; the preview reloaded instead`,
+        message: `The vendor did not ${missed.length > 0 ? 'take' : 'save'} ${[...new Set(positions)].join(', ')}; the preview reloads instead`,
         frame: 'page',
         time: Date.now(),
       });
-      await this.reload();
-    } else {
-      await this.retireViews();
-      this.#write(opened.data, applyPlacements(opened.fixture, opened.data, previous, placements));
-      this.#setPlacements(placements);
-      this.#bumpGeneration();
     }
+    // The pages save on exit before Studio writes, so no write meets a page that read older data.
+    await this.retireViews();
+    this.#write(opened.data, applyPlacements(opened.fixture, opened.data, previous, placements));
+    this.#setPlacements(placements);
+    this.#bumpGeneration();
+  }
+
+  /**
+   * Waits for a page's own save to bring the data to hot-applied values, and
+   * returns the changes it had not saved in time.
+   */
+  #savedBy(data: DataDirectory, changes: readonly DataChange[]): Promise<DataChange[]> {
+    const missing = () => changes.filter((change) => !holdsChange(data, change));
+    return new Promise((resolve) => {
+      const finish = () => {
+        clearTimeout(timer);
+        stop();
+        resolve(missing());
+      };
+      const stop = this.subscribeData(() => {
+        if (missing().length === 0) finish();
+      });
+      const timer = setTimeout(finish, SAVE_WAIT_MS);
+      if (missing().length === 0) finish();
+    });
   }
 
   /** Reloads every View: the authoritative way to show the Session's data. */

@@ -1,5 +1,4 @@
 import { jsonEqual, type DataChange, type JsonValue } from '@tavern-studio/workspace';
-import type { VendorKind } from './host';
 
 /**
  * How a vendor image sets each theme field through its own control, from the
@@ -34,35 +33,13 @@ function themeField(change: DataChange): string | undefined {
 }
 
 /**
- * Data a vendor saves only if it still is what the page loaded. TauriTavern's
- * Web Host checks settings.json against the revision the page read, so a
- * change Studio writes under a running TauriTavern page makes every later
- * save of that page fail. Such a change reaches the page through a reload,
- * after the page has saved on exit.
- */
-const GUARDED: Record<VendorKind, ReadonlySet<string>> = {
-  st: new Set(),
-  tt: new Set([SETTINGS]),
-};
-
-/**
  * Whether every change has a hot-apply entry (docs/Architecture.md §5): a
- * theme field with a control, set to a value a control can hold, in data the
- * vendor does not guard.
+ * theme field with a control, set to a value a control can hold.
  */
-export function canHotApply(
-  anatomy: ThemeAnatomy,
-  vendor: VendorKind,
-  changes: readonly DataChange[],
-): boolean {
+export function canHotApply(anatomy: ThemeAnatomy, changes: readonly DataChange[]): boolean {
   return changes.every((change) => {
     const field = themeField(change);
-    return (
-      field !== undefined &&
-      !GUARDED[vendor].has(change.path) &&
-      isScalar(change.value) &&
-      !!anatomy.fields[field]?.control
-    );
+    return field !== undefined && isScalar(change.value) && !!anatomy.fields[field]?.control;
   });
 }
 

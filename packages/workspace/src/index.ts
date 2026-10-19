@@ -1,6 +1,6 @@
 export { adopt, AdoptionError, findDifferences, overwrittenBy } from './adopt';
 export type { Difference } from './adopt';
-export { applyPlacements, replacedPlacements } from './apply';
+export { applyPlacements, holdsChange, replacedPlacements } from './apply';
 export type { Applied, DataChange, DataReader } from './apply';
 export { bytesEqual, fence, unfence } from './documents';
 export { formatPointer, jsonEqual, parsePointer } from './json';
