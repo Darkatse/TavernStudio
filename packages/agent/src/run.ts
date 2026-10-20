@@ -17,6 +17,8 @@ import type { ReadState } from './read-state';
 import { modelToolName, ToolError, type Tool, type ToolContext, type ToolResult } from './tool';
 import { resultForModel, type ToolResultStore } from './tool-results';
 
+const MODEL_RETRIES = 3;
+
 export interface AgentModel {
   model: Model<Api>;
   streams: ProviderStreams;
@@ -88,7 +90,7 @@ export async function runAgent(
     const context = modelContext(environment.systemPrompt, environment.tools, entries);
     const stream = agent.streams.streamSimple(agent.model, normalizeContext(context), {
       ...agent.options,
-      maxRetries: 0,
+      maxRetries: MODEL_RETRIES,
       signal,
     });
     for await (const event of stream) {
