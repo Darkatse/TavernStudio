@@ -1,6 +1,6 @@
 import { clsx } from 'clsx';
 import { TriangleAlert } from 'lucide-react';
-import { useEffect, useId, useRef } from 'react';
+import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 
 export interface Naming {
   value: string;
@@ -84,4 +84,77 @@ export function NameField({ naming, label, stem = false, className }: NameFieldP
       )}
     </span>
   );
+}
+
+export interface Renaming<Problem> {
+  /** The name being typed; undefined when nothing is renamed. */
+  draft: string | undefined;
+  /** For the menu's `finalFocus`: the field takes focus when renaming starts. */
+  returnsFocus: () => boolean;
+  start: (name: string) => void;
+  /** For the field while renaming; the caller words the problem. */
+  field: (Omit<Naming, 'problem'> & { problem: Problem | undefined }) | undefined;
+}
+
+/**
+ * Renaming in place from a menu. The field lies over the menu's trigger until
+ * the new name is stored, so the old name never shows in between, or until
+ * the renaming is cancelled; then focus goes back to the trigger, unless it
+ * has moved on elsewhere.
+ */
+export function useRenaming<Problem>({
+  trigger,
+  check,
+  commit,
+}: {
+  trigger: RefObject<HTMLElement | null>;
+  check: (name: string) => Problem | undefined;
+  commit: (name: string) => Promise<void> | void;
+}): Renaming<Problem> {
+  const [naming, setNaming] = useState<{ value: string; problem?: Problem }>();
+  // From choosing Rename until the name is committed or cancelled: the menu
+  // closing meanwhile hands focus to nothing, and a blur after that is ignored.
+  const renaming = useRef(false);
+  const refocus = useRef(false);
+
+  useEffect(() => {
+    if (naming || !refocus.current) return;
+    refocus.current = false;
+    if (document.activeElement === document.body) trigger.current?.focus();
+  }, [naming, trigger]);
+
+  const stop = () => {
+    renaming.current = false;
+    refocus.current = true;
+    setNaming(undefined);
+  };
+  const finish = async (value: string) => {
+    if (!renaming.current) return;
+    const problem = check(value);
+    if (problem !== undefined) {
+      setNaming({ value, problem });
+      return;
+    }
+    renaming.current = false;
+    await commit(value);
+    stop();
+  };
+
+  return {
+    draft: naming?.value,
+    returnsFocus: () => !renaming.current,
+    start: (name) => {
+      renaming.current = true;
+      setNaming({ value: name });
+    },
+    field: naming && {
+      value: naming.value,
+      problem: naming.problem,
+      onChange: (value) => setNaming({ value }),
+      onCommit: () => void finish(naming.value),
+      onCancel: () => {
+        if (renaming.current) stop();
+      },
+    },
+  };
 }

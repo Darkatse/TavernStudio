@@ -1,11 +1,13 @@
 import {
   appTools,
+  conversationTitle,
   endpointModel,
   endpointStreams,
   inspectTools,
   previewTools,
   runAgent,
   workspaceTools,
+  type AgentModel,
   type Endpoint,
   type HistoryEntry,
   type RunEnvironment,
@@ -20,6 +22,11 @@ import { agentWorkspace } from './workspace';
 
 export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools' | 'secrets'>;
 
+export interface SelectedModel {
+  endpoint: Endpoint;
+  apiKey: string;
+}
+
 /**
  * The Run writes the project through `projectRoot`, which keeps its
  * Checkpoint. This module loads with the first Run, so the Agent's engine
@@ -31,22 +38,12 @@ export async function runInProject(
   run: string,
   history: readonly HistoryEntry[],
   message: UserMessage,
-  model: { endpoint: Endpoint; apiKey: string },
+  model: SelectedModel,
   hooks: RunHooks,
 ): Promise<void> {
   const preview = agentPreview(project);
-  const [agentModel, streams] = await Promise.all([
-    endpointModel(model.endpoint),
-    endpointStreams(model.endpoint.api),
-  ]);
-  // pi-ai turns reasoning off when a request asks for none.
-  const effort = effortOf(model.endpoint);
   await runAgent(run, history, message, {
-    agent: {
-      model: agentModel,
-      streams,
-      options: { apiKey: model.apiKey, ...(effort === 'off' ? {} : { reasoning: effort }) },
-    },
+    agent: await agentModel(model),
     systemPrompt: await systemPrompt(project),
     secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
     tools: [
@@ -57,4 +54,27 @@ export async function runInProject(
     ],
     ...hooks,
   });
+}
+
+/** A name for a new conversation, asked of the model beside its first Run. */
+export async function titleConversation(
+  message: string,
+  model: SelectedModel,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  return conversationTitle(await agentModel(model), message, signal);
+}
+
+async function agentModel({ endpoint, apiKey }: SelectedModel): Promise<AgentModel> {
+  const [model, streams] = await Promise.all([
+    endpointModel(endpoint),
+    endpointStreams(endpoint.api),
+  ]);
+  // pi-ai turns reasoning off when a request asks for none.
+  const effort = effortOf(endpoint);
+  return {
+    model,
+    streams,
+    options: { apiKey, ...(effort === 'off' ? {} : { reasoning: effort }) },
+  };
 }

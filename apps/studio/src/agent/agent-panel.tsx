@@ -1,4 +1,4 @@
-import { Settings2 } from 'lucide-react';
+import { Settings2, SquarePen } from 'lucide-react';
 import {
   lazy,
   Suspense,
@@ -17,8 +17,9 @@ import { Dialog } from '../ui/dialog';
 import { Tooltip } from '../ui/tooltip';
 import { Composer } from './composer';
 import type { Conversation } from './conversation';
+import { ConversationButton } from './conversation-button';
 import { agentMessages } from './messages';
-import { useConversation, useConversationState } from './use-conversation';
+import { useConversation, useConversations, useConversationState } from './use-conversation';
 import { Welcome } from './welcome';
 
 // The Transcript brings Markdown with it, so it loads once a first message is being written.
@@ -31,10 +32,14 @@ const SettingsDialog = lazy(() =>
   loadSettings().then((module) => ({ default: module.SettingsDialog })),
 );
 const prefetchSettings = () => void loadSettings();
+const ConversationMenu = lazy(() =>
+  import('./conversation-menu').then((module) => ({ default: module.ConversationMenu })),
+);
 
 export function AgentPanel() {
   const m = useMessages(agentMessages);
   const settingsText = useMessages(settingsMessages);
+  const conversations = useConversations();
   const conversation = useConversation();
   // Undefined until the settings are first opened; they stay mounted from then on, to animate out.
   const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>();
@@ -66,23 +71,42 @@ export function AgentPanel() {
     >
       <header
         data-density="compact"
-        className="flex h-12 shrink-0 items-center gap-2.5 pr-2.5 pl-4"
+        className="flex h-12 shrink-0 items-center gap-0.5 pr-2.5 pl-4"
       >
-        <BrandMark className="size-5" />
-        <span className="text-subtitle">Tavern Studio</span>
-        <Tooltip content={settingsText.settings}>
-          <Button
-            variant="ghost"
-            icon
-            className="ml-auto"
-            aria-label={settingsText.settings}
-            onPointerEnter={prefetchSettings}
-            onFocus={prefetchSettings}
-            onClick={() => openSettings('general')}
-          >
-            <Settings2 />
-          </Button>
-        </Tooltip>
+        <BrandMark className="size-5 shrink-0" />
+        {conversations ? (
+          <Suspense fallback={<ConversationButton conversations={conversations} />}>
+            <ConversationMenu conversations={conversations} />
+          </Suspense>
+        ) : (
+          <span className="pl-2 text-subtitle">Tavern Studio</span>
+        )}
+        <div className="ml-auto flex shrink-0 items-center gap-0.5">
+          {conversations && (
+            <Tooltip content={m.newConversation}>
+              <Button
+                variant="ghost"
+                icon
+                aria-label={m.newConversation}
+                onClick={() => conversations.startNew()}
+              >
+                <SquarePen />
+              </Button>
+            </Tooltip>
+          )}
+          <Tooltip content={settingsText.settings}>
+            <Button
+              variant="ghost"
+              icon
+              aria-label={settingsText.settings}
+              onPointerEnter={prefetchSettings}
+              onFocus={prefetchSettings}
+              onClick={() => openSettings('general')}
+            >
+              <Settings2 />
+            </Button>
+          </Tooltip>
+        </div>
       </header>
       {conversation ? (
         <ConversationBody key={conversation.id} conversation={conversation} welcome={welcome} />

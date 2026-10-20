@@ -38,14 +38,15 @@ export interface RunBlock extends Operation {
 export interface RollbackBlock extends Operation {
   kind: 'rollback';
   /** The Run it went back to before, or the rollback it undid. */
-  target: RunBlock | RollbackBlock | undefined;
+  target: RunBlock | RollbackBlock;
   files: number;
 }
 
 export type TranscriptBlock = RunBlock | RollbackBlock;
 
 /**
- * The conversation's operations, in the order they began. A Run without a
+ * The conversation's operations, in the order they began; `events` is the
+ * project's Journal, which all its conversations share. A Run without a
  * terminal Journal event that is not the active one was interrupted: Studio
  * closed while it ran, and its tools are not replayed.
  */
@@ -90,14 +91,18 @@ export function transcriptBlocks({
   for (const event of events) {
     if (event.type === 'checkpoint_pruned') pruned.add(event.run);
     if (event.type === 'rolled_back') {
-      blocks.set(event.run, {
-        kind: 'rollback',
-        id: event.run,
-        target: blocks.get(event.target),
-        files: event.files,
-        undone: false,
-        restorable: false,
-      });
+      // A rollback shows in the conversation it went back in, the one its target is in.
+      const target = blocks.get(event.target);
+      if (target) {
+        blocks.set(event.run, {
+          kind: 'rollback',
+          id: event.run,
+          target,
+          files: event.files,
+          undone: false,
+          restorable: false,
+        });
+      }
       continue;
     }
     const block = runs.get(event.run);
@@ -152,6 +157,26 @@ function canRestore(
   op: string,
 ): boolean {
   return operations(events).includes(op) && restorePlan(events, files, op).length > 0;
+}
+
+/**
+ * The Runs of the project's other conversations that going back to before
+ * `target` undoes as well, besides those an earlier rollback already undid.
+ */
+export function runsElsewhere(
+  { entries, events }: Pick<ConversationState, 'entries' | 'events'>,
+  target: string,
+): number {
+  const timeline = operations(events);
+  const from = timeline.indexOf(target);
+  if (from === -1) return 0;
+  const own = new Set(entries.map((entry) => entry.run));
+  const runs = new Set(
+    events.flatMap((event) => (event.type === 'run_created' ? [event.run] : [])),
+  );
+  const undone = undoneOperations(events);
+  return timeline.slice(from).filter((op) => runs.has(op) && !own.has(op) && !undone.has(op))
+    .length;
 }
 
 export function resultsOf(block: RunBlock): Map<string, ToolResultMessage> {

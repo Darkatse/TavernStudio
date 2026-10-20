@@ -10,6 +10,9 @@ import type { ConversationFailure } from './conversation';
 export const agentMessages = defineMessages({
   zh: {
     panel: 'Agent',
+    /** A conversation before its first message, and the action that starts one. */
+    newConversation: '新对话',
+    conversations: '对话',
     welcome: '想做点什么？',
     setup: {
       project: '新建项目',
@@ -34,6 +37,7 @@ export const agentMessages = defineMessages({
     noKey: '未填写 Key',
     noProject: '先新建项目',
     notLoaded: '正在读取对话',
+    busyElsewhere: 'Agent 正在另一个对话里工作',
     modelMissing: '先连接模型',
     keyMissing: (endpoint: string) => `先填写 ${endpoint} 的 API Key`,
     failed: {
@@ -46,6 +50,8 @@ export const agentMessages = defineMessages({
   },
   en: {
     panel: 'Agent',
+    newConversation: 'New conversation',
+    conversations: 'Conversations',
     welcome: 'What do you want to make?',
     setup: {
       project: 'Create a project',
@@ -77,6 +83,7 @@ export const agentMessages = defineMessages({
     noKey: 'No API Key',
     noProject: 'Create a project first',
     notLoaded: 'Loading the conversation',
+    busyElsewhere: 'The Agent is working in another conversation',
     modelMissing: 'Connect a model first',
     keyMissing: (endpoint: string) => `Enter the API Key for ${endpoint} first`,
     failed: {

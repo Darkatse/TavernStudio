@@ -141,6 +141,7 @@ function blockedReason(
 ): string | undefined {
   if (!state) return m.noProject;
   if (!state.loaded) return m.notLoaded;
+  if (state.elsewhere) return m.busyElsewhere;
   if (!state.active && model && 'problem' in model) return problemText(model.problem, m);
   return undefined;
 }

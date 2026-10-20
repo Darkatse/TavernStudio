@@ -36,6 +36,7 @@ export { TERMINAL_EVENTS } from './journal';
 export type { JournalEvent } from './journal';
 export type { FileReadState, ReadState } from './read-state';
 export { runAgent } from './run';
+export { conversationTitle } from './title';
 export type { AgentModel, RunEnvironment, RunOutcome } from './run';
 export { modelToolName, ToolError } from './tool';
 export type { JsonObject, Tool, ToolContext, ToolResult } from './tool';

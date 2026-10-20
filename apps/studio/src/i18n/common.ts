@@ -44,6 +44,21 @@ export function formatNumber(value: number, options?: Intl.NumberFormatOptions):
   return new Intl.NumberFormat(languageTag(), options).format(value);
 }
 
+/** A time of today as the clock shows it, an earlier one by its date. */
+export function formatWhen(time: number): string {
+  const date = new Date(time);
+  const today = new Date().toDateString() === date.toDateString();
+  const thisYear = new Date().getFullYear() === date.getFullYear();
+  return new Intl.DateTimeFormat(
+    languageTag(),
+    today
+      ? { hour: '2-digit', minute: '2-digit' }
+      : thisYear
+        ? { month: 'short', day: 'numeric' }
+        : { year: 'numeric', month: 'short', day: 'numeric' },
+  ).format(date);
+}
+
 /** Chinese has no plural, so only English messages use it. */
 export function plural(count: number, one: string, other: string): string {
   return `${formatNumber(count)} ${count === 1 ? one : other}`;

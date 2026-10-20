@@ -1,6 +1,13 @@
 import type { CheckpointFile, HistoryEntry, JournalEvent } from '@tavern-studio/agent';
 import type { Placement } from '@tavern-studio/workspace';
-import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
+import {
+  openDB,
+  type DBSchema,
+  type IDBPDatabase,
+  type IDBPTransaction,
+  type StoreNames,
+} from 'idb';
+import { firstLine } from '../agent/titles';
 
 export const DATABASE = 'tavern-studio';
 
@@ -32,9 +39,20 @@ export interface SessionFile {
   content: Uint8Array | null;
 }
 
+/** One of a project's conversations; its History records carry its id. */
+export interface ConversationRecord {
+  id: string;
+  project: string;
+  title: string;
+  createdAt: number;
+  /** When the author last sent a message in it or opened it. */
+  usedAt: number;
+}
+
 export interface HistoryRecord extends HistoryEntry {
   seq?: number;
   project: string;
+  conversation: string;
 }
 
 export interface JournalRecord {
@@ -71,7 +89,12 @@ interface StudioSchema extends DBSchema {
   projects: { key: string; value: ProjectRecord; indexes: { openedAt: number } };
   session: { key: string; value: SessionRecord };
   sessionFiles: { key: string; value: SessionFile };
-  history: { key: number; value: HistoryRecord; indexes: { project: string } };
+  conversations: { key: string; value: ConversationRecord; indexes: { project: string } };
+  history: {
+    key: number;
+    value: HistoryRecord;
+    indexes: { project: string; conversation: string };
+  };
   journal: { key: number; value: JournalRecord; indexes: { project: string } };
   toolResults: { key: string; value: ToolResultRecord; indexes: { project: string } };
   checkpointFiles: {
@@ -85,8 +108,8 @@ interface StudioSchema extends DBSchema {
 
 export type StudioDatabase = IDBPDatabase<StudioSchema>;
 
-export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 2, {
-  upgrade(database, oldVersion) {
+export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 3, {
+  async upgrade(database, oldVersion, _newVersion, transaction) {
     if (oldVersion < 1) {
       database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
       database.createObjectStore('session', { keyPath: 'id' });
@@ -107,5 +130,41 @@ export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 2, {
         .createIndex('project', 'project');
       database.createObjectStore('checkpointBlobs', { keyPath: 'sha256' });
     }
+    if (oldVersion < 3) {
+      database
+        .createObjectStore('conversations', { keyPath: 'id' })
+        .createIndex('project', 'project');
+      const history = transaction.objectStore('history');
+      history.createIndex('conversation', 'conversation');
+      await conversationsFromHistory(transaction);
+    }
   },
 });
+
+/** Until version 3 a project had one conversation: its History becomes the project's first. */
+async function conversationsFromHistory(
+  transaction: IDBPTransaction<StudioSchema, StoreNames<StudioSchema>[], 'versionchange'>,
+): Promise<void> {
+  const history = transaction.objectStore('history');
+  const conversations = transaction.objectStore('conversations');
+  const made = new Map<string, ConversationRecord>();
+  for (let cursor = await history.openCursor(); cursor; cursor = await cursor.continue()) {
+    const record = cursor.value;
+    let conversation = made.get(record.project);
+    if (!conversation) {
+      const { message } = record;
+      const text = message.role === 'user' ? firstLine(message.content) : '';
+      conversation = {
+        id: crypto.randomUUID(),
+        project: record.project,
+        title: text,
+        createdAt: message.timestamp,
+        usedAt: message.timestamp,
+      };
+      made.set(record.project, conversation);
+    }
+    conversation.usedAt = Math.max(conversation.usedAt, record.message.timestamp);
+    await cursor.update({ ...record, conversation: conversation.id });
+  }
+  for (const conversation of made.values()) await conversations.put(conversation);
+}

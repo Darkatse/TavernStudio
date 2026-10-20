@@ -70,6 +70,8 @@ export const runMessages = defineMessages({
     undoRollback: '撤销回滚',
     rollBackTitle: '回滚到这次运行之前？',
     rollBackDescription: '项目文件恢复到这次运行之前，之后的运行不再计入对话。可以撤销。',
+    rollBackElsewhereDescription: (runs: number) =>
+      `项目文件恢复到这次运行之前，之后的运行不再计入对话，其中 ${formatNumber(runs)} 次在其他对话里。可以撤销。`,
     affectedFiles: '受影响的文件',
     changedLater: '之后有改动',
     fileChange: { remove: '删除', recreate: '重新创建', restore: '还原' },
@@ -179,6 +181,8 @@ export const runMessages = defineMessages({
     rollBackTitle: 'Roll back to before this Run?',
     rollBackDescription:
       'Project files go back to before this Run, and later Runs no longer count in the conversation. You can undo this.',
+    rollBackElsewhereDescription: (runs: number) =>
+      `Project files go back to before this Run, and later Runs no longer count, including ${plural(runs, 'Run', 'Runs')} in other conversations. You can undo this.`,
     affectedFiles: 'Affected files',
     changedLater: 'Changed later',
     fileChange: { remove: 'Delete', recreate: 'Recreate', restore: 'Restore' },

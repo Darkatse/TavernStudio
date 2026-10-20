@@ -1,5 +1,5 @@
 import { Check, FileDown, FileUp, PencilLine } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import { messagesNow, useMessages } from '../i18n/messages';
 import { ArchiveError, exportArchive, importArchive, type ArchiveReason } from '../project/archive';
 import { projectMessages } from '../project/messages';
@@ -13,7 +13,7 @@ import { startProject, useStartingProject } from '../project/start';
 import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject, useProjectRecords } from '../project/use-project';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../ui/menu';
-import { NameField } from '../ui/name-field';
+import { NameField, useRenaming } from '../ui/name-field';
 import { showToast } from '../ui/toast';
 import { ProjectButton } from './project-button';
 import { projectMenuMessages, type ProjectMenuText } from './project-menu-messages';
@@ -32,18 +32,14 @@ export function ProjectMenu() {
   const picker = useRef<HTMLInputElement>(null);
   const trigger = useRef<HTMLButtonElement>(null);
   const [busy, setBusy] = useState(false);
-  const [naming, setNaming] = useState<{ value: string; problem?: ProjectNameProblem }>();
-  // From choosing Rename until the name is committed or cancelled: the menu
-  // closing meanwhile hands focus to nothing, and a blur after that is ignored.
-  const renaming = useRef(false);
-  const refocus = useRef(false);
-
-  // Back to the trigger after renaming, unless focus has moved on elsewhere.
-  useEffect(() => {
-    if (naming || !refocus.current) return;
-    refocus.current = false;
-    if (document.activeElement === document.body) trigger.current?.focus();
-  }, [naming]);
+  const renaming = useRenaming<ProjectNameProblem>({
+    trigger,
+    check: (name) => (project ? projectNameProblem(name, project.record) : undefined),
+    commit: async (name) => {
+      if (!project || name.trim() === project.record.name) return;
+      await renameProject(project.record, name).catch((error: unknown) => report('rename', error));
+    },
+  });
 
   const run = async (failure: keyof ProjectMenuText['failed'], action: () => Promise<void>) => {
     setBusy(true);
@@ -56,28 +52,6 @@ export function ProjectMenu() {
     }
   };
 
-  const stopNaming = () => {
-    renaming.current = false;
-    refocus.current = true;
-    setNaming(undefined);
-  };
-
-  // The field stays until the new name is stored, so the old one never shows in between.
-  const commitName = async () => {
-    if (!naming || !project || !renaming.current) return;
-    const record = project.record;
-    const problem = projectNameProblem(naming.value, record);
-    if (problem) {
-      setNaming({ ...naming, problem });
-      return;
-    }
-    renaming.current = false;
-    if (naming.value.trim() !== record.name) {
-      await renameProject(record, naming.value).catch((error: unknown) => report('rename', error));
-    }
-    stopNaming();
-  };
-
   return (
     // The field lies over the button, which keeps its place, its size and the
     // menu's anchor. The name's color eases from the button's into the field's.
@@ -87,10 +61,10 @@ export function ProjectMenu() {
           ref={trigger}
           disabled={busy || starting !== undefined}
           render={
-            <ProjectButton draft={naming?.value} onPointerEnter={prefetch} onFocus={prefetch} />
+            <ProjectButton draft={renaming.draft} onPointerEnter={prefetch} onFocus={prefetch} />
           }
         />
-        <MenuContent finalFocus={() => !renaming.current}>
+        <MenuContent finalFocus={renaming.returnsFocus}>
           {PROJECT_TEMPLATES.map((template) => (
             <MenuItem
               key={template.folder}
@@ -123,9 +97,7 @@ export function ProjectMenu() {
             icon={<PencilLine />}
             disabled={!project}
             onClick={() => {
-              if (!project) return;
-              renaming.current = true;
-              setNaming({ value: project.record.name });
+              if (project) renaming.start(project.record.name);
             }}
           >
             {m.rename}
@@ -150,18 +122,15 @@ export function ProjectMenu() {
           </MenuItem>
         </MenuContent>
       </Menu>
-      {naming && (
+      {renaming.field && (
         // Inset like the button's text, so the name stays where it was.
         <span className="absolute inset-0 flex items-center pr-0.5 pl-2">
           <NameField
             naming={{
-              value: naming.value,
-              problem: naming.problem && m.nameProblem[naming.problem](naming.value.trim()),
-              onChange: (value) => setNaming({ value }),
-              onCommit: () => void commitName(),
-              onCancel: () => {
-                if (renaming.current) stopNaming();
-              },
+              ...renaming.field,
+              problem:
+                renaming.field.problem &&
+                m.nameProblem[renaming.field.problem](renaming.field.value.trim()),
             }}
             label={m.projectName}
             className="flex-1"

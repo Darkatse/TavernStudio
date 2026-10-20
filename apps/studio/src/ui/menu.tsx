@@ -38,7 +38,10 @@ export function MenuContent({
     <BaseMenu.Popup
       {...(finalFocus === undefined ? {} : { finalFocus })}
       data-density="compact"
-      className={clsx(popup.surface, 'min-w-44')}
+      className={clsx(
+        popup.surface,
+        'max-h-(--available-height) min-w-44 overflow-y-auto overscroll-contain',
+      )}
       {...listProps}
     >
       {block}

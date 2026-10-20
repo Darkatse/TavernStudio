@@ -8,7 +8,7 @@ import { Button } from '../ui/button';
 import type { RollbackPlan } from './checkpoints';
 import type { Conversation } from './conversation';
 import { runMessages } from './run-messages';
-import type { RollbackBlock, TranscriptBlock } from './runs';
+import { runsElsewhere, type RollbackBlock, type TranscriptBlock } from './runs';
 
 export interface RollbackRequest {
   target: TranscriptBlock;
@@ -52,10 +52,17 @@ export function RollbackConfirm({
   }
   const { plan } = result;
   const conflicts = plan.files.filter((file) => file.conflict).length;
+  const elsewhere = undo ? 0 : runsElsewhere(conversation.state, plan.target);
   return (
     <AlertDialogContent
       title={undo ? m.undoRollbackTitle : m.rollBackTitle}
-      description={undo ? m.undoRollbackDescription : m.rollBackDescription}
+      description={
+        undo
+          ? m.undoRollbackDescription
+          : elsewhere > 0
+            ? m.rollBackElsewhereDescription(elsewhere)
+            : m.rollBackDescription
+      }
       action={undo ? m.undoRollback : m.rollBackHere}
       onAction={() => void conversation.rollback(plan)}
     >
