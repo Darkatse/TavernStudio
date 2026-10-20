@@ -2,7 +2,6 @@ import {
   adopt,
   findDifferences,
   MANIFEST,
-  overwrittenBy,
   parseManifest,
   resolveMounts,
   type Difference,
@@ -15,8 +14,6 @@ import type { ProjectRecord } from '../storage/db';
 export interface ProjectState {
   error: string | undefined;
   differences: readonly Difference[];
-  /** The session writes the latest project change overwrote; never dropped silently. */
-  overwritten: readonly Difference[];
 }
 
 const decoder = new TextDecoder();
@@ -25,7 +22,7 @@ export class Project {
   /** A rename replaces it; the id stays. */
   record: ProjectRecord;
   readonly store: ProjectStore;
-  #state: ProjectState = { error: undefined, differences: [], overwritten: [] };
+  #state: ProjectState = { error: undefined, differences: [] };
   #resolving: Promise<void> | undefined;
   #stale = false;
   #comparing = false;
@@ -100,17 +97,8 @@ export class Project {
     try {
       const manifest = parseManifest(decoder.decode(await this.store.read(MANIFEST)));
       const placements = await resolveMounts(manifest, this.store);
-      // Read before the move: what it is about to overwrite.
-      const overwritten =
-        previewSession.status.phase === 'open'
-          ? overwrittenBy(
-              { read: (path) => previewSession.readData(path) },
-              previewSession.placements,
-              placements,
-            )
-          : [];
       await previewSession.open(manifest.fixture, placements);
-      this.#setState({ error: undefined, ...(overwritten.length > 0 ? { overwritten } : {}) });
+      this.#setState({ error: undefined });
     } catch (error) {
       this.#setState({ error: error instanceof Error ? error.message : String(error) });
     }

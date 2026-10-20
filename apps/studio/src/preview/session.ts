@@ -12,10 +12,13 @@ import {
 } from '@tavern-studio/preview';
 import {
   applyPlacements,
+  findDifferences,
   formatPointer,
   holdsChange,
+  overwrittenBy,
   type Applied,
   type DataChange,
+  type Difference,
   type Placement,
 } from '@tavern-studio/workspace';
 import { answer, answerSync, reportFailure } from './backend-port';
@@ -73,6 +76,7 @@ export class PreviewSession implements PreviewHost {
   #status: SessionStatus = { phase: 'opening', step: 'worker' };
   #fixture: string | undefined;
   #placements: readonly Placement[] = [];
+  #overwritten: readonly Difference[] = [];
   /** Moves between placements, one at a time. */
   #placing: Promise<void> = Promise.resolve();
   #generation = 0;
@@ -111,6 +115,10 @@ export class PreviewSession implements PreviewHost {
   /** The placements the Session's data reflects. */
   get placements(): readonly Placement[] {
     return this.#placements;
+  }
+
+  get overwritten(): readonly Difference[] {
+    return this.#overwritten;
   }
 
   /** A new object whenever the images or the selection change. */
@@ -213,6 +221,7 @@ export class PreviewSession implements PreviewHost {
       this.#placements = placements;
       return;
     }
+    this.#reportOverwritten(overwrittenBy(opened.data, previous, placements));
     const applied = applyPlacements(opened.fixture, opened.data, previous, placements);
     if (applied.writes.size === 0) {
       this.#setPlacements(placements);
@@ -337,6 +346,9 @@ export class PreviewSession implements PreviewHost {
 
   async #restart(fixture: string, placements: readonly Placement[]): Promise<void> {
     await this.retireViews();
+    if (this.#opened) {
+      this.#reportOverwritten(findDifferences(this.#opened.data, this.#placements));
+    }
     this.#opened = undefined;
     this.#opening = undefined;
     this.#setStatus({ phase: 'opening', step: 'worker' });
@@ -353,6 +365,12 @@ export class PreviewSession implements PreviewHost {
   #setPlacements(placements: readonly Placement[]): void {
     this.#placements = placements;
     this.#persistence.placements(placements);
+    this.#notify();
+  }
+
+  #reportOverwritten(differences: readonly Difference[]): void {
+    if (differences.length === 0) return;
+    this.#overwritten = differences;
     this.#notify();
   }
 
@@ -517,6 +535,7 @@ export class PreviewSession implements PreviewHost {
     const data = new DataDirectory(base);
     restoreFiles(data, resumed?.files ?? []);
     const reflected = resumed?.record.placements ?? [];
+    this.#reportOverwritten(overwrittenBy(data, reflected, placements));
     this.#write(data, applyPlacements(fixtureData, data, reflected, placements).writes);
     const overlay = overlayOf(fixtureData, data);
     for (const { path } of overlay) hashes.delete(path);

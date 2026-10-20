@@ -1,4 +1,5 @@
 import { useSyncExternalStore } from 'react';
+import type { Difference } from '@tavern-studio/workspace';
 import type { DeviceId } from './devices';
 import { previewSession, type SessionStatus, type VendorChoice } from './session';
 
@@ -16,4 +17,8 @@ export function useDevice(): DeviceId {
 
 export function useVendorChoice(): VendorChoice {
   return useSyncExternalStore(previewSession.subscribe, () => previewSession.vendors);
+}
+
+export function useOverwritten(): readonly Difference[] {
+  return useSyncExternalStore(previewSession.subscribe, () => previewSession.overwritten);
 }

@@ -2,6 +2,7 @@ import { Import } from 'lucide-react';
 import type { Difference } from '@tavern-studio/workspace';
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { messagesNow, useMessages } from '../i18n/messages';
+import { useOverwritten } from '../preview/use-session';
 import type { Project } from '../project/project';
 import { useCurrentProject, useProjectState } from '../project/use-project';
 import { Button } from '../ui/button';
@@ -30,7 +31,8 @@ export function AdoptionButton() {
 
 function Adoption({ project }: { project: Project }) {
   const m = useMessages(workbenchMessages).adoption;
-  const { differences, overwritten } = useProjectState(project);
+  const { differences } = useProjectState(project);
+  const overwritten = useOverwritten();
   const count = new Set(differences.map((difference) => difference.placement)).size;
   const [open, setOpen] = useState(false);
   useEffect(() => {
