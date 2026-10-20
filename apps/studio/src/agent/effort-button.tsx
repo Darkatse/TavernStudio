@@ -18,9 +18,9 @@ const EFFORTS = [
 export type EffortButtonProps = Omit<ButtonProps, 'children'> & { effort: ModelThinkingLevel };
 
 /**
- * Every label shares one cell, so the button keeps the widest one's width and
- * a change rolls the new label in: up as the effort rises, down as it falls.
- * The bulb fills as the effort rises.
+ * Only the current label takes up room, so the button fits it; the others lie
+ * over it, out of the flow, and a change rolls the new one in: up as the
+ * effort rises, down as it falls. The bulb fills as the effort rises.
  */
 export function EffortButton({ effort, ...props }: EffortButtonProps) {
   const m = useMessages(effortMessages);
@@ -41,13 +41,13 @@ export function EffortButton({ effort, ...props }: EffortButtonProps) {
           style={{ opacity: at / (EFFORTS.length - 1) }}
         />
       </span>
-      <span aria-hidden="true" className="grid *:col-start-1 *:row-start-1">
+      <span aria-hidden="true" className="relative">
         {EFFORTS.map((level, index) => (
           <span
             key={level}
             className={clsx(
-              'transition-[opacity,translate]',
-              index === at ? 'motion-moderate' : 'opacity-0 motion-fast-exit',
+              'block transition-[opacity,translate]',
+              index === at ? 'motion-moderate' : 'absolute top-0 left-0 opacity-0 motion-fast-exit',
               index < at && 'translate-y-(--motion-fold-offset)',
               index > at && '-translate-y-(--motion-fold-offset)',
             )}
