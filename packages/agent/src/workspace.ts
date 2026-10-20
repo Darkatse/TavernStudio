@@ -1,4 +1,5 @@
 import { sha256, StaleFileError } from '@tavern-studio/workspace';
+import { globMatcher } from './glob';
 import { modelToolName, ToolError } from './tool';
 
 export interface WorkspaceRoot {
@@ -14,13 +15,16 @@ export interface WorkspaceRoot {
   write?(path: string, content: Uint8Array, expected?: string | null): Promise<string>;
 }
 
-/** The roots by name, as the Agent's paths begin: `project/theme.css`. */
+/**
+ * The roots by name, as the Agent's paths begin: `project/theme.css`. Listing
+ * and searching take them in this order.
+ */
 export type AgentWorkspace = Readonly<Record<string, WorkspaceRoot>>;
 
 export const TOOL_RESULTS_ROOT = 'tool-results';
 
 export const LIST_FILES = 'workspace.list_files';
-export const SEARCH_FILES = 'workspace.search_files';
+export const GREP = 'workspace.grep';
 export const READ_FILE = 'workspace.read_file';
 export const WRITE_FILE = 'workspace.write_file';
 export const EDIT_FILE = 'workspace.edit_file';
@@ -169,7 +173,7 @@ export interface EntryList {
 
 /**
  * Walks as TauriTavern's `list_files` does: a directory's children are all
- * taken before any is entered.
+ * taken before any is entered. The result is in path order.
  */
 export async function listEntries(
   workspace: AgentWorkspace,
@@ -196,9 +200,7 @@ export async function listEntries(
   };
   const childrenOf = async (directory: string | undefined): Promise<Entry[]> => {
     if (directory === undefined) {
-      return Object.keys(workspace)
-        .toSorted()
-        .map((path): Entry => ({ path, kind: 'directory' }));
+      return Object.keys(workspace).map((path): Entry => ({ path, kind: 'directory' }));
     }
     if (!directory.includes('/') && !loaded.has(directory)) {
       await load(visibleLocation(workspace, directory));
@@ -212,12 +214,7 @@ export async function listEntries(
 
   if (location) {
     const kind = await kindAt(location);
-    if (kind === undefined) {
-      throw new ToolError(
-        'workspace.path_not_found',
-        `stat ${location.path}: No such file or directory`,
-      );
-    }
+    if (kind === undefined) throw pathNotFound(location.path);
     if (kind === 'file') {
       return { entries: [{ path: location.path, kind: 'file' }], truncated: false };
     }
@@ -237,13 +234,71 @@ export async function listEntries(
       entries.push(entry);
     }
   }
-  entries.sort(
-    (a, b) => Number(a.kind === 'file') - Number(b.kind === 'file') || comparePaths(a.path, b.path),
-  );
+  const order = rootOrder(workspace);
+  entries.sort((a, b) => order(a.path, b.path));
   return { entries, truncated };
 }
 
-/** Paths in code-unit order, as TauriTavern sorts them. */
-export function comparePaths(a: string, b: string): number {
-  return a < b ? -1 : a > b ? 1 : 0;
+/** Roots in the workspace's order, and paths within a root by `comparePaths`. */
+function rootOrder(workspace: AgentWorkspace): (a: string, b: string) => number {
+  const roots = Object.keys(workspace);
+  const index = (path: string) => roots.indexOf(path.split('/', 1)[0]!);
+  return (a, b) => index(a) - index(b) || comparePaths(a, b);
+}
+
+export interface FileList {
+  files: Location[];
+  /** More than the asked-for number of files are there. */
+  truncated: boolean;
+}
+
+/**
+ * Every file below `location`, or below each root when it is undefined, in
+ * path order. A glob is matched against the path below `location`, or the
+ * whole path when there is none.
+ */
+export async function filesBelow(
+  workspace: AgentWorkspace,
+  location: Location | undefined,
+  glob: string | undefined,
+  max: number,
+): Promise<FileList> {
+  const matches = glob === undefined ? () => true : globMatcher(glob);
+  const starts = location
+    ? [location]
+    : Object.keys(workspace).map((root) => visibleLocation(workspace, root));
+  const files: Location[] = [];
+  for (const start of starts) {
+    const kind = await kindAt(start);
+    if (kind === undefined) throw pathNotFound(start.path);
+    if (kind === 'file') {
+      if (matches(start.path.slice(start.path.lastIndexOf('/') + 1))) files.push(start);
+      continue;
+    }
+    for (const below of (await start.root.files(start.relative)).toSorted(comparePaths)) {
+      const path = `${start.path}/${below}`;
+      if (!matches(location ? below : path)) continue;
+      if (files.length === max) return { files, truncated: true };
+      const relative = start.relative === '' ? below : `${start.relative}/${below}`;
+      files.push({ path, root: start.root, relative });
+    }
+  }
+  return { files, truncated: false };
+}
+
+function pathNotFound(path: string): ToolError {
+  return new ToolError('workspace.path_not_found', `stat ${path}: No such file or directory`);
+}
+
+/**
+ * Segment by segment, each in code-unit order, so a directory's contents
+ * follow it: `jsr/`, `jsr/a.d.ts`, `jsr-docs/`.
+ */
+function comparePaths(a: string, b: string): number {
+  const x = a.split('/');
+  const y = b.split('/');
+  for (let index = 0; index < Math.min(x.length, y.length); index++) {
+    if (x[index] !== y[index]) return x[index]! < y[index]! ? -1 : 1;
+  }
+  return x.length - y.length;
 }

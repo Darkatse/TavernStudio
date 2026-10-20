@@ -6,14 +6,14 @@ export interface FileReadState {
   /** Texts the Run has seen of a partially read file; edits must quote them. */
   observedTexts: string[];
   /** Set after a failed edit of a partially read file: read it all before editing again. */
-  patchRequiresFullRead: boolean;
+  editRequiresFullRead: boolean;
 }
 
 /** Keyed by workspace path. Each Run starts with a new, empty one. */
 export type ReadState = Map<string, FileReadState>;
 
 export function rememberFile(reads: ReadState, path: string, sha256: string): void {
-  reads.set(path, { sha256, fullRead: true, observedTexts: [], patchRequiresFullRead: false });
+  reads.set(path, { sha256, fullRead: true, observedTexts: [], editRequiresFullRead: false });
 }
 
 /**
@@ -40,7 +40,7 @@ export function rememberFileRead(
           sha256,
           fullRead: false,
           observedTexts: [],
-          patchRequiresFullRead: previous?.patchRequiresFullRead ?? false,
+          editRequiresFullRead: previous?.editRequiresFullRead ?? false,
         };
   reads.set(path, {
     ...state,
@@ -49,7 +49,7 @@ export function rememberFileRead(
   });
 }
 
-export function rememberPartialPatch(
+export function rememberPartialEdit(
   reads: ReadState,
   path: string,
   sha256: string,
@@ -62,13 +62,13 @@ export function rememberPartialPatch(
     observedTexts: (reads.get(path)?.observedTexts ?? []).map((text) =>
       text.replace(oldString, () => newString),
     ),
-    patchRequiresFullRead: false,
+    editRequiresFullRead: false,
   });
 }
 
-export function requireFullReadBeforePatch(reads: ReadState, path: string): void {
+export function requireFullReadBeforeEdit(reads: ReadState, path: string): void {
   const state = reads.get(path);
-  if (state) reads.set(path, { ...state, patchRequiresFullRead: true });
+  if (state) reads.set(path, { ...state, editRequiresFullRead: true });
 }
 
 export function oldStringWasObserved(state: FileReadState, oldString: string): boolean {

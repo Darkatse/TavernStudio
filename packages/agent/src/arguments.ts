@@ -62,6 +62,14 @@ export function optionalCount(args: JsonObject, key: string): number | undefined
   return value;
 }
 
+export function optionalString(args: JsonObject, key: string): string | undefined {
+  const value = args[key];
+  if (value === undefined || value === null) return undefined;
+  const trimmed = typeof value === 'string' ? value.trim() : '';
+  if (trimmed === '') throw new ToolError(INVALID_ARGUMENTS, `${key} must be a non-empty string`);
+  return trimmed;
+}
+
 export function optionalBoolean(args: JsonObject, key: string): boolean | undefined {
   const value = args[key];
   if (value === undefined) return undefined;

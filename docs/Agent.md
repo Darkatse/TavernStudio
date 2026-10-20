@@ -80,7 +80,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 | `tool-results/` | 只读 | 较长工具结果的可读版本 |
 
 文本写入以读取时记录的内容 SHA 做 CAS（比较后写入），与 TauriTavern Workspace 一致：
-- 读状态、先读后改、只读过部分内容时对编辑的限制、`read_file` 的输出格式与读取上限、错误码，都与 TT 相同。
+- 读状态、先读后改、只读过部分内容时对编辑的限制、`read_file` 的读取上限，都与 TT 相同；搜索、结果的写法与错误码按编码 Agent 的习惯，见 §4。
 - CAS 检查与写入在同一个异步互斥区内完成，对应 TT 的写锁。
 - 本地文件夹项目里，列目录和搜索时跳过 `.gitignore` 忽略的路径；按路径直接读取不受此限。
 
@@ -90,13 +90,22 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 
 | 组 | 工具 | 说明 |
 |---|---|---|
-| 工作区 | `workspace.list_files` `search_files` `read_file` `write_file` `edit_file` | 与 TauriTavern 语义相同。`edit_file` 是精确替换（`old_string` / `new_string` / `replace_all`），TT 中叫 `apply_patch`；Studio 不沿用这个名字，因为它是 GPT 系模型在 Codex 中训练的补丁格式的名字。所有工具的结果都套用同一个阈值，超过 100,000 字符的写入 `tool-results/`，模型收到开头的预览和读取指引，文案同 TT。阈值高于 `read_file` 单次的最大输出（80,000 字符加行号），所以读回外置的结果不会再被外置；TT 只外置外部工具的结果，阈值为 50,000 |
+| 工作区 | `workspace.list_files` `grep` `read_file` `write_file` `edit_file` | 读状态与 CAS 沿用 TauriTavern，搜索和结果按编码 Agent 的习惯，见下文。`edit_file` 是精确替换（`old_string` / `new_string` / `replace_all`），TT 中叫 `apply_patch`；Studio 不沿用这个名字，因为它是 GPT 系模型在 Codex 中训练的补丁格式的名字。所有工具的结果都套用同一个阈值，超过 100,000 字符的写入 `tool-results/`，模型收到开头 3,000 字符和读取它的方法。阈值高于 `read_file` 单次的最大输出（80,000 字符加行号），所以读回外置的结果不会再被外置；TT 只外置外部工具的结果，阈值为 50,000 |
 | 预览 | `preview.configure` | 切换 Vendor、Device、Fixture |
 | | `preview.reload` | 重载 View |
 | | `preview.capture` | 截图。可选 set-of-marks：把最新快照页的 ref 框出并标号，标签是 ref 冒号后的部分。Studio 把标记画在图上，不往页面里插节点；框住整张图的（如快照根）不画。ref 由 app-use 的 `refs()` 列出，经 `resolve` 找到元素 |
 | 页面 | `app.snapshot` `app.interact` `app.evaluate` `app.read_logs` | 来自 `@tauritavern/app-use`，引擎注入到预览页内运行，契约与 TauriTavern 应用内助手相同。`app.read_logs` 读取 Attach 收集的运行时记录，见 [Architecture §5](Architecture.md#5-编辑与预览) |
 | 检查 | `inspect.styles` | 列出命中的规则和来源（vendor CSS / 主题 / 扩展 / 消息里的 `<style>`），经 Mount 映射到项目文件的行号 |
 | | `inspect.audit` | 确定性检查：对比度、溢出与裁切、元素重叠、零尺寸 |
+
+**面向模型的文字**（沿用 TT 的分工）：工具说明写用途、参数和边界，结果只报告事实，错误说明问题和已知的改法；提到别的工具，写它的调用名。同一个词在各工具里只有一个意思："preview" 只指实时预览，长文件分段读取不叫 preview。
+
+**工作区工具**：TT 的 Agent 写长文本，结果报字数；Studio 的 Agent 写样式和代码，工具贴近编码 Agent 的习惯（Claude Code、Codex、Gemini CLI、opencode 的做法见 [Decisions](Decisions.md)）。
+- `grep`：JavaScript 正则，逐行匹配，默认区分大小写。结果是 `路径:行号:内容`，上下文行写成 `路径-行号-内容`，不相连的段落之间是 `--`；另有只列文件（`files_with_matches`）和按文件计数（`count`）两种模式。默认给 100 条，最多 1,000，超出时说明还有更多、怎样缩小范围。超过 500 字符的行（压缩过的文件）只显示第一个匹配附近的一段。不是文本的文件跳过。
+- `list_files` 与 `grep` 共用一种 glob，与 ripgrep 的 `--glob` 相同：不含 `/` 的匹配任意深度的文件名，含 `/` 的匹配 path 之下的路径。
+- 根按工作区的顺序，`project/` 在前；根之下的路径逐段比较，目录的内容紧跟在目录之后。列目录与搜索结果都是这个顺序。
+- 结果报告行，不报字数：读取写明行号范围与总行数，写入写明文件现有的行数，编辑写明每处替换在哪一行开始。
+- 一行长到一次读不完时，只显示它的前 2,000 字符，并指向 `grep`。
 
 能用确定性检查的地方不靠视觉判断。`inspect.audit` 给出数值；截图负责整体审美和布局上的直觉判断。
 

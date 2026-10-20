@@ -1,10 +1,11 @@
 import { requiredRawString, requiredTrimmedString } from './arguments';
 import { rememberFile } from './read-state';
-import { measure } from './text';
+import { countLines, plural } from './text';
 import { modelToolName, ToolError, type JsonObject, type Tool } from './tool';
 import {
   EDIT_FILE,
   kindAt,
+  LIST_FILES,
   parseWorkspacePath,
   pathIsDirectory,
   READ_FILE,
@@ -20,25 +21,25 @@ import {
 export function writeFileTool(workspace: AgentWorkspace): Tool {
   return {
     id: WRITE_FILE,
-    description: `Create a UTF-8 text file, append text, or replace its full contents. Use ${modelToolName(EDIT_FILE)} for local edits. Before replacing an existing file, read it with ${modelToolName(READ_FILE)} unless you created or replaced its current contents with the text tools.`,
+    description: `Create a text file, replace a file's whole contents, or append to it. To change part of a file, use ${modelToolName(EDIT_FILE)}. Before replacing a file that exists, read it with ${modelToolName(READ_FILE)}, unless you wrote its current contents yourself.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         path: {
           type: 'string',
-          description: 'Workspace file path in a writable directory.',
+          description: 'A workspace file path in a writable directory, such as project/theme.css.',
         },
         content: {
           type: 'string',
           description:
-            'Complete file content for replace, or the exact text to add for append. Include any needed newlines.',
+            'The whole file for replace, or the text to add to its end for append. Include the newlines you need.',
         },
         mode: {
           type: 'string',
           enum: ['replace', 'append'],
           description:
-            'replace writes the complete file; append adds content to the end, creating the file if missing. Defaults to replace.',
+            'replace writes content as the whole file. append adds it to the end, creating the file if it is missing; use it to write a file too long for one call in parts. Defaults to replace.',
         },
       },
       required: ['path', 'content'],
@@ -75,9 +76,9 @@ export function writeFileTool(workspace: AgentWorkspace): Tool {
       if (typeof written === 'string') throw writeConflict(written);
       if (fullyKnown) rememberFile(reads, written.path, written.sha256);
 
-      const metrics = measure(written.text);
+      const done = kind === undefined ? 'Created' : mode === 'replace' ? 'Replaced' : 'Appended to';
       return {
-        text: `${mode === 'replace' ? 'Wrote' : 'Appended'} ${metrics.chars} chars / ${metrics.words} words to ${written.path}.`,
+        text: `${done} ${written.path}; it has ${plural(countLines(written.text), 'line')}.`,
       };
     },
   };
@@ -108,7 +109,7 @@ function writeConflict(conflict: WriteConflict): ToolError {
     case 'missing':
       return new ToolError(
         'workspace.write_stale_file',
-        'file changed since you last read or wrote it and is no longer present. Read the parent directory before writing again.',
+        `file changed since you last read or wrote it and is no longer there; check its directory with ${modelToolName(LIST_FILES)} before writing it again.`,
       );
   }
 }

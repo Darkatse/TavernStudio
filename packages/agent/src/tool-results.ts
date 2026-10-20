@@ -1,7 +1,7 @@
 import { sha256 } from '@tavern-studio/workspace';
 import { charCount, takeChars } from './text';
 import { modelToolName } from './tool';
-import { READ_FILE, SEARCH_FILES, TOOL_RESULTS_ROOT } from './workspace';
+import { GREP, READ_FILE, TOOL_RESULTS_ROOT } from './workspace';
 
 /**
  * TauriTavern stores only external tools' results, past 50,000 characters by
@@ -49,18 +49,13 @@ export async function resultForModel(
   const storedAt = `${TOOL_RESULTS_ROOT}/${name}`;
   await store.put(name, lineAddressable(text));
 
-  const preview = takeChars(text, STORED_LINE_CHARS);
   return {
     text: [
-      `This tool result is too large to include in full (${chars} characters). The full result is saved at \`${storedAt}\`.`,
-      `Use ${modelToolName(READ_FILE)} with this path to read the full result. If the reader returns another preview, continue from the next line it indicates.`,
-      `Use ${modelToolName(SEARCH_FILES)} on the same path to find specific text.`,
+      `This result has ${chars} characters, too many to include, so it is saved at \`${storedAt}\`. Read it with ${modelToolName(READ_FILE)}, which returns a long file in parts, or search it with ${modelToolName(GREP)}.`,
       '',
-      '## Prefix preview',
+      `Its first ${STORED_LINE_CHARS} characters:`,
       '',
-      `The following is at most ${STORED_LINE_CHARS} Unicode characters from the beginning of the result and is not the complete result.`,
-      '',
-      preview,
+      takeChars(text, STORED_LINE_CHARS),
     ].join('\n'),
     storedAt,
   };

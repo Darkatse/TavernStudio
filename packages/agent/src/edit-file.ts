@@ -2,13 +2,13 @@ import { optionalBoolean, requiredRawString, requiredTrimmedString } from './arg
 import {
   oldStringWasObserved,
   rememberFile,
-  rememberPartialPatch,
-  requireFullReadBeforePatch,
+  rememberPartialEdit,
+  requireFullReadBeforeEdit,
 } from './read-state';
-import { measure } from './text';
 import { modelToolName, ToolError, type Tool } from './tool';
 import {
   EDIT_FILE,
+  LIST_FILES,
   parseWorkspacePath,
   READ_FILE,
   readText,
@@ -17,36 +17,33 @@ import {
   type AgentWorkspace,
 } from './workspace';
 
-/**
- * TauriTavern's `workspace.apply_patch` under another name; its error codes
- * keep the `patch` wording.
- */
+const LINES_LISTED = 10;
+
+/** TauriTavern's `workspace.apply_patch`, named as coding agents name it. */
 export function editFileTool(workspace: AgentWorkspace): Tool {
   const read = modelToolName(READ_FILE);
   return {
     id: EDIT_FILE,
-    description: `Replace exact text in one file. Read the text with ${read} first, unless you created or replaced the file with the text tools. old_string must match exactly and be unique unless replace_all is true. After a failed patch, read the full file before retrying.`,
+    description: `Replace exact text in a file. old_string must match the file exactly, whitespace and indentation included, and occur once unless replace_all is set. Read the file with ${read} first, unless you wrote its current contents yourself. If you read only part of the file, old_string must be text you have read, replace_all needs the whole file read, and after a failed edit read the whole file before the next.`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
       properties: {
         path: {
           type: 'string',
-          description: 'Workspace file path in a writable directory.',
+          description: 'A workspace file path in a writable directory, such as project/theme.css.',
         },
         old_string: {
           type: 'string',
-          description:
-            'Exact text to replace. Do not include line number prefixes from read output.',
+          description: `The exact text to replace, without the line numbers ${read} puts before each line.`,
         },
         new_string: {
           type: 'string',
-          description: 'Replacement text without line number prefixes.',
+          description: 'The text to put in its place, without line numbers.',
         },
         replace_all: {
           type: 'boolean',
-          description:
-            'Replace every occurrence of old_string. Requires a full read or a file created/replaced with the text tools. Defaults to false.',
+          description: 'Replace every occurrence of old_string. Defaults to false.',
         },
       },
       required: ['path', 'old_string', 'new_string'],
@@ -57,10 +54,10 @@ export function editFileTool(workspace: AgentWorkspace): Tool {
       const newString = requiredRawString(input, 'new_string');
       const replaceAll = optionalBoolean(input, 'replace_all') ?? false;
       if (oldString === '') {
-        throw new ToolError('workspace.patch_empty_old_string', 'old_string cannot be empty');
+        throw new ToolError('workspace.edit_empty_old_string', 'old_string cannot be empty');
       }
       if (oldString === newString) {
-        throw new ToolError('workspace.patch_no_change', 'old_string and new_string are identical');
+        throw new ToolError('workspace.edit_no_change', 'old_string and new_string are identical');
       }
 
       const location = writableLocation(workspace, parseWorkspacePath(rawPath));
@@ -68,60 +65,60 @@ export function editFileTool(workspace: AgentWorkspace): Tool {
       const state = reads.get(path);
       if (!state) {
         throw new ToolError(
-          'workspace.patch_requires_read',
-          `file must be read with ${read} before applying a patch`,
+          'workspace.edit_requires_read',
+          `read the file with ${read} before editing it`,
         );
       }
-      if (state.patchRequiresFullRead) {
+      if (state.editRequiresFullRead) {
         throw new ToolError(
-          'workspace.patch_requires_full_read',
-          `a previous patch attempt for this file failed. Fully read the file with ${read} before applying another patch.`,
+          'workspace.edit_requires_full_read',
+          `an earlier edit of this file failed after you read only part of it. Read the whole file with ${read} before editing it again.`,
         );
       }
       // After only a partial read, an edit may change only text the Run has
       // seen, and any failure requires a full read before the next edit.
       const partial = !state.fullRead;
       const fail = (code: string, message: string): ToolError => {
-        if (partial) requireFullReadBeforePatch(reads, path);
+        if (partial) requireFullReadBeforeEdit(reads, path);
         return new ToolError(code, message);
       };
       if (partial && replaceAll) {
         throw fail(
-          'workspace.patch_requires_full_read',
-          `replace_all can modify text outside the range you read. Fully read the file with ${read} before using replace_all.`,
+          'workspace.edit_requires_full_read',
+          `replace_all can change text outside the part you read. Read the whole file with ${read} before using replace_all.`,
         );
       }
       if (partial && !oldStringWasObserved(state, oldString)) {
         throw fail(
-          'workspace.patch_requires_full_read',
-          `old_string was not in the text you have read for this file. Fully read the file with ${read} before retrying the patch.`,
+          'workspace.edit_requires_full_read',
+          `old_string is not in the part of the file you have read. Read the whole file with ${read} before editing it again.`,
         );
       }
 
       const file = await readText(location);
       if (file.sha256 !== state.sha256) {
         throw fail(
-          'workspace.patch_stale_file',
+          'workspace.edit_stale_file',
           partial
-            ? `file changed since your last read. Fully read the file with ${read} before patching it.`
-            : 'file changed since your last full read. Read the file again before patching it.',
+            ? `the file changed since you read it. Read the whole file with ${read} before editing it.`
+            : `the file changed since you read it. Read it again with ${read} before editing it.`,
         );
       }
       const matches = file.text.split(oldString).length - 1;
       if (matches === 0) {
         throw fail(
-          'workspace.patch_old_string_not_found',
+          'workspace.edit_old_string_not_found',
           partial
-            ? `old_string was not found in the file. Fully read the file with ${read} before retrying the patch.`
-            : 'old_string was not found in the file',
+            ? `old_string is not in the file. Read the whole file with ${read} before editing it again.`
+            : 'old_string is not in the file; it must match exactly, whitespace and indentation included',
         );
       }
       if (matches > 1 && !replaceAll) {
         throw fail(
-          'workspace.patch_old_string_not_unique',
+          'workspace.edit_old_string_not_unique',
           partial
-            ? `old_string matched ${matches} times in the file. Fully read the file with ${read} before retrying with more context, or use replace_all after a full read.`
-            : `old_string matched ${matches} times; provide more context or set replace_all=true`,
+            ? `old_string occurs ${matches} times in the file. Read the whole file with ${read}, then give more surrounding text to pick one, or set replace_all.`
+            : `old_string occurs ${matches} times; give more surrounding text to pick one, or set replace_all to replace them all`,
         );
       }
 
@@ -131,21 +128,42 @@ export function editFileTool(workspace: AgentWorkspace): Tool {
       const written = await writeText(location, updated, file.sha256);
       if (typeof written === 'string') {
         throw fail(
-          'workspace.patch_stale_file',
+          'workspace.edit_stale_file',
           written === 'missing'
-            ? 'file changed before the patch could be written and is no longer present. Read the parent directory before patching again.'
-            : partial
-              ? `file changed before the patch could be written. Fully read the file with ${read} before patching it.`
-              : 'file changed before the patch could be written. Read the file again before patching it.',
+            ? `the file was removed before the edit could be written; check its directory with ${modelToolName(LIST_FILES)}.`
+            : `the file changed before the edit could be written. Read it again with ${read} before editing it.`,
         );
       }
-      if (partial) rememberPartialPatch(reads, path, written.sha256, oldString, newString);
+      if (partial) rememberPartialEdit(reads, path, written.sha256, oldString, newString);
       else rememberFile(reads, path, written.sha256);
 
-      const metrics = measure(written.text);
-      return {
-        text: `Patched ${path} with ${matches} replacement(s); file now has ${metrics.chars} chars / ${metrics.words} words.`,
-      };
+      return { text: `Edited ${path}: ${replaced(editedLines(file.text, oldString, newString))}.` };
     },
   };
+}
+
+/** The line each replacement starts on in the edited file, as `replaceAll` makes them. */
+function editedLines(text: string, oldString: string, newString: string): number[] {
+  const shift = newlines(newString) - newlines(oldString);
+  const lines: number[] = [];
+  let line = 1;
+  let cursor = 0;
+  for (let at = text.indexOf(oldString); at !== -1; at = text.indexOf(oldString, cursor)) {
+    line += newlines(text.slice(cursor, at));
+    lines.push(line + lines.length * shift);
+    line += newlines(oldString);
+    cursor = at + oldString.length;
+  }
+  return lines;
+}
+
+function newlines(text: string): number {
+  return text.split('\n').length - 1;
+}
+
+function replaced(lines: readonly number[]): string {
+  if (lines.length === 1) return `replaced 1 occurrence, at line ${lines[0]}`;
+  const listed = lines.slice(0, LINES_LISTED).join(', ');
+  const rest = lines.length > LINES_LISTED ? ` and ${lines.length - LINES_LISTED} more` : '';
+  return `replaced ${lines.length} occurrences, at lines ${listed}${rest}`;
 }

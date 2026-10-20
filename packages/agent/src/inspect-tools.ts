@@ -2,6 +2,7 @@ import { interactTool } from '@tauritavern/app-use';
 import type { JsonValue } from '@tavern-studio/workspace';
 import { elementTarget, TARGET_PROPERTIES, type ElementTarget } from './element-target';
 import { modelToolName, ToolError, type Tool, type ToolResult } from './tool';
+import { GREP, READ_FILE } from './workspace';
 
 export interface InspectSurface {
   styles(
@@ -30,7 +31,7 @@ export function inspectTools(surface: InspectSurface): Tool[] {
   return [
     {
       id: 'inspect.styles',
-      description: `Explain an element's styles in the live preview: the CSS rules that match it, in the order they apply, and for each property its computed value, the declaration that sets it and those it overrides, or the ancestor it inherits from. Every rule names its source: a project file and line, reached through the project's Mounts; a file under vendor/src/ and its line; or what added it to the page. Custom properties used by those values are explained too: SillyTavern sets its theme colors as custom properties on <html> from theme fields, and their source names the field and the project file that holds it.
+      description: `Explain an element's styles in the live preview: the CSS rules that match it, in the order they apply, and for each property its computed value, the declaration that sets it and those it overrides, or the ancestor it inherits from. Every rule names its source: a project file reached through the project's Mounts, or a file under vendor/src/, as path:line, the form ${modelToolName(GREP)} gives and ${modelToolName(READ_FILE)} can start at; or what added it to the page. Custom properties used by those values are explained too: SillyTavern sets its theme colors as custom properties on <html> from theme fields, and their source names the field and the project file that holds it.
 Use it to find the rule to change and the line it is on before editing CSS. SillyTavern rewrites a <style> inside a chat message: it prefixes the selectors with .mes_text and renames classes to custom-*. Pseudo-elements, @container rules and animations are not covered.`,
       inputSchema: {
         type: 'object',

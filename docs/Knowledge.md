@@ -51,7 +51,7 @@ Agent 依据的知识按可靠性排序：与 vendor 版本对应的生成物 > 
 
 ## 2. 检索
 
-- Agent 用 `workspace.search_files` 和 `read_file` 检索挂载内容。
+- Agent 用 `workspace.grep` 和 `read_file` 检索挂载内容。
 - 精确符号（变量名、选择器、API）直接命中解剖图里的结构化条目。
 - P2 阶段视评估结果引入 BM25（Orama + `Intl.Segmenter`），处理中文的自然语言提问。
 - 在评估证明有必要之前，不引入 embedding 和向量库。

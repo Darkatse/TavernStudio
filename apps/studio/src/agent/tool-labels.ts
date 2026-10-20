@@ -4,7 +4,7 @@ import type { RunText } from './run-messages';
 /** Keyed by the name the model calls each tool. */
 const LABELS: Partial<Record<string, keyof RunText['calls']>> = {
   workspace_list_files: 'listFiles',
-  workspace_search_files: 'search',
+  workspace_grep: 'search',
   workspace_read_file: 'read',
   workspace_write_file: 'write',
   workspace_edit_file: 'edit',
@@ -39,7 +39,7 @@ export function callLabel(call: ToolCall, state: CallState, m: RunText): string 
 
 /** The one argument that tells calls apart, such as the path, as TauriTavern picks it. */
 export function callDetail(call: ToolCall): string | undefined {
-  for (const key of ['path', 'query', 'selector', 'code', 'ref']) {
+  for (const key of ['pattern', 'path', 'selector', 'code', 'ref']) {
     const value = call.arguments[key];
     if (typeof value === 'string' && value.trim() !== '')
       return value.replaceAll(/\s+/g, ' ').trim();

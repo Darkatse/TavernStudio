@@ -11,6 +11,7 @@ const LIST = 'workspace.list_files';
 const READ = 'workspace.read_file';
 const WRITE = 'workspace.write_file';
 const EDIT = 'workspace.edit_file';
+const GREP = 'workspace.grep';
 const THEME = 'project/theme.css';
 
 const encoder = new TextEncoder();
@@ -120,7 +121,7 @@ describe('Workspace tools', () => {
     );
     expect(
       await failure(call(EDIT, { path: THEME, old_string: 'color', new_string: 'background' })),
-    ).toBe('workspace.patch_stale_file');
+    ).toBe('workspace.edit_stale_file');
     expect(root.text('theme.css')).toBe('a { color: blue; }');
   });
 
@@ -134,7 +135,7 @@ describe('Workspace tools', () => {
     expect(root.text('theme.css')).toBe('a { color: blue; }\nb {}\nc {}');
 
     const everywhere = { path: THEME, old_string: '{}', new_string: '{ }', replace_all: true };
-    expect(await failure(call(EDIT, everywhere))).toBe('workspace.patch_requires_full_read');
+    expect(await failure(call(EDIT, everywhere))).toBe('workspace.edit_requires_full_read');
     expect(root.text('theme.css')).toBe('a { color: blue; }\nb {}\nc {}');
   });
 
@@ -144,11 +145,11 @@ describe('Workspace tools', () => {
     await call(READ, { path: THEME, start_line: 2, line_count: 1 });
 
     expect(await failure(call(EDIT, { ...seen, old_string: 'a {}' }))).toBe(
-      'workspace.patch_requires_full_read',
+      'workspace.edit_requires_full_read',
     );
-    expect(await failure(call(EDIT, seen))).toBe('workspace.patch_requires_full_read');
+    expect(await failure(call(EDIT, seen))).toBe('workspace.edit_requires_full_read');
     await call(READ, { path: THEME, start_line: 2, line_count: 1 });
-    expect(await failure(call(EDIT, seen))).toBe('workspace.patch_requires_full_read');
+    expect(await failure(call(EDIT, seen))).toBe('workspace.edit_requires_full_read');
 
     await call(READ, { path: THEME });
     await call(EDIT, seen);
@@ -189,6 +190,68 @@ describe('Workspace tools', () => {
     await call(WRITE, { path: THEME, content: 'b {}' });
     expect(root.text('theme.css')).toBe('b {}');
   });
+
+  test('an edit says on which lines of the edited file its replacements start', async () => {
+    const { call } = project({ 'theme.css': 'a {}\nb {}\nc {}' });
+    await call(READ, { path: THEME });
+    expect(
+      await call(EDIT, {
+        path: THEME,
+        old_string: '{}',
+        new_string: '{\n  color: red;\n}',
+        replace_all: true,
+      }),
+    ).toBe(`Edited ${THEME}: replaced 3 occurrences, at lines 1, 4, 7.`);
+  });
+});
+
+describe('grep', () => {
+  const VAR = '--SmartThemeBodyColor';
+  const call = run({
+    project: new WritableMemoryRoot({
+      'theme.css': `:root {\n  ${VAR}: red;\n}\n\n.mes {\n  color: var(${VAR});\n}`,
+    }),
+    knowledge: new MemoryRoot({ 'st/themes.md': `Themes set ${VAR}.` }),
+    vendor: new MemoryRoot({ 'src/min.css': `${'a{b:c}'.repeat(400)}.x{color:var(${VAR})}` }),
+  });
+
+  test('answers as grep does, the project first and roots in the workspace order', async () => {
+    const lines = (await call(GREP, { pattern: VAR })).split('\n');
+    expect(lines.slice(0, 3)).toEqual([
+      `project/theme.css:2:  ${VAR}: red;`,
+      `project/theme.css:6:  color: var(${VAR});`,
+      `knowledge/st/themes.md:1:Themes set ${VAR}.`,
+    ]);
+    // A minified line shows the part around its match.
+    expect(lines[3]).toMatch(
+      /^vendor\/src\/min\.css:1:….*\.x\{color:var\(--SmartThemeBodyColor\)\}$/,
+    );
+    expect(lines[3]!.length).toBeLessThan(600);
+
+    expect(await call(GREP, { pattern: VAR, path: 'project', context: 1 })).toBe(
+      [
+        'project/theme.css-1-:root {',
+        `project/theme.css:2:  ${VAR}: red;`,
+        'project/theme.css-3-}',
+        '--',
+        'project/theme.css-5-.mes {',
+        `project/theme.css:6:  color: var(${VAR});`,
+        'project/theme.css-7-}',
+      ].join('\n'),
+    );
+    expect(await failure(call(GREP, { pattern: 'var(' }))).toBe('workspace.grep_pattern_invalid');
+  });
+
+  test('a glob without / matches names at any depth, one with / the path below path', async () => {
+    expect(
+      await call(GREP, { pattern: VAR, glob: '*.md', output_mode: 'files_with_matches' }),
+    ).toBe('knowledge/st/themes.md');
+    expect(await call(LIST, { path: 'vendor', glob: 'src/*.css' })).toBe('vendor/src/min.css');
+    expect(await call(LIST, { glob: 'vendor/**/*.{css,js}' })).toBe('vendor/src/min.css');
+    expect(await call(LIST, { path: 'vendor', glob: '*.js' })).toBe(
+      'No files match `*.js` in vendor.',
+    );
+  });
 });
 
 describe('normalizeArguments', () => {
@@ -222,7 +285,7 @@ describe('Long results', () => {
 
     expect(shown).toContain(`\`${storedAt}\``);
     expect(shown).toContain(modelToolName(READ));
-    expect(shown).toContain(modelToolName('workspace.search_files'));
+    expect(shown).toContain(modelToolName(GREP));
     expect(shown.endsWith(`\n\n${'a'.repeat(3_000)}`)).toBe(true);
 
     expect(await resultForModel('short', origin, results)).toEqual({ text: 'short' });
