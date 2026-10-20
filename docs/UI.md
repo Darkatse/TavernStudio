@@ -43,7 +43,7 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 | 流式文本 | 不用 `text-wrap: balance` 或 `pretty`，避免已输出的行重新折行。静态的说明文字可以用 `pretty` 避免孤字 |
 | diff | `--color-diff-add`、`--color-diff-del` 两组底色，配 `-fg` 前景色。低彩度，与 danger 区分开。+/− 符号与删除线同时出现，不只靠颜色 |
 | 语法高亮 | 十个 `--color-syntax-*`，深浅色各一套，每个对应哪些 Lezer tag 写在样式表注释里。CodeMirror 主题直接引用这些 CSS 变量 |
-| 遮罩 | `--color-backdrop` 压暗对话框背后的内容。不加模糊，因为背后常是预览 iframe |
+| 遮罩 | `--color-backdrop` 压暗对话框背后的内容；看大图用更深的 `--color-scrim`，深浅色相同。不加模糊，因为背后常是预览 iframe |
 | 对比度 | 文字与它可能落在的每一种底色之间，对比度不低于 4.5:1，凹陷色与 diff 底色也算在内 |
 | 状态 | 运行中、已取消、失败、interrupted 四种状态只用 foreground、muted、danger 三种颜色，并配上图标和文字 |
 | 预览上的标记 | Studio 画在预览上的标记用强调色，例如 Agent 光标、检查器的选框。作者的主题可能正被改坏，标记不能依赖它 |
@@ -95,7 +95,8 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 - 几种固定的配方也是工具类：
   - `motion-popup`：浮层的出现与消失，从锚点缩放淡入；
   - `motion-fold`：折叠内容；
-  - `motion-toast`：Toast 的进入与离开。
+  - `motion-toast`：Toast 的进入与离开；
+  - `motion-zoom`：从打开它的元素放大，关闭时缩回原处。打开者经 `--zoom-x`、`--zoom-y`、`--zoom-scale` 给出起点；减少动态效果时只淡入淡出。
   
   后两者都是 moderate 进入、fast 退出，即 160 ms 弹簧进入、60 ms ease-out 退出。位移距离取自 `--motion-fold-offset`、`--motion-toast-distance`，减少动态效果时归零。
 - Base UI 用 `data-starting-style` / `data-ending-style` 驱动 CSS 过渡，进入、退出和中途取消都由它处理。
@@ -137,6 +138,8 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
   - 脏点与关闭按钮在同一格里交换；
   - 溢出时横向滚动。标签栏放不下细滚动条，所以不显示滚动条：滚轮转为横向，切换标签时滚到可见处。
 - **输入法**：中文输入法组字期间，按 Enter 不发送。
+- **看大图**：点缩略图打开，图片从缩略图处放大，按原尺寸显示，不超出视口；点任意处或按 Esc 关闭，缩回原处。
+- **改名**：文件和项目都在原位改名，共用 `ui/name-field`。Enter 提交，Esc 取消；离开字段时提交，名称有问题或为空时取消。问题显示在字段下方。项目名称去掉首尾空格，不能为空，也不能与别的项目重名。
 
 ## 6. 文案与本地化
 

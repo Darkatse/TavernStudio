@@ -36,7 +36,7 @@ export function Welcome({
               <Suggestions onSuggest={onSuggest} />
             ) : (
               <ol className="flex w-full max-w-80 flex-col gap-2 text-left transition-opacity motion-moderate starting:opacity-0">
-                <Step title={m.setup.project} done={project?.record.name}>
+                <Step title={m.setup.project} done={project?.name}>
                   <TemplateCards />
                 </Step>
                 {'problem' in model ? (

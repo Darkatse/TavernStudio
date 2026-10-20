@@ -22,7 +22,8 @@ export interface ProjectState {
 const decoder = new TextDecoder();
 
 export class Project {
-  readonly record: ProjectRecord;
+  /** A rename replaces it; the id stays. */
+  record: ProjectRecord;
   readonly store: ProjectStore;
   #state: ProjectState = { error: undefined, differences: [], overwritten: [] };
   #resolving: Promise<void> | undefined;

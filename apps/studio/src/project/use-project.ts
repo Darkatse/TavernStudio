@@ -7,6 +7,11 @@ export function useCurrentProject(): Project | undefined {
   return useSyncExternalStore(subscribeProject, currentProject);
 }
 
+/** What shows the project's name reads it here, since a rename keeps the Project. */
+export function useCurrentRecord(): ProjectRecord | undefined {
+  return useSyncExternalStore(subscribeProject, () => currentProject()?.record);
+}
+
 export function useProjectRestored(): boolean {
   return useSyncExternalStore(subscribeProject, projectRestored);
 }

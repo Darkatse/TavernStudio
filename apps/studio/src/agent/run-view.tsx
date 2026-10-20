@@ -22,6 +22,7 @@ import { useNow } from '../lib/use-now';
 import { previewCapture, useCaptureShared } from '../preview/capture';
 import { Button } from '../ui/button';
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from '../ui/collapsible';
+import { Lightbox } from '../ui/lightbox';
 import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { Markdown } from './markdown';
@@ -299,7 +300,6 @@ function ToolCallRow({
 
 function Screenshots({ result }: { result: ToolResultMessage }) {
   const m = useMessages(runMessages);
-  const [enlarged, setEnlarged] = useState(false);
   const shared = useCaptureShared();
   const images = result.content.filter((part) => part.type === 'image');
   const method = isRecord(result.details) ? result.details['method'] : undefined;
@@ -312,24 +312,22 @@ function Screenshots({ result }: { result: ToolResultMessage }) {
   const fromDom = method === 'snapdom';
   return (
     <div className="flex flex-col items-start gap-1.5 pt-1.5 pb-1 pl-5">
-      {images.map((image, index) => (
-        <button
+      {images.map((image, index) => {
+        // Studio took this image; it is not model output, so it may load.
+        const src = `data:${image.mimeType};base64,${image.data}`;
+        return (
           // oxlint-disable-next-line react/no-array-index-key -- a result's images never change.
-          key={index}
-          type="button"
-          aria-label={enlarged ? m.shrinkScreenshot : m.enlargeScreenshot}
-          onClick={() => setEnlarged(!enlarged)}
-          className="cursor-zoom-in overflow-hidden rounded-lg shadow-control data-[enlarged]:cursor-zoom-out"
-          data-enlarged={enlarged || undefined}
-        >
-          {/* Studio took this image; it is not model output, so it may load. */}
-          <img
-            src={`data:${image.mimeType};base64,${image.data}`}
-            alt={m.screenshot}
-            className={clsx('block w-auto', enlarged ? 'max-w-full' : 'max-h-40')}
-          />
-        </button>
-      ))}
+          <Lightbox key={index} src={src} alt={m.screenshot}>
+            <button
+              type="button"
+              aria-label={m.viewScreenshot}
+              className="cursor-zoom-in overflow-hidden rounded-lg shadow-control"
+            >
+              <img src={src} alt={m.screenshot} className="block max-h-40 w-auto" />
+            </button>
+          </Lightbox>
+        );
+      })}
       {fromDom && !shared && previewCapture.supported && (
         <p className="flex flex-wrap items-center gap-x-2 text-caption text-muted">
           {m.renderedScreenshot}

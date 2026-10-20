@@ -22,6 +22,7 @@ import { mountPointsBySource, usePlacements } from '../project/mount-points';
 import { isWithin, join, nameOf, parentOf, ROOT } from '../project/paths';
 import type { Project } from '../project/project';
 import { relist, useProjectFiles } from '../project/project-files';
+import { useCurrentRecord } from '../project/use-project';
 import { Alert } from '../ui/alert';
 import { AlertDialog, AlertDialogContent } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
@@ -39,7 +40,8 @@ import {
 import { PathText } from '../ui/path-text';
 import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
-import { FileRow, type Naming } from './file-row';
+import type { Naming } from '../ui/name-field';
+import { FileRow } from './file-row';
 import { codeMessages } from './messages';
 import { buildTree, nameProblem, type NameProblem, type TreeNode } from './tree-model';
 
@@ -82,6 +84,7 @@ const TYPEAHEAD_MS = 500;
 export function FileTree({ project, editors, active, onOpen, onClose }: FileTreeProps) {
   const m = useMessages(codeMessages);
   const c = useMessages(common);
+  const record = useCurrentRecord();
   const listing = useProjectFiles(project.store);
   const mountPoints = mountPointsBySource(usePlacements());
   // The store lists only files, so until a file is written inside, a new
@@ -315,7 +318,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
         className="flex h-9 shrink-0 items-center gap-1 border-b border-line pr-1 pl-3"
       >
         <h2 className="min-w-0 flex-1 truncate text-caption font-medium text-muted">
-          {project.record.name}
+          {record?.name}
         </h2>
         <Tooltip content={m.newFile}>
           <Button

@@ -11,23 +11,14 @@ import {
   Folder,
   FolderOpen,
   Link2,
-  TriangleAlert,
 } from 'lucide-react';
-import { useEffect, useId, useRef, type ReactNode } from 'react';
 import { useMessages } from '../i18n/messages';
 import { MenuTrigger, type MenuHandle } from '../ui/menu';
+import { NameField, type Naming } from '../ui/name-field';
 import { PathText } from '../ui/path-text';
 import { Tooltip } from '../ui/tooltip';
 import { codeMessages } from './messages';
 import type { TreeNode } from './tree-model';
-
-export interface Naming {
-  value: string;
-  problem: string | undefined;
-  onChange: (value: string) => void;
-  onCommit: () => void;
-  onCancel: () => void;
-}
 
 export interface FileRowProps {
   item: ItemInstance<TreeNode>;
@@ -65,7 +56,12 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
       </span>
       <FileIcon node={node} expanded={expanded} />
       {naming ? (
-        <NameField naming={naming} label={node.draft ? m.newName : m.newNameFor(node.name)} />
+        <NameField
+          naming={naming}
+          label={node.draft ? m.newName : m.newNameFor(node.name)}
+          stem
+          className="flex-1"
+        />
       ) : (
         <span className="min-w-0 flex-1 truncate">{node.name}</span>
       )}
@@ -132,68 +128,6 @@ export function MountPointList({ points }: { points: readonly string[] }) {
           <PathText path={point} />
         </span>
       ))}
-    </span>
-  );
-}
-
-function NameField({ naming, label }: { naming: Naming; label: string }) {
-  const input = useRef<HTMLInputElement>(null);
-  const problemId = useId();
-  useEffect(() => {
-    const field = input.current;
-    if (!field) return;
-    field.focus();
-    const dot = field.value.lastIndexOf('.');
-    field.setSelectionRange(0, dot > 0 ? dot : field.value.length);
-  }, []);
-
-  return (
-    <span className="relative flex min-w-0 flex-1">
-      <input
-        ref={input}
-        value={naming.value}
-        aria-label={label}
-        aria-invalid={naming.problem !== undefined}
-        aria-describedby={naming.problem ? problemId : undefined}
-        spellCheck={false}
-        autoComplete="off"
-        className="h-[calc(var(--size-control)-6px)] min-w-0 flex-1 rounded-sm bg-surface px-1.5 shadow-control outline-none focus-visible:outline-none aria-invalid:shadow-[0_0_0_1px_var(--color-danger)]"
-        onChange={(event) => naming.onChange(event.target.value)}
-        onClick={(event) => event.stopPropagation()}
-        onKeyDown={(event) => {
-          if (event.nativeEvent.isComposing) return;
-          if (event.key === 'Enter') {
-            event.preventDefault();
-            naming.onCommit();
-          } else if (event.key === 'Escape') {
-            event.preventDefault();
-            event.stopPropagation();
-            naming.onCancel();
-          }
-        }}
-        onBlur={() =>
-          naming.problem || naming.value.trim() === '' ? naming.onCancel() : naming.onCommit()
-        }
-      />
-      {naming.problem && (
-        <Problem id={problemId}>
-          <TriangleAlert aria-hidden="true" className="mt-px size-3.5 shrink-0 text-danger" />
-          {naming.problem}
-        </Problem>
-      )}
-    </span>
-  );
-}
-
-function Problem({ id, children }: { id: string; children: ReactNode }) {
-  return (
-    <span
-      id={id}
-      role="alert"
-      // The tree's panel clips anything wider than the field.
-      className="absolute top-full left-0 z-20 mt-1 flex w-max max-w-full items-start gap-1.5 rounded-md bg-raised px-2 py-1.5 text-caption shadow-popover"
-    >
-      {children}
     </span>
   );
 }

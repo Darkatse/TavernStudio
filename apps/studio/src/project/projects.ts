@@ -85,13 +85,40 @@ export async function createProject(
 
 export async function openProject(record: ProjectRecord): Promise<void> {
   current?.close();
-  const project = new Project(record, new ProjectStore(await projectDirectory(record.id)));
+  const opened = { ...record, openedAt: Date.now() };
+  const project = new Project(opened, new ProjectStore(await projectDirectory(record.id)));
   current = project;
   restored = true;
   notify();
-  await (await db).put('projects', { ...record, openedAt: Date.now() });
+  await (await db).put('projects', opened);
   await refreshRecords();
   await project.start();
+}
+
+export type ProjectNameProblem = 'empty' | 'taken';
+
+/** A name is used trimmed, and no two projects share one. */
+export function projectNameProblem(
+  name: string,
+  self: ProjectRecord,
+): ProjectNameProblem | undefined {
+  const trimmed = name.trim();
+  if (trimmed === '') return 'empty';
+  const taken = records.some((record) => record.id !== self.id && record.name === trimmed);
+  return taken ? 'taken' : undefined;
+}
+
+/** The caller has checked the name with `projectNameProblem`. */
+export async function renameProject(record: ProjectRecord, name: string): Promise<void> {
+  const problem = projectNameProblem(name, record);
+  if (problem) throw new Error(`Can't rename project ${record.id}: the name is ${problem}`);
+  const tx = (await db).transaction('projects', 'readwrite');
+  const stored = await tx.store.get(record.id);
+  if (!stored) throw new Error(`Project ${record.id} is not stored`);
+  const renamed = { ...stored, name: name.trim() };
+  await Promise.all([tx.store.put(renamed), tx.done]);
+  if (current?.record.id === record.id) current.record = renamed;
+  await refreshRecords();
 }
 
 async function refreshRecords(): Promise<void> {

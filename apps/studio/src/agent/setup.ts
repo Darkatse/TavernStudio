@@ -1,5 +1,5 @@
-import type { Project } from '../project/project';
-import { useCurrentProject, useProjectRestored } from '../project/use-project';
+import { useCurrentRecord, useProjectRestored } from '../project/use-project';
+import type { ProjectRecord } from '../storage/db';
 import type { AgentText } from './messages';
 import {
   selectedEndpoint,
@@ -11,7 +11,7 @@ import {
 
 /** What the Agent needs before a first message: a project and a model, set up in either order. */
 export interface Setup {
-  project: Project | undefined;
+  project: ProjectRecord | undefined;
   model: SelectedEndpoint;
 }
 
@@ -19,7 +19,7 @@ export interface Setup {
 export function useSetup(): Setup | undefined {
   const restored = useProjectRestored();
   const loaded = useSettingsLoaded();
-  const project = useCurrentProject();
+  const project = useCurrentRecord();
   const model = selectedEndpoint(useAgentSettings());
   return restored && loaded ? { project, model } : undefined;
 }

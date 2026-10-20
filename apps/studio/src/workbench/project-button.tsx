@@ -1,6 +1,6 @@
 import { ChevronDown } from 'lucide-react';
 import { useMessages } from '../i18n/messages';
-import { useCurrentProject } from '../project/use-project';
+import { useCurrentRecord } from '../project/use-project';
 import { Button, type ButtonProps } from '../ui/button';
 import { workbenchMessages } from './messages';
 
@@ -11,10 +11,10 @@ import { workbenchMessages } from './messages';
  */
 export function ProjectButton(props: Omit<ButtonProps, 'children'>) {
   const m = useMessages(workbenchMessages);
-  const project = useCurrentProject();
+  const record = useCurrentRecord();
   return (
     <Button variant="ghost" className="max-w-52 min-w-0 shrink! gap-1 px-2" {...props}>
-      <span className="truncate">{project?.record.name ?? m.noProject}</span>
+      <span className="truncate">{record?.name ?? m.noProject}</span>
       <ChevronDown className="text-muted" />
     </Button>
   );

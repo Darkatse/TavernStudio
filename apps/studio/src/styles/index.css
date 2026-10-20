@@ -51,6 +51,8 @@
   --color-danger: oklch(0.55 0.2 27);
 
   --color-backdrop: oklch(0.2 0.01 70 / 0.24);
+  /* Behind an image shown whole: dark in both schemes, as a photo viewer is. */
+  --color-scrim: oklch(0.14 0.004 70 / 0.86);
 
   --font-sans:
     'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC',
@@ -516,6 +518,22 @@
   &[data-ending-style] {
     opacity: 0;
     transform: scale(var(--motion-popup-scale));
+  }
+}
+
+/*
+ * Grows out of the thing that opened it and shrinks back into it, which the
+ * opener aims with --zoom-x, --zoom-y and --zoom-scale. Pair with a tier.
+ */
+@utility motion-zoom {
+  transition-property: opacity, transform;
+  &[data-starting-style],
+  &[data-ending-style] {
+    transform: translate(var(--zoom-x, 0), var(--zoom-y, 0)) scale(var(--zoom-scale, 1));
+    @media (prefers-reduced-motion: reduce) {
+      transform: none;
+      opacity: 0;
+    }
   }
 }
 
