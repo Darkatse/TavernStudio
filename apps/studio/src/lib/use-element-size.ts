@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { flushSync } from 'react-dom';
 
 export interface Size {
   width: number;
@@ -12,9 +13,13 @@ export function useElementSize() {
   const ref = (element: HTMLElement | null) => {
     if (!element) return;
     const observer = new ResizeObserver((entries) => {
-      for (const entry of entries) {
-        setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
-      }
+      // Committed before paint, so what is laid out from the size changes in
+      // the same frame as the element, not one frame behind it.
+      flushSync(() => {
+        for (const entry of entries) {
+          setSize({ width: entry.contentRect.width, height: entry.contentRect.height });
+        }
+      });
     });
     observer.observe(element);
     return () => observer.disconnect();
