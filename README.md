@@ -4,7 +4,7 @@
 
 纯前端项目，在浏览器里给 SillyTavern 和 TauriTavern 制作主题、扩展、角色卡和正则前端。以 Agent 为核心。
 
-**打开就能用：<https://studio.tauritavern.com>**
+**点击即用：<https://studio.tauritavern.com>**
 
 ![Tavern Studio](docs/images/studio.jpg)
 
