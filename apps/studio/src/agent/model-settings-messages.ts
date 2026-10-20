@@ -7,7 +7,7 @@ export const modelSettingsMessages = defineMessages({
     edit: '编辑',
     addService: '添加模型',
     rememberKeys: '记住 API Key',
-    rememberKeysHint: '记住后，预览里的扩展和卡片也能读到它。',
+    rememberKeysHint: '记住后，预览里的扩展和卡片也能读到它，请注意风险。',
     /** The name a new OpenAI-compatible endpoint starts with. */
     customName: '自定义',
     service: '服务',
@@ -40,7 +40,8 @@ export const modelSettingsMessages = defineMessages({
     edit: 'Edit',
     addService: 'Add model',
     rememberKeys: 'Remember API Keys',
-    rememberKeysHint: 'Extensions and cards in the preview can read remembered keys.',
+    rememberKeysHint:
+      'Extensions and cards in the preview can read remembered keys. Be aware of the risk.',
     customName: 'Custom',
     service: 'Service',
     customService: 'Custom (OpenAI-compatible)',

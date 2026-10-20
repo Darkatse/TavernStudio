@@ -20,7 +20,7 @@ export const agentMessages = defineMessages({
     suggestionsLabel: '例如',
     /** By what the project places: a project with a theme gets the theme's. */
     suggestions: {
-      theme: ['换成暖色调的深色配色', '消息气泡改圆一点，加柔和的阴影', '正文字号调大，行距放宽'],
+      theme: ['改成暖色调的深色风格', '消息气泡改圆一点，加柔和的阴影', '正文字号调大，行距放宽'],
       extension: ['每条消息旁加一个复制按钮', '加一个隐藏头像的开关', '输入框上方显示聊天总字数'],
     } satisfies Record<ProjectExport['kind'], readonly string[]>,
 
