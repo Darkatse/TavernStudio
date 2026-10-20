@@ -35,6 +35,7 @@
 | Agent 在左，工作台（预览 / 代码）在右 | Agent 是主要的编写者，作者主要看结果；v0、Lovable 采用同样的布局。预览与代码用标签切换，两个面板都保持挂载 | 编辑器居中的 IDE 布局：把作者很少直接写的代码放在了主位 |
 | lint 用 oxlint，不用 ESLint | oxlint 原生覆盖 TypeScript、React Compiler 规则与 jsx-a11y，type-aware 检查直接基于 TS 7 | ESLint 9 已停止支持；eslint-plugin-jsx-a11y 不支持 ESLint 10；typescript-eslint 需要 TS 6 的 API，要另装一份 TS |
 | 动效默认用 CSS，不引入 Motion | Base UI 原生支持由 CSS 过渡驱动的进入、退出与中途取消；弹簧可用 `linear()` 表达；Studio 的动效只需 transform 与 opacity | 以 Motion 作为统一动效层：多一个运行时依赖，而现有需求 CSS 都能满足。出现手势驱动、需要速度连续的动画时重新评估 |
+| 表单里的选择用 Base UI 的 Select，不用原生 `<select>`；列表从触发器下方展开，不覆盖触发器 | 原生 `<select>` 的弹出列表由系统绘制，样式无法与 Studio 统一。展开方式与菜单、自动补全相同：同一种浮层，同样从锚点缩放进入。Fluid Functionalism 的 Select 同样关闭了覆盖 | 沿用 shadcn 的默认：列表覆盖触发器，选中项与触发器文字对齐。这种模式下 shadcn 去掉了进入动画，而 Base UI 在触屏打开或上下空间不足时又改回下方展开，同一个控件有两种行为 |
 | 编辑器用 CodeMirror 6 | 对触屏友好、模块化；代码主要由 Agent 编写 | Monaco |
 | 浏览器里不运行 TypeScript | 代码主要由 Agent 编写；作者代码几乎都是 JS，运行时注入的全局类型不全，静态检查误报多。事实来源是真实 vendor 的运行结果：诊断取自运行时，补全读取生成的 API 索引 | TS 6 LanguageService worker；TS 7 的浏览器构建（官方尚未发布，Go 的 wasm 只能单线程）。P2 浏览器内构建出现确需类型检查的 TS 项目时，重新评估 |
 | 浏览器端状态不进入 Session，换用 vendor 镜像时清理 | 以 vendor 后端契约为界，与真实部署和 PureTavern 一致。同源先后运行不同镜像是 Studio 带来的情况，而状态格式由镜像代码定义：ST 1.19.0 的缩略图缓存是裸 Blob，TT 是对象 | 归 Session 所有、随重置清理，并让 Fixture 携带 storage：要求比真实部署更强的确定性，多出一套机制。在预览 realm 中包装 Storage 与 `indexedDB`、按 vendor 加前缀：改写浏览器 API，偏离生产路径 |

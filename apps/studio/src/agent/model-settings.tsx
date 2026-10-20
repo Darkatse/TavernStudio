@@ -7,7 +7,7 @@ import {
   type ModelInfo,
 } from '@tavern-studio/agent';
 import { clsx } from 'clsx';
-import { Check, ChevronDown, Plus, TriangleAlert } from 'lucide-react';
+import { Check, Plus, TriangleAlert } from 'lucide-react';
 import { useId, useRef, useState } from 'react';
 import { common } from '../i18n/common';
 import { useMessages } from '../i18n/messages';
@@ -15,6 +15,7 @@ import { AlertDialog, AlertDialogContent, AlertDialogTrigger } from '../ui/alert
 import { Autocomplete } from '../ui/autocomplete';
 import { Button } from '../ui/button';
 import { Field, Input } from '../ui/input';
+import { Select } from '../ui/select';
 import { agentMessages } from './messages';
 import { modelSettingsMessages, type ModelSettingsText } from './model-settings-messages';
 import { updateAgentSettings, useAgentSettings } from './settings';
@@ -290,27 +291,20 @@ function EndpointForm({
       {!known && (
         <Field label={m.service}>
           {(id) => (
-            <div className="relative">
-              <select
-                id={id}
-                value={custom ? CUSTOM : value.id}
-                onChange={(event) => {
-                  setValue(draft(event.target.value, m.customName));
-                  setProbe({ state: 'idle' });
-                  forgetModels();
-                  setLimitsUnknown(false);
-                }}
-                className="h-(--size-control) w-full cursor-pointer appearance-none rounded-md bg-surface pr-9 pl-3 shadow-control transition-shadow motion-fast outline-none focus-visible:shadow-focus"
-              >
-                {presets.map((preset) => (
-                  <option key={preset.id} value={preset.id}>
-                    {preset.label}
-                  </option>
-                ))}
-                <option value={CUSTOM}>{m.customService}</option>
-              </select>
-              <ChevronDown className="pointer-events-none absolute top-1/2 right-3 size-(--size-icon) -translate-y-1/2 text-muted" />
-            </div>
+            <Select
+              id={id}
+              value={custom ? CUSTOM : value.id}
+              onValueChange={(preset) => {
+                setValue(draft(preset, m.customName));
+                setProbe({ state: 'idle' });
+                forgetModels();
+                setLimitsUnknown(false);
+              }}
+              groups={[
+                presets.map((preset) => ({ value: preset.id, label: preset.label })),
+                [{ value: CUSTOM, label: m.customService }],
+              ]}
+            />
           )}
         </Field>
       )}

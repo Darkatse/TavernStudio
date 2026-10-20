@@ -6,12 +6,17 @@ export type InputProps = Omit<ComponentProps<'input'>, 'className'> & {
   className?: string;
 };
 
+/** What a text field and a select's trigger look like. */
+export const fieldSurface =
+  'h-(--size-control) w-full min-w-0 rounded-md bg-surface px-3 shadow-control transition-shadow motion-fast outline-none focus-visible:shadow-focus disabled:opacity-45';
+
 /** Numbers go without spin buttons: Studio's are counts typed whole, not stepped. */
 export function Input({ className, ...props }: InputProps) {
   return (
     <input
       className={clsx(
-        'h-(--size-control) w-full min-w-0 [appearance:textfield] rounded-md bg-surface px-3 shadow-control transition-shadow motion-fast outline-none placeholder:text-muted focus-visible:shadow-focus disabled:opacity-45 [&::-webkit-inner-spin-button]:appearance-none',
+        fieldSurface,
+        '[appearance:textfield] placeholder:text-muted [&::-webkit-inner-spin-button]:appearance-none',
         className,
       )}
       {...props}

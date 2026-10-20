@@ -115,7 +115,8 @@ export async function useModel(page, baseUrl, model = 'scripted') {
   await page.getByRole('button', { name: '设置', exact: true }).click();
   const dialog = page.getByRole('dialog');
   await dialog.getByRole('tab', { name: '模型' }).click();
-  await dialog.getByLabel('服务', { exact: true }).selectOption('custom');
+  await dialog.getByRole('combobox', { name: '服务' }).click();
+  await page.getByRole('option', { name: /^自定义/ }).click();
   await dialog.getByLabel('地址', { exact: true }).fill(baseUrl);
   // The field, not the "模型" tab's panel, which bears the same name.
   await dialog.getByRole('combobox', { name: '模型' }).fill(model);

@@ -3,9 +3,11 @@
  * block follows it through `follow`.
  */
 import { Autocomplete as BaseAutocomplete } from '@base-ui/react/autocomplete';
+import { clsx } from 'clsx';
 import { useRef, useState, type ReactNode } from 'react';
 import { Input, type InputProps } from './input';
 import { useListHighlight } from './list-highlight';
+import { popup } from './popup';
 
 const ROW = '[role="option"]';
 
@@ -38,7 +40,7 @@ export function Autocomplete<Item>({
   // the list reopens.
   const [query, setQuery] = useState('');
   const shown = query === '' ? items : items.filter((item) => contains(itemToString(item), query));
-  const popup = useRef<HTMLDivElement>(null);
+  const listbox = useRef<HTMLDivElement>(null);
   const { listProps, block, follow } = useListHighlight(ROW);
 
   return (
@@ -60,16 +62,16 @@ export function Autocomplete<Item>({
       onItemHighlighted={(_item, { reason, index }) => {
         // The block follows the pointer on its own.
         if (reason === 'pointer') return;
-        follow(popup.current?.querySelectorAll<HTMLElement>(ROW)[index] ?? null);
+        follow(listbox.current?.querySelectorAll<HTMLElement>(ROW)[index] ?? null);
       }}
     >
       <BaseAutocomplete.Input render={<Input spellCheck={false} {...input} />} />
       <BaseAutocomplete.Portal>
         <BaseAutocomplete.Positioner align="start" sideOffset={4} collisionPadding={8}>
           <BaseAutocomplete.Popup
-            ref={popup}
+            ref={listbox}
             data-density="compact"
-            className="relative max-h-[min(var(--available-height),18rem)] w-(--anchor-width) motion-popup overflow-y-auto overscroll-contain rounded-lg bg-raised p-1 shadow-popover motion-moderate outline-none"
+            className={clsx(popup.surface, popup.anchored)}
             {...listProps}
           >
             {block}
@@ -78,11 +80,7 @@ export function Autocomplete<Item>({
             </BaseAutocomplete.Empty>
             <BaseAutocomplete.List>
               {(item: Item) => (
-                <BaseAutocomplete.Item
-                  key={itemToString(item)}
-                  value={item}
-                  className="relative flex h-(--size-control) cursor-default items-center gap-2 rounded-md px-2 outline-none select-none"
-                >
+                <BaseAutocomplete.Item key={itemToString(item)} value={item} className={popup.row}>
                   {children(item)}
                 </BaseAutocomplete.Item>
               )}

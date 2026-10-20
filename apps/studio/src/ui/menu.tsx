@@ -5,9 +5,11 @@
  */
 import { ContextMenu as BaseContextMenu } from '@base-ui/react/context-menu';
 import { Menu as BaseMenu } from '@base-ui/react/menu';
+import { clsx } from 'clsx';
 import { Check } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useListHighlight } from './list-highlight';
+import { popup } from './popup';
 
 export const Menu = BaseMenu.Root;
 /** Pass the button that opens the menu through `render`. */
@@ -32,11 +34,11 @@ export function MenuContent({
   children,
 }: MenuContentProps) {
   const { listProps, block } = useListHighlight('[role^="menuitem"]');
-  const popup = (
+  const content = (
     <BaseMenu.Popup
       {...(finalFocus === undefined ? {} : { finalFocus })}
       data-density="compact"
-      className="relative min-w-44 motion-popup rounded-lg bg-raised p-1 shadow-popover motion-moderate outline-none"
+      className={clsx(popup.surface, 'min-w-44')}
       {...listProps}
     >
       {block}
@@ -46,18 +48,15 @@ export function MenuContent({
   return (
     <BaseMenu.Portal>
       {at === 'pointer' ? (
-        <BaseContextMenu.Positioner collisionPadding={8}>{popup}</BaseContextMenu.Positioner>
+        <BaseContextMenu.Positioner collisionPadding={8}>{content}</BaseContextMenu.Positioner>
       ) : (
         <BaseMenu.Positioner align={align} sideOffset={4} collisionPadding={8}>
-          {popup}
+          {content}
         </BaseMenu.Positioner>
       )}
     </BaseMenu.Portal>
   );
 }
-
-const ITEM =
-  'relative flex h-(--size-control) cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-disabled:opacity-45 [&_svg]:size-(--size-icon) [&_svg]:shrink-0 [&_svg]:text-muted';
 
 export interface MenuItemProps {
   icon?: ReactNode;
@@ -69,7 +68,7 @@ export interface MenuItemProps {
 
 export function MenuItem({ icon, children, shortcut, onClick, disabled = false }: MenuItemProps) {
   return (
-    <BaseMenu.Item onClick={onClick} disabled={disabled} className={ITEM}>
+    <BaseMenu.Item onClick={onClick} disabled={disabled} className={popup.row}>
       {icon}
       {children}
       {shortcut && <kbd className="ml-auto pl-4 font-sans text-caption text-muted">{shortcut}</kbd>}
@@ -96,7 +95,7 @@ export function MenuRadioGroup<Value extends string>({
 /** Choosing one closes the menu, as choosing an item does. */
 export function MenuRadioItem({ value, children }: { value: string; children: ReactNode }) {
   return (
-    <BaseMenu.RadioItem value={value} closeOnClick className={ITEM}>
+    <BaseMenu.RadioItem value={value} closeOnClick className={popup.row}>
       {children}
       <BaseMenu.RadioItemIndicator className="ml-auto">
         <Check />
@@ -106,5 +105,5 @@ export function MenuRadioItem({ value, children }: { value: string; children: Re
 }
 
 export function MenuSeparator() {
-  return <BaseMenu.Separator className="mx-1 my-1 h-px bg-line" />;
+  return <BaseMenu.Separator className={popup.separator} />;
 }
