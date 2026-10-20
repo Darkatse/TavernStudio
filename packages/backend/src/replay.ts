@@ -1,11 +1,16 @@
 import type { DataDirectory } from './data-directory';
 
 export const REPLAY_PATH = 'replay.json';
-export const REPLAY_POSITION_PATH = 'replay-position.json';
+/** Session data at the data root, which no URL serves: it persists and resets with the Session. */
+const POSITION_PATH = 'replay-position.json';
 
 export interface Reply {
   content: string;
   reasoning?: string;
+}
+
+interface Position {
+  played: number;
 }
 
 export interface Replay {
@@ -19,33 +24,13 @@ export function createReplay(data: DataDirectory): Replay {
       const text = data.readText(REPLAY_PATH);
       if (text === undefined) throw new ReplayError('This fixture has no Replay (replay.json)');
       const { replies } = JSON.parse(text) as { replies: Reply[] };
-      const positionText = data.readText(REPLAY_POSITION_PATH);
-      let played = 0;
-      if (positionText !== undefined) {
-        try {
-          const position: unknown = JSON.parse(positionText);
-          if (
-            typeof position !== 'object' ||
-            position === null ||
-            !('played' in position) ||
-            typeof position.played !== 'number' ||
-            !Number.isInteger(position.played) ||
-            position.played < 0
-          ) {
-            throw new Error('Expected an object with a non-negative integer played');
-          }
-          played = position.played;
-        } catch (cause) {
-          throw new Error(`Invalid Replay position in ${REPLAY_POSITION_PATH}: ${positionText}`, {
-            cause,
-          });
-        }
-      }
+      const position = data.readText(POSITION_PATH);
+      const played = position === undefined ? 0 : (JSON.parse(position) as Position).played;
       const reply = replies[played];
       if (!reply) {
         throw new ReplayError(`Replay has played all ${replies.length} replies of this Session`);
       }
-      data.write(REPLAY_POSITION_PATH, JSON.stringify({ played: played + 1 }));
+      data.write(POSITION_PATH, JSON.stringify({ played: played + 1 } satisfies Position));
       return reply;
     },
   };

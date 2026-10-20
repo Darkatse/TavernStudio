@@ -2,7 +2,7 @@
 
 每个子目录是一份 SillyTavern 数据目录（docs/Architecture.md §2），布局与 ST 的 `data/` 相同：`default-user/` 下是用户数据，`_css/user.css` 是全局样式。构建时 `apps/studio/build/published.ts` 把它们发布到 `/_studio/fixtures/<名称>/`，并生成带 SHA-256 的 `index.json`。
 
-样板根目录的 `replay.json` 是它的 Replay：`{ "replies": [{ "content", "reasoning"? }] }`。生成端点按顺序每次回放一条，流式时按固定节奏分段推送；全部放完后，生成以错误应答，不会重复。没有 `replay.json` 的样板不能生成。
+样板根目录的 `replay.json` 是它的 Replay：`{ "replies": [{ "content", "reasoning"? }] }`。生成端点按顺序每次回放一条，流式时按固定节奏分段推送；全部放完后，生成以错误应答，不会重复。回放到第几条属于 Session，记在 Session 数据根目录的 `replay-position.json` 里，随 Session 持久化与重置。没有 `replay.json` 的样板不能生成。
 
 样板是数据，保持 SillyTavern 写出的原样，不经过格式化工具。
 

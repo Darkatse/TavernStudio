@@ -9,6 +9,7 @@ export const shellMessages = defineMessages({
     agent: 'Agent',
     preview: '预览',
     code: '代码',
+    persistenceFailed: 'Session 未保存，刷新后会丢失预览里的改动',
   },
   en: {
     expandAgent: 'Show Agent',
@@ -18,5 +19,6 @@ export const shellMessages = defineMessages({
     agent: 'Agent',
     preview: 'Preview',
     code: 'Code',
+    persistenceFailed: "The Session isn't being saved; reloading loses changes made in the preview",
   },
 });

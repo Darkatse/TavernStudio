@@ -12,7 +12,6 @@ import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tooltip } from '../ui/tooltip';
 import { showToast } from '../ui/toast';
-import { workbenchMessages } from '../workbench/messages';
 import { Workbench, type WorkbenchView } from '../workbench/workbench';
 import { shellMessages } from './messages';
 
@@ -31,7 +30,7 @@ export function Shell() {
     if (persistenceError === undefined) return;
     showToast({
       kind: 'error',
-      title: messagesNow(workbenchMessages).persistenceFailed,
+      title: messagesNow(shellMessages).persistenceFailed,
       description: persistenceError,
     });
   }, [persistenceError]);

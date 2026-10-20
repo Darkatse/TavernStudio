@@ -26,7 +26,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Vendor 镜像 | Vendor 的不可变静态文件，加上构建期注入的 Attach，见 [Vendors §1](Vendors.md#1-vendor-镜像) |
 | Device | 视口尺寸与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
 | Fixture（样板） | 一段 ST 数据目录：settings、角色、聊天、主题、世界书、扩展设置。可以附带 Replay |
-| Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条 |
+| Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条。回放到第几条记在 Session 数据根目录的 `replay-position.json` 里，随 Session 持久化与重置 |
 | Project | 作者的源文件，加上 `studio.json` |
 | Mount | `studio.json` 里的一条声明：把项目文件或目录放到一个挂载点上。挂载点是数据路径，可以用 `#` 接 JSON Pointer，指向文件里的某个值，见 [§6](#6-项目) |
 | Snapshot | Fixture 与挂载后的 Project 合成的数据目录，内容寻址，不可变 |
@@ -143,7 +143,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
     - 带 `fence` 的先去掉包装。
   - **回声写入**不显示为差异。vendor 的规范化会如实显示，例如把颜色统一写成 `rgba(r, g, b, a)`；作者采纳一次后，项目就与之一致。
   - **采纳粒度**以挂载点为单位，不提供按代码块采纳：只采纳一部分可能写出无效的 JSON。
-  - **冲突**：项目改动会覆盖同一挂载点上尚未采纳的会话写入。被覆盖的内容显式提示，不静默丢弃。
+  - **冲突**：项目改动、切换 vendor、换样板或重开 Studio 时，Session 会覆盖或丢弃挂载点上尚未采纳的会话写入。被覆盖的内容由 Session 统一报告并显式提示，不静默丢弃。作者自己重置 Session、或丢弃某个挂载点的会话写入时不提示。
 - **变量面板**通过页内真实的 TavernHelper / MVU API 修改变量，卡片收到的事件与生产环境相同。
 - **Replay 推动叙事状态**：用户发送消息后，生成端点回放下一条预设回复。用于测试流式楼层、MVU 变量更新和 `AI_OUTPUT` 正则。
 - **诊断来自运行时。** Attach 在预览页和子 iframe 中收集 `error`、`unhandledrejection` 与 `console.error`，经 Mount 映射回项目文件和行号。编辑器的 lint 标记与 Agent 的 `app.read_logs` 读取同一份记录。独立文件的行列号准确。JSR 脚本和前端卡的内联脚本报告的是 srcdoc 文档内的行号，与作者源码之间差一个固定偏移，即 JSR 拼接在前面的内容；Studio 从 iframe 的 srcdoc 中找到作者代码的起点，换算回源码行号。
@@ -239,12 +239,12 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | 密钥 | 默认只在内存中；用户勾选后持久化到 IndexedDB |
 | 手动深浅色与界面语言的设置 | cookie，首次渲染之前读取（[UI §3](UI.md#3-视觉-token)、[§6](UI.md#6-文案与本地化)） |
 
-- Cache 名统一带 Studio 前缀。
+- Cache 名统一带 Studio 前缀 `studio-`，清理浏览器端状态时按这个前缀识别 Studio 的缓存。
 - Studio 不使用 localStorage 和 sessionStorage：vendor 与项目代码同源，随时可能调用 `localStorage.clear()`。
 - 启动时调用 `navigator.storage.persist()`，并以项目归档（§6）作为备份手段。
 - **Session 的持久化**：
   - 以内存为准。持久化在后台按写入顺序进行，不挡住同步应答。
-  - 持久化失败时报诊断，界面标明 Session 未持久化。不能降级为只存内存、却照常回报成功。
+  - 持久化失败时报诊断，并以一条不会自动消失的错误通知标明 Session 未持久化。不能降级为只存内存、却照常回报成功。
   - 重新打开 Studio 时，由样板和项目合成 Snapshot，再叠加覆盖层。如果期间项目改过某些挂载点，按 §5 用项目的内容覆盖。
   - "重置 Session"丢弃覆盖层。
 - **Agent 的存储有上限**，见 [Agent §1](Agent.md#1-运行模型)。
