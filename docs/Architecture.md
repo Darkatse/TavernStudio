@@ -22,7 +22,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 
 | 概念 | 定义 |
 |---|---|
-| Vendor | 一个前端发行版本，如 `st@1.19.0`、`tt@2.3.0` |
+| Vendor | 一个前端发行版本，如 `st-1.19.0`、`tt-2.3.0` |
 | Vendor 镜像 | Vendor 的不可变静态文件，加上构建期注入的 Attach，见 [Vendors §1](Vendors.md#1-vendor-镜像) |
 | Device | 视口尺寸与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
 | Fixture（样板） | 一段 ST 数据目录：settings、角色、聊天、主题、世界书、扩展设置。可以附带 Replay |
@@ -287,7 +287,11 @@ knowledge/            知识包的来源登记与流水线
 
 ## 9. 部署与安全
 
-- **部署**：Cloudflare Workers Static Assets，单一源。用 `workers.dev` 即可起步，自有域名可选。全站纯静态，也可以自托管。
+- **部署**：Cloudflare Workers Static Assets，单一源，域名 `studio.tauritavern.com`。用户数据随源保存，域名一经发布不再更换。`workers.dev` 只用于版本预览。全站纯静态，也可以自托管。
+  - `scripts/site.mjs` 把 Studio 构建、vendor 镜像（`/__vendor/`）与知识包合成 `site/`，`wrangler.jsonc` 部署它。部署由 GitHub Actions 手动触发（`deploy.yml`），凭据在仓库 Secrets 中。
+  - 路径与文件一一对应（`html_handling: none`），未命中返回 404；`/` 经 `_redirects` 指向 Studio 外壳。
+  - `_headers` 给 Preview SW 加 `Service-Worker-Allowed: /`；带哈希的 Studio 资源与每个镜像目录长期缓存，其余每次重新验证。
+  - 预览里的 URL 是虚拟的，内容取决于 Session，所以 Preview SW 交给页面的响应一律 `Cache-Control: no-cache`；镜像本身的长期缓存只作用于它在 `/__vendor/` 下的真实地址。镜像里 Studio 写入过的 `index.html` 由 SW 每次重新验证。
 - **可选边缘函数只有两个：**
   - LLM CORS 中继：白名单放行，不记录日志，用户可自行部署。
   - 截图用的跨域图片代理：只在截图路径中使用，限制资源类型和大小。

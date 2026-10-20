@@ -1,0 +1,15 @@
+{
+  "name": "tavern-studio",
+  "compatibility_date": "2026-10-19",
+  "assets": {
+    "directory": "./site",
+    // The preview asks for vendor files by their exact names; a trailing-slash
+    // mode would answer each .html with a redirect, and nothing may fall back
+    // to the shell.
+    "html_handling": "none",
+    "not_found_handling": "none",
+  },
+  "routes": [{ "pattern": "studio.tauritavern.com", "custom_domain": true }],
+  "workers_dev": true,
+  "preview_urls": true,
+}

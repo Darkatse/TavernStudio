@@ -1,0 +1,46 @@
+name: Deploy
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/setup@v2
+        with:
+          runtime: node@24
+          install: false
+
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm run check
+
+      - run: pnpm vendor:st 1.19.0
+      - run: pnpm vendor:tt
+
+      # The knowledge pack reads TauriTavern's docs at the commit release.json pins.
+      - id: tt
+        run: echo "commit=$(node -p "require('./vendors/tt/release.json').commit")" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v7
+        with:
+          repository: Darkatse/TauriTavern
+          ref: ${{ steps.tt.outputs.commit }}
+          path: tauritavern
+      - run: pnpm knowledge --tt-checkout tauritavern
+
+      - run: pnpm build
+      - run: node scripts/site.mjs
+      - run: pnpm dlx wrangler@4.151.0 deploy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          WRANGLER_SEND_METRICS: 'false'

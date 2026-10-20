@@ -1,3 +1,4 @@
+import { ExternalLink } from 'lucide-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { formatNumber } from '../i18n/common';
 import {
@@ -46,7 +47,32 @@ export function GeneralSettings() {
         />
       </Setting>
       <StorageUsage />
+      <SourceCode />
     </div>
+  );
+}
+
+/** The commit a CI build came from; empty in a local build. */
+declare const STUDIO_COMMIT: string;
+
+const REPOSITORY = 'Darkatse/TavernStudio';
+
+function SourceCode() {
+  const m = useMessages(settingsMessages);
+  const url = `https://github.com/${REPOSITORY}${STUDIO_COMMIT ? `/tree/${STUDIO_COMMIT}` : ''}`;
+  return (
+    <Setting title={m.source}>
+      <a
+        href={url}
+        target="_blank"
+        rel="noreferrer noopener"
+        className="inline-flex items-center gap-1 text-caption underline-offset-2 hover:underline"
+      >
+        {REPOSITORY}
+        {STUDIO_COMMIT && <span className="text-muted">@{STUDIO_COMMIT.slice(0, 7)}</span>}
+        <ExternalLink aria-hidden="true" className="size-3 text-muted" />
+      </a>
+    </Setting>
   );
 }
 

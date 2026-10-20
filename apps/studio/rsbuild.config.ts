@@ -43,7 +43,10 @@ export default defineConfig({
         // Agent's knowledge/ says how to build one.
         pluginPublished(path.join(repo, 'knowledge/out'), 'knowledge'),
       ],
-      source: { entry: { index: './src/main.tsx' } },
+      source: {
+        entry: { index: './src/main.tsx' },
+        define: { STUDIO_COMMIT: JSON.stringify(process.env.GITHUB_SHA ?? '') },
+      },
       // Dev tooling lives under `/__` and hot updates under `/_studio/`, the
       // paths the Preview SW leaves to the dev server.
       dev: { lazyCompilation: { entries: false, imports: true, prefix: '/__rspack/lazy' } },

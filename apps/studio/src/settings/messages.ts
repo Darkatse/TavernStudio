@@ -14,6 +14,7 @@ export const settingsMessages = defineMessages({
     followBrowser: '跟随浏览器',
     storage: '存储',
     storageUsage: (size: string) => `已用 ${size}`,
+    source: '源代码',
   },
   en: {
     settings: 'Settings',
@@ -28,5 +29,6 @@ export const settingsMessages = defineMessages({
     followBrowser: 'Browser',
     storage: 'Storage',
     storageUsage: (size: string) => `${size} used`,
+    source: 'Source code',
   },
 });
