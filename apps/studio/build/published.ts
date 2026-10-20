@@ -40,9 +40,12 @@ export function pluginPublished(root: string, base: string): RsbuildPlugin {
                 size: bytes.length,
                 sha256: createHash('sha256').update(bytes).digest('hex'),
               };
+              // Published as they are, so they match their hashes: marked
+              // minimized, the build's minifiers leave them alone.
               compilation.emitAsset(
                 `_studio/${base}/${entry.name}/${file}`,
                 new sources.RawSource(bytes),
+                { minimized: true },
               );
             }
             compilation.emitAsset(
