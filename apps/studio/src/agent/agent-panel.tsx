@@ -1,17 +1,17 @@
-import { MessagesSquare, Settings2 } from 'lucide-react';
-import { lazy, Suspense, useState } from 'react';
+import { Settings2 } from 'lucide-react';
+import { lazy, Suspense, useRef, useState, type ReactNode } from 'react';
 import { BrandMark } from '../brand/brand-mark';
 import { useMessages } from '../i18n/messages';
 import { settingsMessages } from '../settings/messages';
 import type { SettingsSection } from '../settings/settings-dialog';
 import { Button } from '../ui/button';
 import { Dialog } from '../ui/dialog';
-import { EmptyState } from '../ui/empty-state';
 import { Tooltip } from '../ui/tooltip';
 import { Composer } from './composer';
 import type { Conversation } from './conversation';
 import { agentMessages } from './messages';
 import { useConversation, useConversationState } from './use-conversation';
+import { Welcome } from './welcome';
 
 // The Transcript brings Markdown with it, so it loads with the first Run to show.
 const Transcript = lazy(() =>
@@ -28,6 +28,18 @@ export function AgentPanel() {
   const conversation = useConversation();
   // Undefined until the settings are first opened; they stay mounted from then on, to animate out.
   const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>();
+  const [draft, setDraft] = useState('');
+  const field = useRef<HTMLTextAreaElement>(null);
+  const openModels = () => setSettings({ open: true, section: 'models' });
+  const welcome = (
+    <Welcome
+      onSuggest={(request) => {
+        setDraft(request);
+        field.current?.focus();
+      }}
+      onOpenModels={openModels}
+    />
+  );
   return (
     <aside
       aria-label={m.panel}
@@ -52,13 +64,16 @@ export function AgentPanel() {
         </Tooltip>
       </header>
       {conversation ? (
-        <ConversationBody key={conversation.id} conversation={conversation} />
+        <ConversationBody key={conversation.id} conversation={conversation} welcome={welcome} />
       ) : (
-        <Welcome description={m.welcomeWithoutProject} />
+        welcome
       )}
       <Composer
+        ref={field}
         conversation={conversation}
-        onOpenSettings={() => setSettings({ open: true, section: 'models' })}
+        draft={draft}
+        onDraftChange={setDraft}
+        onOpenModels={openModels}
       />
       <Dialog
         open={settings?.open ?? false}
@@ -77,26 +92,20 @@ export function AgentPanel() {
   );
 }
 
-function ConversationBody({ conversation }: { conversation: Conversation }) {
-  const m = useMessages(agentMessages);
+function ConversationBody({
+  conversation,
+  welcome,
+}: {
+  conversation: Conversation;
+  welcome: ReactNode;
+}) {
   const state = useConversationState(conversation);
   // Nothing until History is read, so a conversation does not flash the welcome first.
   if (!state.loaded) return <div className="flex-1" />;
-  if (state.entries.length === 0 && !state.active) {
-    return <Welcome description={m.welcomeToProject} />;
-  }
+  if (state.entries.length === 0 && !state.active) return welcome;
   return (
     <Suspense fallback={<div className="flex-1" />}>
       <Transcript conversation={conversation} />
     </Suspense>
-  );
-}
-
-function Welcome({ description }: { description: string }) {
-  const m = useMessages(agentMessages);
-  return (
-    <div className="flex min-h-0 flex-1 items-center justify-center overflow-y-auto px-8">
-      <EmptyState icon={<MessagesSquare />} title={m.welcome} description={description} />
-    </div>
   );
 }

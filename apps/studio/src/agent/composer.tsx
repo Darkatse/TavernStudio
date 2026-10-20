@@ -1,45 +1,52 @@
 import { clsx } from 'clsx';
-import { ArrowUp, CornerDownRight, Square, TriangleAlert } from 'lucide-react';
-import { useRef, useState, useSyncExternalStore, type ReactElement } from 'react';
+import { ArrowUp, CornerDownRight, KeyRound, Square, TriangleAlert } from 'lucide-react';
+import { useSyncExternalStore, type RefObject } from 'react';
 import { useMessages } from '../i18n/messages';
 import { Button } from '../ui/button';
-import { Tooltip } from '../ui/tooltip';
 import type { Conversation, ConversationProblem, ConversationState } from './conversation';
 import { agentMessages, type AgentText } from './messages';
-import { selectedEndpoint, useAgentSettings, type ModelProblem } from './settings';
+import type { SelectedEndpoint } from './settings';
+import { connectText, useSetup } from './setup';
 
+/**
+ * Always open for writing: when sending is blocked, what blocks it shows
+ * above as soon as there is something to send, and a missing model turns the
+ * model button into the way to connect one.
+ */
 export function Composer({
+  ref,
   conversation,
-  onOpenSettings,
+  draft,
+  onDraftChange,
+  onOpenModels,
 }: {
+  ref: RefObject<HTMLTextAreaElement | null>;
   /** None until a project is open. */
   conversation: Conversation | undefined;
-  onOpenSettings: () => void;
+  draft: string;
+  onDraftChange: (draft: string) => void;
+  onOpenModels: () => void;
 }) {
   const m = useMessages(agentMessages);
-  const settings = useAgentSettings();
+  const model = useSetup()?.model;
   const state = useSyncExternalStore(
     conversation?.subscribe ?? noSubscription,
     () => conversation?.state,
   );
-  const [text, setText] = useState('');
-  const field = useRef<HTMLTextAreaElement>(null);
-  const selected = selectedEndpoint(settings);
+  const message = draft.trim();
   const running = state?.active !== undefined;
-  const stop = running && text.trim() === '';
-  const blocked = blockedReason(state, 'problem' in selected ? selected.problem : undefined, m);
+  const stop = running && message === '';
+  const blocked = blockedReason(state, model, m);
 
   const submit = () => {
-    const message = text.trim();
     if (!conversation || blocked || message === '') return;
-    setText('');
-    if (field.current) field.current.style.height = '';
+    onDraftChange('');
     void conversation.send(message);
   };
 
   return (
     <form
-      className="flex shrink-0 flex-col gap-2 px-3 pb-3"
+      className="flex shrink-0 flex-col px-3 pb-3"
       onSubmit={(event) => {
         event.preventDefault();
         submit();
@@ -48,28 +55,29 @@ export function Composer({
       {state?.problem && (
         <p
           role="alert"
-          className="flex items-start gap-1.5 px-1 text-caption text-pretty text-danger"
+          className="mb-2 flex items-start gap-1.5 px-1 text-caption text-pretty text-danger"
         >
           <TriangleAlert className="mt-px size-3.5 shrink-0" />
           {problemText(state.problem, m)}
         </p>
       )}
+      <output className="block px-1 text-caption text-pretty text-muted not-empty:mb-2">
+        {!state?.problem && message !== '' && blocked && (
+          <span className="transition-opacity motion-moderate starting:opacity-0">{blocked}</span>
+        )}
+      </output>
       <div className="rounded-xl bg-surface shadow-control transition-shadow motion-fast focus-within:shadow-focus">
         {state && state.guidance.length > 0 && <Guidance items={state.guidance} />}
         <label htmlFor="composer-message" className="sr-only">
           {m.message}
         </label>
         <textarea
-          ref={field}
+          ref={ref}
           id="composer-message"
           rows={2}
-          value={text}
-          disabled={!state?.loaded}
+          value={draft}
           placeholder={running ? m.guidancePlaceholder : m.placeholder}
-          onChange={(event) => {
-            setText(event.target.value);
-            fitToContent(event.target);
-          }}
+          onChange={(event) => onDraftChange(event.target.value)}
           onKeyDown={(event) => {
             // keyCode 229: Safari ends composition with an Enter whose isComposing is already false.
             const composing = event.nativeEvent.isComposing || event.keyCode === 229;
@@ -77,31 +85,35 @@ export function Composer({
             event.preventDefault();
             submit();
           }}
-          className="block max-h-48 w-full resize-none bg-transparent px-3.5 pt-3 text-prose outline-none placeholder:text-muted disabled:cursor-not-allowed"
+          className="block field-sizing-content max-h-48 min-h-[calc(2lh+--spacing(3))] w-full resize-none bg-transparent px-3.5 pt-3 text-prose outline-none placeholder:text-muted"
         />
         <div data-density="compact" className="flex items-center justify-between gap-2 p-2 pl-2">
-          <Button variant="ghost" className="min-w-0 px-1.5 text-caption" onClick={onOpenSettings}>
-            <span className="truncate">
-              {selected.endpoint
-                ? `${selected.endpoint.label} · ${selected.endpoint.model}`
-                : m.noModel}
-            </span>
-            {'problem' in selected && selected.endpoint && (
-              <span className="shrink-0 text-fg">· {m.noKey}</span>
+          <Button
+            variant="ghost"
+            className={clsx('min-w-0 px-1.5 text-caption', !model && 'invisible')}
+            onClick={onOpenModels}
+          >
+            {model && 'problem' in model ? (
+              <>
+                <KeyRound className="text-fg" />
+                <span className="truncate text-fg">{connectText(model.problem, m)}</span>
+              </>
+            ) : (
+              <span className="truncate">
+                {model && `${model.endpoint.label} · ${model.endpoint.model}`}
+              </span>
             )}
           </Button>
-          <Explained reason={blocked}>
-            <Button
-              type={stop ? 'button' : 'submit'}
-              variant="primary"
-              icon
-              disabled={!stop && (blocked !== undefined || text.trim() === '')}
-              aria-label={stop ? m.stop : running ? m.sendGuidance : m.send}
-              onClick={stop ? () => conversation?.cancel() : undefined}
-            >
-              <SendIcon stop={stop} />
-            </Button>
-          </Explained>
+          <Button
+            type={stop ? 'button' : 'submit'}
+            variant="primary"
+            icon
+            disabled={!stop && (blocked !== undefined || message === '')}
+            aria-label={stop ? m.stop : running ? m.sendGuidance : m.send}
+            onClick={stop ? () => conversation?.cancel() : undefined}
+          >
+            <SendIcon stop={stop} />
+          </Button>
         </div>
       </div>
     </form>
@@ -113,12 +125,12 @@ const noSubscription = () => () => {};
 /** During a Run, Guidance needs no model of its own. */
 function blockedReason(
   state: ConversationState | undefined,
-  modelProblem: ModelProblem | undefined,
+  model: SelectedEndpoint | undefined,
   m: AgentText,
 ): string | undefined {
   if (!state) return m.noProject;
   if (!state.loaded) return m.notLoaded;
-  if (!state.active && modelProblem) return problemText(modelProblem, m);
+  if (!state.active && model && 'problem' in model) return problemText(model.problem, m);
   return undefined;
 }
 
@@ -162,19 +174,4 @@ function swapped(shown: boolean): string {
     'col-start-1 row-start-1 transition-[opacity,scale]',
     shown ? 'motion-fast' : 'opacity-0 motion-fast-exit motion-safe:scale-60',
   );
-}
-
-function Explained({ reason, children }: { reason: string | undefined; children: ReactElement }) {
-  return reason ? (
-    <Tooltip content={reason} side="top">
-      {children}
-    </Tooltip>
-  ) : (
-    children
-  );
-}
-
-function fitToContent(field: HTMLTextAreaElement) {
-  field.style.height = 'auto';
-  field.style.height = `${field.scrollHeight}px`;
 }

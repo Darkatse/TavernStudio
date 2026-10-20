@@ -13,11 +13,13 @@ export interface AgentSettings {
 
 const KEY = 'agent';
 let settings: AgentSettings = { endpoints: [], selected: undefined, keys: {}, rememberKeys: false };
+let read = false;
 const listeners = new Set<() => void>();
 const loaded = db
   .then((database) => database.get('preferences', KEY))
   .then((record) => {
     if (record) settings = { ...settings, ...(record.value as Partial<AgentSettings>) };
+    read = true;
     for (const listener of listeners) listener();
   });
 
@@ -31,6 +33,11 @@ export function settingsLoaded(): Promise<void> {
 
 export function useAgentSettings(): AgentSettings {
   return useSyncExternalStore(subscribe, agentSettings);
+}
+
+/** Until then the settings are the defaults, not the user's. */
+export function useSettingsLoaded(): boolean {
+  return useSyncExternalStore(subscribe, () => read);
 }
 
 function subscribe(listener: () => void): () => void {
@@ -51,15 +58,15 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
 
 export type ModelProblem = { kind: 'no-model' } | { kind: 'no-key'; label: string };
 
+export type SelectedEndpoint =
+  | { endpoint: Endpoint; apiKey: string }
+  | { endpoint: Endpoint | undefined; problem: ModelProblem };
+
 /**
  * Takes the settings rather than reading them, so a component that renders it
  * re-renders with them (the React Compiler memoizes calls by their arguments).
  */
-export function selectedEndpoint(
-  current: AgentSettings,
-):
-  | { endpoint: Endpoint; apiKey: string }
-  | { endpoint: Endpoint | undefined; problem: ModelProblem } {
+export function selectedEndpoint(current: AgentSettings): SelectedEndpoint {
   const endpoint = current.endpoints.find((candidate) => candidate.id === current.selected);
   if (!endpoint) return { endpoint, problem: { kind: 'no-model' } };
   const apiKey = current.keys[endpoint.id];

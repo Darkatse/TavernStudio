@@ -10,6 +10,8 @@ import type { ProjectTemplate } from './templates';
 const DEFAULT_FIXTURE = 'showcase';
 
 let current: Project | undefined;
+/** Until Studio has reopened the last project or found none, having none says nothing yet. */
+let restored = false;
 /** Every project, the one opened last first. */
 let records: readonly ProjectRecord[] = [];
 const listeners = new Set<() => void>();
@@ -17,6 +19,10 @@ let started: Promise<void> | undefined;
 
 export function currentProject(): Project | undefined {
   return current;
+}
+
+export function projectRestored(): boolean {
+  return restored;
 }
 
 export function projectRecords(): readonly ProjectRecord[] {
@@ -38,8 +44,13 @@ export function startStudio(): Promise<void> {
     await previewSession.own();
     await refreshRecords();
     const [last] = records;
-    if (last) await openProject(last);
-    else await previewSession.open(DEFAULT_FIXTURE, []);
+    if (last) {
+      await openProject(last);
+      return;
+    }
+    restored = true;
+    notify();
+    await previewSession.open(DEFAULT_FIXTURE, []);
   })();
   return started;
 }
@@ -76,6 +87,7 @@ export async function openProject(record: ProjectRecord): Promise<void> {
   current?.close();
   const project = new Project(record, new ProjectStore(await projectDirectory(record.id)));
   current = project;
+  restored = true;
   notify();
   await (await db).put('projects', { ...record, openedAt: Date.now() });
   await refreshRecords();

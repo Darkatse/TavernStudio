@@ -3,7 +3,8 @@ import { useRef, useState } from 'react';
 import { messagesNow, useMessages } from '../i18n/messages';
 import { ArchiveError, exportArchive, importArchive, type ArchiveReason } from '../project/archive';
 import { projectMessages } from '../project/messages';
-import { createFromTemplate, openProject } from '../project/projects';
+import { openProject } from '../project/projects';
+import { startProject, useStartingProject } from '../project/start';
 import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject, useProjectRecords } from '../project/use-project';
 import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../ui/menu';
@@ -16,29 +17,22 @@ const prefetch = () => void import('../lib/zip');
 const RECENT = 8;
 const LISTED = 5;
 
-type Failure = 'create' | keyof ProjectMenuText['failed'];
-
 export function ProjectMenu() {
   const m = useMessages(projectMenuMessages);
   const { templates } = useMessages(projectMessages);
   const project = useCurrentProject();
   const records = useProjectRecords();
+  const starting = useStartingProject();
   const picker = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
 
-  const run = async (failure: Failure, action: () => Promise<void>) => {
+  const run = async (failure: keyof ProjectMenuText['failed'], action: () => Promise<void>) => {
     setBusy(true);
     try {
       await action();
     } catch (error) {
       const text = messagesNow(projectMenuMessages);
-      showToast({
-        kind: 'error',
-        // Creating a project fails the same from the code view; the project's text says it.
-        title:
-          failure === 'create' ? messagesNow(projectMessages).createFailed : text.failed[failure],
-        description: describe(error, text),
-      });
+      showToast({ kind: 'error', title: text.failed[failure], description: describe(error, text) });
     } finally {
       setBusy(false);
     }
@@ -48,7 +42,7 @@ export function ProjectMenu() {
     <>
       <Menu>
         <MenuTrigger
-          disabled={busy}
+          disabled={busy || starting !== undefined}
           render={<ProjectButton onPointerEnter={prefetch} onFocus={prefetch} />}
         />
         <MenuContent>
@@ -56,9 +50,7 @@ export function ProjectMenu() {
             <MenuItem
               key={template.folder}
               icon={<template.icon />}
-              onClick={() =>
-                void run('create', async () => openProject(await createFromTemplate(template)))
-              }
+              onClick={() => void startProject(template)}
             >
               {templates[template.folder].action}
             </MenuItem>

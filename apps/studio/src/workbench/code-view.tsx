@@ -1,14 +1,13 @@
 import { FileCode2 } from 'lucide-react';
 import { lazy, Suspense, useState } from 'react';
-import { messagesNow, useMessages } from '../i18n/messages';
+import { useMessages } from '../i18n/messages';
 import { projectMessages } from '../project/messages';
-import { createFromTemplate, openProject } from '../project/projects';
+import { startProject, useStartingProject } from '../project/start';
 import { PROJECT_TEMPLATES } from '../project/templates';
 import { useCurrentProject } from '../project/use-project';
 import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
 import { LoadingLine } from '../ui/loading';
-import { showToast } from '../ui/toast';
 import { workbenchMessages } from './messages';
 
 const ProjectCode = lazy(() =>
@@ -19,7 +18,7 @@ export function CodeView({ shown }: { shown: boolean }) {
   const m = useMessages(workbenchMessages).codeView;
   const { templates } = useMessages(projectMessages);
   const project = useCurrentProject();
-  const [creating, setCreating] = useState(false);
+  const starting = useStartingProject();
   const [wanted, setWanted] = useState(shown);
   if (shown && !wanted) setWanted(true);
 
@@ -35,20 +34,8 @@ export function CodeView({ shown }: { shown: boolean }) {
               {PROJECT_TEMPLATES.map((template) => (
                 <Button
                   key={template.folder}
-                  disabled={creating}
-                  onClick={() => {
-                    setCreating(true);
-                    void createFromTemplate(template)
-                      .then(openProject)
-                      .catch((error: unknown) =>
-                        showToast({
-                          kind: 'error',
-                          title: messagesNow(projectMessages).createFailed,
-                          description: error instanceof Error ? error.message : String(error),
-                        }),
-                      )
-                      .finally(() => setCreating(false));
-                  }}
+                  disabled={starting !== undefined}
+                  onClick={() => void startProject(template)}
                 >
                   <template.icon />
                   {templates[template.folder].action}

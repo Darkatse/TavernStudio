@@ -1,5 +1,6 @@
 import type { Locale } from '../i18n/locale';
 import { defineMessages } from '../i18n/messages';
+import type { ProjectExport } from '../project/export';
 import type { ConversationFailure } from './conversation';
 
 /**
@@ -10,9 +11,32 @@ export const agentMessages = defineMessages({
   zh: {
     panel: 'Agent',
     welcome: '想做点什么？',
-    welcomeWithoutProject: '新建一个项目，再描述你想要的主题、前端卡或脚本。',
-    welcomeToProject:
-      '描述你想要的主题、前端卡或脚本。Agent 会修改文件、查看预览，反复调整到满意为止。',
+    welcomeReady: '描述你想要的效果，Agent 会修改文件、查看预览，反复调整到满意为止。',
+    setup: {
+      stepsLeft: (count: number): string =>
+        count === 1 ? '还差一步就能开始。' : '开始之前还有两步。',
+      project: '新建项目',
+      projectHint: '选一种作品，文件和预览会准备好。',
+      model: '连接模型',
+      modelHint: '填入你自己的模型服务和 API Key，Agent 在浏览器里直接请求它。',
+      connect: '连接模型',
+      enterKey: (endpoint: string) => `填写 ${endpoint} 的 API Key`,
+      done: '已完成',
+    },
+    suggestionsLabel: '可以这样开始',
+    /** By what the project places: a project with a theme gets the theme's. */
+    suggestions: {
+      theme: [
+        '把配色改成暖色调的深色主题',
+        '让消息气泡更圆润，加一点柔和的阴影',
+        '调大正文字号，让行距更舒展',
+      ],
+      extension: [
+        '在每条消息旁加一个复制按钮',
+        '在扩展设置里加一个隐藏头像的开关',
+        '在输入框上方显示当前聊天的总字数',
+      ],
+    } satisfies Record<ProjectExport['kind'], readonly string[]>,
 
     message: '给 Agent 的消息',
     placeholder: '描述你想要的效果…',
@@ -21,12 +45,11 @@ export const agentMessages = defineMessages({
     sendGuidance: '补充给 Agent',
     stop: '停止',
     guidance: '待交给 Agent 的补充',
-    noModel: '未配置模型',
     noKey: '未填写 Key',
-    noProject: '打开项目后即可对话',
+    noProject: '先新建一个项目，就能发送了。',
     notLoaded: '对话记录还没有读取',
-    modelMissing: '还没有选择模型。在设置里添加一个模型服务。',
-    keyMissing: (endpoint: string) => `${endpoint} 还没有填写 API Key。`,
+    modelMissing: '先连接一个模型，就能发送了。',
+    keyMissing: (endpoint: string) => `先填写 ${endpoint} 的 API Key，就能发送了。`,
     failed: {
       load: (error: string) => `对话记录未能读取：${error}`,
       start: (error: string) => `Agent 未能启动：${error}`,
@@ -38,10 +61,33 @@ export const agentMessages = defineMessages({
   en: {
     panel: 'Agent',
     welcome: 'What do you want to make?',
-    welcomeWithoutProject:
-      'Create a project, then describe the theme, frontend card or script you want.',
-    welcomeToProject:
-      "Describe the theme, frontend card or script you want. The Agent edits the files, checks the preview and keeps refining until it's right.",
+    welcomeReady:
+      "Describe what you want. The Agent edits the files, checks the preview and keeps refining until it's right.",
+    setup: {
+      stepsLeft: (count: number) =>
+        count === 1 ? 'One step to go.' : 'Two steps before you start.',
+      project: 'Create a project',
+      projectHint: 'Pick what to make. Studio sets up its files and preview.',
+      model: 'Connect a model',
+      modelHint:
+        'Add your own model service and API Key. The Agent calls it straight from the browser.',
+      connect: 'Connect model',
+      enterKey: (endpoint: string) => `Enter the API Key for ${endpoint}`,
+      done: 'Done',
+    },
+    suggestionsLabel: 'Try asking',
+    suggestions: {
+      theme: [
+        'Turn the colors into a warm dark theme',
+        'Round the message bubbles and add a soft shadow',
+        'Make the body text larger, with more line spacing',
+      ],
+      extension: [
+        'Add a copy button beside each message',
+        'Add a setting that hides avatars',
+        "Show the chat's total word count above the input box",
+      ],
+    },
 
     message: 'Message to the Agent',
     placeholder: 'Describe what you want…',
@@ -50,12 +96,11 @@ export const agentMessages = defineMessages({
     sendGuidance: 'Add guidance',
     stop: 'Stop',
     guidance: 'Guidance waiting for the Agent',
-    noModel: 'No model set up',
     noKey: 'No API Key',
-    noProject: 'Open a project to talk to the Agent',
+    noProject: 'Create a project, then you can send.',
     notLoaded: "The conversation hasn't loaded yet",
-    modelMissing: 'No model selected. Add a model service in settings.',
-    keyMissing: (endpoint: string) => `${endpoint} needs an API Key.`,
+    modelMissing: 'Connect a model, then you can send.',
+    keyMissing: (endpoint: string) => `Enter the API Key for ${endpoint}, then you can send.`,
     failed: {
       load: (error: string) => `Couldn't read the conversation: ${error}`,
       start: (error: string) => `The Agent couldn't start: ${error}`,
