@@ -4,12 +4,15 @@ import { useEffect, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { AgentPanel } from '../agent/agent-panel';
 import { BrandMark } from '../brand/brand-mark';
-import { useMessages } from '../i18n/messages';
+import { messagesNow, useMessages } from '../i18n/messages';
 import { useMediaQuery } from '../lib/use-media-query';
 import { startStudio } from '../project/projects';
+import { usePersistenceError } from '../preview/use-session';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
 import { Tooltip } from '../ui/tooltip';
+import { showToast } from '../ui/toast';
+import { workbenchMessages } from '../workbench/messages';
 import { Workbench, type WorkbenchView } from '../workbench/workbench';
 import { shellMessages } from './messages';
 
@@ -23,6 +26,15 @@ export function Shell() {
   useEffect(() => {
     void startStudio();
   }, []);
+  const persistenceError = usePersistenceError();
+  useEffect(() => {
+    if (persistenceError === undefined) return;
+    showToast({
+      kind: 'error',
+      title: messagesNow(workbenchMessages).persistenceFailed,
+      description: persistenceError,
+    });
+  }, [persistenceError]);
 
   return wide ? (
     <WideShell view={view} onViewChange={setView} />

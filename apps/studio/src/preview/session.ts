@@ -312,8 +312,8 @@ export class PreviewSession implements PreviewHost {
     await this.#restart(fixture, this.#placements);
   }
 
-  get persisted(): boolean {
-    return !this.#persistence.failed;
+  get persistenceError(): string | undefined {
+    return this.#persistence.error;
   }
 
   /** Call it before opening. */

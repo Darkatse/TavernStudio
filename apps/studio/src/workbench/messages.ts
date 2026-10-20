@@ -13,6 +13,7 @@ export const workbenchMessages = defineMessages({
     device: { desktop: '桌面', mobile: '移动' } satisfies Record<DeviceId, string>,
     frontends: '前端',
     reloadPreview: '重新载入预览',
+    persistenceFailed: 'Session 未保存，刷新后会丢失预览里的改动',
     startup: {
       steps: '预览启动进度',
       worker: '准备预览服务',
@@ -66,6 +67,7 @@ export const workbenchMessages = defineMessages({
     device: { desktop: 'Desktop', mobile: 'Mobile' },
     frontends: 'Frontend',
     reloadPreview: 'Reload preview',
+    persistenceFailed: "The Session isn't being saved; reloading loses changes made in the preview",
     startup: {
       steps: 'Preview startup',
       worker: 'Preparing preview service',

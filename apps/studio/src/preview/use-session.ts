@@ -22,3 +22,7 @@ export function useVendorChoice(): VendorChoice {
 export function useOverwritten(): readonly Difference[] {
   return useSyncExternalStore(previewSession.subscribe, () => previewSession.overwritten);
 }
+
+export function usePersistenceError(): string | undefined {
+  return useSyncExternalStore(previewSession.subscribe, () => previewSession.persistenceError);
+}

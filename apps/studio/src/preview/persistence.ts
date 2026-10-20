@@ -44,15 +44,15 @@ export function overlayEntry(
  */
 export class SessionPersistence {
   #queue: Promise<void> = Promise.resolve();
-  #failed = false;
+  #error: string | undefined;
   readonly #onFailure: (error: unknown) => void;
 
   constructor(onFailure: (error: unknown) => void) {
     this.#onFailure = onFailure;
   }
 
-  get failed(): boolean {
-    return this.#failed;
+  get error(): string | undefined {
+    return this.#error;
   }
 
   async load(): Promise<StoredSession | undefined> {
@@ -63,7 +63,7 @@ export class SessionPersistence {
   }
 
   begin(record: SessionRecord, files: SessionFile[]): Promise<void> {
-    this.#failed = false;
+    this.#error = undefined;
     return this.#enqueue(async () => {
       const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
       const stored = tx.objectStore('sessionFiles');
@@ -112,8 +112,9 @@ export class SessionPersistence {
     const done = this.#queue.then(write).then(
       () => undefined,
       (error: unknown) => {
-        if (!this.#failed) this.#onFailure(error);
-        this.#failed = true;
+        if (this.#error !== undefined) return;
+        this.#error = error instanceof Error ? error.message : String(error);
+        this.#onFailure(error);
       },
     );
     this.#queue = done;
