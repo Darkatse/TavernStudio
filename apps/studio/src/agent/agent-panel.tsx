@@ -1,5 +1,5 @@
 import { Settings2 } from 'lucide-react';
-import { lazy, Suspense, useRef, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useRef, useState, useTransition, type ReactNode } from 'react';
 import { BrandMark } from '../brand/brand-mark';
 import { useMessages } from '../i18n/messages';
 import { settingsMessages } from '../settings/messages';
@@ -17,10 +17,12 @@ import { Welcome } from './welcome';
 const Transcript = lazy(() =>
   import('./transcript').then((module) => ({ default: module.Transcript })),
 );
-// The settings bring the model list's combobox, so they load when first opened.
+// The settings bring the model list's combobox, so they load when first wanted.
+const loadSettings = () => import('../settings/settings-dialog');
 const SettingsDialog = lazy(() =>
-  import('../settings/settings-dialog').then((module) => ({ default: module.SettingsDialog })),
+  loadSettings().then((module) => ({ default: module.SettingsDialog })),
 );
+const prefetchSettings = () => void loadSettings();
 
 export function AgentPanel() {
   const m = useMessages(agentMessages);
@@ -28,9 +30,14 @@ export function AgentPanel() {
   const conversation = useConversation();
   // Undefined until the settings are first opened; they stay mounted from then on, to animate out.
   const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>();
+  const [, startTransition] = useTransition();
+  // In a transition the dialog stays shut until its code is in, then opens with
+  // its content in one commit: no empty fallback swallows its entrance.
+  const openSettings = (section: SettingsSection) =>
+    startTransition(() => setSettings({ open: true, section }));
   const [draft, setDraft] = useState('');
   const field = useRef<HTMLTextAreaElement>(null);
-  const openModels = () => setSettings({ open: true, section: 'models' });
+  const openModels = () => openSettings('models');
   const welcome = (
     <Welcome
       onSuggest={(request) => {
@@ -57,7 +64,9 @@ export function AgentPanel() {
             icon
             className="ml-auto"
             aria-label={settingsText.settings}
-            onClick={() => setSettings({ open: true, section: 'general' })}
+            onPointerEnter={prefetchSettings}
+            onFocus={prefetchSettings}
+            onClick={() => openSettings('general')}
           >
             <Settings2 />
           </Button>
@@ -79,14 +88,14 @@ export function AgentPanel() {
         open={settings?.open ?? false}
         onOpenChange={(open) => setSettings((current) => current && { ...current, open })}
       >
-        {settings && (
-          <Suspense>
+        <Suspense>
+          {settings && (
             <SettingsDialog
               section={settings.section}
               onSectionChange={(section) => setSettings({ open: true, section })}
             />
-          </Suspense>
-        )}
+          )}
+        </Suspense>
       </Dialog>
     </aside>
   );

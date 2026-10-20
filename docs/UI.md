@@ -100,6 +100,9 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
   
   后两者都是 moderate 进入、fast 退出，即 160 ms 弹簧进入、60 ms ease-out 退出。位移距离取自 `--motion-fold-offset`、`--motion-toast-distance`，减少动态效果时归零。
 - Base UI 用 `data-starting-style` / `data-ending-style` 驱动 CSS 过渡，进入、退出和中途取消都由它处理。
+- 浮层的内容按需加载时（例如设置对话框），打开它的状态更新放进 transition，内容的 Suspense 边界在打开前就已挂好：浮层等代码到齐，与内容在同一次提交里出现。
+  - 否则浮层先在空的 fallback 上打开，内容晚到，错过了 Base UI 标出的起始状态，进入动画就没有了；React 还会把 fallback 之后的内容压后至少 300 ms 才揭示。
+  - 打开者在指向或聚焦时预取代码，transition 几乎不用等。
 - 弹簧曲线用 CSS `linear()` 表达，由 `apps/studio/scripts/springs.mjs` 生成。
 - 参考库大多基于 Motion，复制它们的组件时，把动效改写为 CSS 档位。
 - 出现 CSS 做不到的需求（手势驱动、需要速度连续的拖拽）时，再引入 Motion 并按需加载，同时记入 [Decisions](Decisions.md)。
