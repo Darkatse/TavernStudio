@@ -46,6 +46,9 @@ async function route(request: Request, url: URL): Promise<Response> {
   const response = await fetch(vendorUrl(session.vendor, path), {
     method: request.method,
     headers: request.headers,
+    // An image's files are cached for good, but Studio writes into its
+    // index.html, which can change under the same image id.
+    ...(path === '/index.html' ? { cache: 'no-cache' as const } : {}),
   });
   return rehome(response);
 }
@@ -67,12 +70,18 @@ const NULL_BODY_STATUSES = new Set([101, 103, 204, 205, 304]);
  * A fresh Response without a URL, so the document keeps the URL it asked for.
  * Module scripts resolve imports against their response URL: serving
  * `/script.js` with the image URL would load a second copy of every module.
+ *
+ * What a preview URL holds depends on the session, so the page must come back
+ * here each time: an image's own caching would let ST's `/script.js` stand in
+ * for TT's from the browser's memory cache.
  */
 function rehome(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set('cache-control', 'no-cache');
   return new Response(NULL_BODY_STATUSES.has(response.status) ? null : response.body, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers,
+    headers,
   });
 }
 

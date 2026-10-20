@@ -8,7 +8,6 @@ const vendorsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 export const WORK = path.join(vendorsDir, '.work');
 /** Served as /__vendor/ by Studio's dev server. */
 export const OUT = path.join(vendorsDir, 'out', '__vendor');
-/** The TauriTavern release Studio is pinned to. */
 export const TT_RELEASE = path.join(vendorsDir, 'tt', 'release.json');
 
 const ANCHOR = '<base href="/">';
@@ -37,7 +36,17 @@ export async function injectAfterBase(image, scripts) {
   await fs.writeFile(indexPath, html.replace(ANCHOR, `${ANCHOR}${injected}`));
 }
 
+/**
+ * An id is a segment of every URL in its image, and hosts disagree on other
+ * characters there: Cloudflare redirects `@` to `%40`, the dev server does not
+ * decode `%40`.
+ */
+const URL_SAFE = /^[A-Za-z0-9._-]+$/;
+
 export async function describe(image, identity) {
+  if (!URL_SAFE.test(identity.id)) {
+    throw new Error(`Image id ${identity.id} must match ${URL_SAFE}`);
+  }
   const files = {};
   for (const file of (await listFiles(image)).toSorted()) {
     const bytes = await fs.readFile(path.join(image, file));

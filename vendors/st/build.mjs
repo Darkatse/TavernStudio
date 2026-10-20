@@ -9,7 +9,7 @@ if (!version || !/^\d+\.\d+\.\d+$/.test(version)) {
   throw new Error('Usage: node vendors/st/build.mjs <version>, for example 1.19.0');
 }
 
-const id = `st@${version}`;
+const id = `st-${version}`;
 const work = path.join(WORK, id);
 const pkg = path.join(work, 'package');
 const image = path.join(OUT, id);

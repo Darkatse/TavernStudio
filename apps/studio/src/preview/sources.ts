@@ -1,5 +1,11 @@
 import type { VendorInfo } from '@tavern-studio/backend';
-import { VENDOR_IMAGES, type ThemeAnatomy, type VendorKind } from '@tavern-studio/preview';
+import {
+  anatomyUrl,
+  VENDOR_IMAGES,
+  vendorDescriptorUrl,
+  type ThemeAnatomy,
+  type VendorKind,
+} from '@tavern-studio/preview';
 
 /** As vendors/lib/image.mjs lists it in /__vendor/index.json. */
 export interface VendorImage {
@@ -25,7 +31,7 @@ export async function loadVendorImages(): Promise<VendorImage[]> {
 
 export async function loadVendorInfo(id: string): Promise<VendorInfo> {
   const { version, extensions } = await getJson<VendorInfo>(
-    `${VENDOR_IMAGES}${id}.json`,
+    vendorDescriptorUrl(id),
     `vendor image ${id}`,
   );
   return { id, version, extensions };
@@ -38,7 +44,7 @@ export function loadVendorFiles(id: string): Promise<ReadonlySet<string>> {
   let files = imageFiles.get(id);
   if (!files) {
     files = getJson<{ files: Record<string, string> }>(
-      `${VENDOR_IMAGES}${id}.json`,
+      vendorDescriptorUrl(id),
       `vendor image ${id}`,
     ).then((image) => new Set(Object.keys(image.files)));
     files.catch(() => imageFiles.delete(id));
@@ -49,7 +55,7 @@ export function loadVendorFiles(id: string): Promise<ReadonlySet<string>> {
 
 export function loadAnatomy(id: string): Promise<ThemeAnatomy> {
   return getJson<ThemeAnatomy>(
-    `${VENDOR_IMAGES}anatomy/${id}/theme.json`,
+    anatomyUrl(id, 'theme.json'),
     `the anatomy of ${id} (run \`pnpm vendor:anatomy ${id}\`)`,
   );
 }

@@ -20,6 +20,15 @@ export function vendorUrl(vendorId: string, pathname: string): string {
   return `${VENDOR_IMAGES}${vendorId}${pathname}`;
 }
 
+/** The image's descriptor beside it: version, extensions and file hashes. */
+export function vendorDescriptorUrl(vendorId: string): string {
+  return `${VENDOR_IMAGES}${vendorId}.json`;
+}
+
+export function anatomyUrl(vendorId: string, file: string): string {
+  return `${VENDOR_IMAGES}anatomy/${vendorId}/${file}`;
+}
+
 /** URL prefix → data directory, as SillyTavern's user data routes map them (users.js). */
 const DATA_ROUTES: readonly (readonly [url: string, data: string])[] = [
   ['/characters/', 'default-user/characters/'],

@@ -1,8 +1,5 @@
-// The image is TauriTavern's web frontend: the `src/` that `pnpm web:build`
-// leaves. By default it is the release pinned in release.json. To work on
-// TauriTavern and Studio together, `<checkout> <commit>` builds it from a
-// local checkout instead; the checkout is only read, the commit exported
-// with `git archive` and built apart from it.
+// A local checkout is only read: the commit is exported with `git archive`
+// and built apart from it.
 
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -92,7 +89,6 @@ async function fromRelease() {
   };
 }
 
-/** Kept by its digest, so a cached archive is the pinned one whatever its name. */
 async function download(url, sha256) {
   const cached = path.join(WORK, 'downloads', `${sha256}.zip`);
   if (existsSync(cached)) {
@@ -114,7 +110,7 @@ function digest(bytes) {
 }
 
 function imageId(version, commit) {
-  return `tt@${version}+${commit.slice(0, 8)}`;
+  return `tt-${version}-${commit.slice(0, 8)}`;
 }
 
 async function fromCheckout(checkout, ref) {

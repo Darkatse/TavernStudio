@@ -4,6 +4,8 @@
 
 Vendor 镜像是一个前端发行版本的不可变静态文件集，部署在 `/__vendor/<id>/`，由 Preview SW 映射到预览的根路径。镜像相对上游只改一处：构建时在 `index.html` 的 `<head>` 开头注入。注入锚点必须恰好出现一次，否则构建失败。
 
+镜像 id 是镜像里每个 URL 的一段，只用字母、数字、`.`、`_`、`-`，如 `st-1.19.0`、`tt-2.3.0-40e1956d`；其他字符在不同托管上的拼写不一致，构建时拒绝。同一个 id 下的文件不再改变，可以长期缓存，只有注入过的 `index.html` 例外。
+
 | | ST 镜像 | TT 镜像 |
 |---|---|---|
 | 来源 | npm `sillytavern@<version>` | TauriTavern 的 web 发行物，固定在 `vendors/tt/release.json` |
@@ -12,7 +14,7 @@ Vendor 镜像是一个前端发行版本的不可变静态文件集，部署在 
 | API 接入 | ST 接入 | TT host kernel + Web Host |
 
 TT 镜像的来源：
-- `release.json` 记下资产地址、SHA-256、TauriTavern 提交与版本。`pnpm vendor:tt` 按它下载，核对摘要后按摘要缓存在 `vendors/.work/downloads/`；摘要不符即失败。镜像 id 为 `tt@<版本>+<提交前 8 位>`。
+- `release.json` 记下资产地址、SHA-256、TauriTavern 提交与版本。`pnpm vendor:tt` 按它下载，核对摘要后按摘要缓存在 `vendors/.work/downloads/`；摘要不符即失败。镜像 id 为 `tt-<版本>-<提交前 8 位>`。
 - 资产放在 Studio 自己的预发布 `vendor-tt-<提交>` 里，是 TauriTavern 发行物的原样副本。TauriTavern 的 Canary 随发布替换，旧资产会被清理，不能直接固定。
 - 联调 TauriTavern 与 Studio 时，`pnpm vendor:tt <检出目录> <提交>` 从本地检出的提交构建（`git archive` 后 `pnpm web:build`），其余装配相同，id 的规则也相同。
 

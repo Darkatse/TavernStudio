@@ -15,4 +15,12 @@ export {
   type WebHostResponse,
 } from './host';
 export { canHotApply, hotApply, type ThemeAnatomy } from './hot-apply';
-export { dataPathForUrl, isApiPath, urlPathForData, VENDOR_IMAGES } from './routes';
+export {
+  anatomyUrl,
+  dataPathForUrl,
+  isApiPath,
+  urlPathForData,
+  VENDOR_IMAGES,
+  vendorDescriptorUrl,
+  vendorUrl,
+} from './routes';

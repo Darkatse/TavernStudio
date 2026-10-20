@@ -4,7 +4,7 @@ import {
   type AgentWorkspace,
   type WorkspaceRoot,
 } from '@tavern-studio/agent';
-import { VENDOR_IMAGES } from '@tavern-studio/preview';
+import { anatomyUrl, vendorUrl } from '@tavern-studio/preview';
 import { previewSession } from '../preview/session';
 import { getJson, loadVendorFiles } from '../preview/sources';
 import { db } from '../storage/db';
@@ -129,15 +129,15 @@ function vendorFiles(id: string): Promise<Map<string, () => Promise<Uint8Array>>
   let listing = vendorListings.get(id);
   if (!listing) {
     listing = Promise.all([
-      getJson<string[]>(`${VENDOR_IMAGES}anatomy/${id}/index.json`, `the anatomy of ${id}`),
+      getJson<string[]>(anatomyUrl(id, 'index.json'), `the anatomy of ${id}`),
       loadVendorFiles(id),
     ]).then(([anatomy, source]) => {
       const files = new Map<string, () => Promise<Uint8Array>>();
       for (const file of anatomy) {
-        files.set(`anatomy/${file}`, () => fetchBytes(`${VENDOR_IMAGES}anatomy/${id}/${file}`));
+        files.set(`anatomy/${file}`, () => fetchBytes(anatomyUrl(id, encodePath(file))));
       }
       for (const path of source) {
-        files.set(`src/${path}`, () => fetchBytes(`${VENDOR_IMAGES}${id}/${encodePath(path)}`));
+        files.set(`src/${path}`, () => fetchBytes(vendorUrl(id, `/${encodePath(path)}`)));
       }
       return files;
     });
