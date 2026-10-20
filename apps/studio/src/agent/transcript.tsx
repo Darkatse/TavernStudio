@@ -1,6 +1,6 @@
 import type { AssistantMessage, HistoryEntry } from '@tavern-studio/agent';
 import { ArrowDown } from 'lucide-react';
-import { Suspense, useLayoutEffect, useRef, useState } from 'react';
+import { Suspense, useLayoutEffect, useRef, useState, useTransition } from 'react';
 import { useMessages } from '../i18n/messages';
 import { AlertDialog } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
@@ -37,10 +37,13 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
   const last = blocks.at(-1);
   const lastRun = blocks.findLast((block): block is RunBlock => block.kind === 'run');
   const announcements: Partial<Record<RunStatus, string>> = m.announcement;
-  const rollBackTo = (target: TranscriptBlock) => {
-    setRollback(requestRollback(conversation, target));
-    setConfirming(true);
-  };
+  const [, startTransition] = useTransition();
+  // The confirmation opens once its plan is read, with the plan in it.
+  const rollBackTo = (target: TranscriptBlock) =>
+    startTransition(() => {
+      setRollback(requestRollback(conversation, target));
+      setConfirming(true);
+    });
 
   useLayoutEffect(() => {
     const root = scroller.current;
@@ -108,11 +111,9 @@ export function Transcript({ conversation }: { conversation: Conversation }) {
         {(lastRun && announcements[lastRun.status]) ?? ''}
       </p>
       <AlertDialog open={confirming} onOpenChange={setConfirming}>
-        {rollback && (
-          <Suspense fallback={null}>
-            <RollbackConfirm conversation={conversation} request={rollback} />
-          </Suspense>
-        )}
+        <Suspense>
+          {rollback && <RollbackConfirm conversation={conversation} request={rollback} />}
+        </Suspense>
       </AlertDialog>
       {away && (
         <div className="pointer-events-none absolute inset-x-0 bottom-3 flex justify-center">

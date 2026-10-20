@@ -1,5 +1,13 @@
 import { Settings2 } from 'lucide-react';
-import { lazy, Suspense, useRef, useState, useTransition, type ReactNode } from 'react';
+import {
+  lazy,
+  Suspense,
+  useDeferredValue,
+  useRef,
+  useState,
+  useTransition,
+  type ReactNode,
+} from 'react';
 import { BrandMark } from '../brand/brand-mark';
 import { useMessages } from '../i18n/messages';
 import { settingsMessages } from '../settings/messages';
@@ -13,10 +21,10 @@ import { agentMessages } from './messages';
 import { useConversation, useConversationState } from './use-conversation';
 import { Welcome } from './welcome';
 
-// The Transcript brings Markdown with it, so it loads with the first Run to show.
-const Transcript = lazy(() =>
-  import('./transcript').then((module) => ({ default: module.Transcript })),
-);
+// The Transcript brings Markdown with it, so it loads once a first message is being written.
+const loadTranscript = () => import('./transcript');
+const Transcript = lazy(() => loadTranscript().then((module) => ({ default: module.Transcript })));
+const prefetchTranscript = () => void loadTranscript();
 // The settings bring the model list's combobox, so they load when first wanted.
 const loadSettings = () => import('../settings/settings-dialog');
 const SettingsDialog = lazy(() =>
@@ -36,12 +44,16 @@ export function AgentPanel() {
   const openSettings = (section: SettingsSection) =>
     startTransition(() => setSettings({ open: true, section }));
   const [draft, setDraft] = useState('');
+  const writeDraft = (next: string) => {
+    setDraft(next);
+    prefetchTranscript();
+  };
   const field = useRef<HTMLTextAreaElement>(null);
   const openModels = () => openSettings('models');
   const welcome = (
     <Welcome
       onSuggest={(request) => {
-        setDraft(request);
+        writeDraft(request);
         field.current?.focus();
       }}
       onOpenModels={openModels}
@@ -81,7 +93,7 @@ export function AgentPanel() {
         ref={field}
         conversation={conversation}
         draft={draft}
-        onDraftChange={setDraft}
+        onDraftChange={writeDraft}
         onOpenModels={openModels}
       />
       <Dialog
@@ -110,11 +122,19 @@ function ConversationBody({
 }) {
   const state = useConversationState(conversation);
   // Nothing until History is read, so a conversation does not flash the welcome first.
-  if (!state.loaded) return <div className="flex-1" />;
-  if (state.entries.length === 0 && !state.active) return welcome;
-  return (
-    <Suspense fallback={<div className="flex-1" />}>
-      <Transcript conversation={conversation} />
-    </Suspense>
-  );
+  const body: Body = !state.loaded
+    ? 'reading'
+    : state.entries.length === 0 && !state.active
+      ? 'welcome'
+      : 'transcript';
+  // Deferred, a change keeps what is shown until the Transcript's code is in.
+  const shown = useDeferredValue(body, 'reading');
+  const views: Record<Body, ReactNode> = {
+    reading: <div className="flex-1" />,
+    welcome,
+    transcript: <Transcript conversation={conversation} />,
+  };
+  return <Suspense>{views[shown]}</Suspense>;
 }
+
+type Body = 'reading' | 'welcome' | 'transcript';
