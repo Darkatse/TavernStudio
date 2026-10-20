@@ -102,6 +102,16 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 
 **顶层窗口**：ST 与扩展默认自己就是顶层页面，Attach 因此把 `window.parent` 指回页面自身。`window.top` 不可重定义，在 vendor 页面及其下各层 iframe 中都指向 Studio。P0 抽样的生态代码都不受影响：LittleWhiteBox 会把 `XBTasks` 写到 Studio 的 window 上，但它自己不读取（[P0 报告 V9](plan/P0-Report.md#v9-windowtop)）。直接读取 `top.document`、`top.SillyTavern` 的作者代码会出错，诊断会记录这些错误。
 
+**焦点**：预览里的页面不能从 Studio 拿走焦点。
+- 浏览器对跨源 iframe 本有这道边界，同源的预览没有。没有它时：
+  - vendor 一启动就把焦点拉进预览：ST 显示加载对话框、聚焦输入框，TT 就绪后聚焦输入框；
+  - 前端卡、Agent 的 fill 也会这样；
+  - 作者正在输入框里打的字因此落进预览，开着的对话框也失去焦点。
+- Attach 在每个 realm 里包装页面自己移动焦点的调用：`focus()`，以及对话框的 `show()` 与 `showModal()`。
+  - 调用照常在页面里生效。
+  - 若预览当时没有焦点、作者在 Studio 的某个元素上，焦点回到那里。
+- 作者按下或用 Tab 进入预览后，焦点在预览内照常移动。
+
 ## 5. 编辑与预览
 
 数据单向流动：项目文件 → Snapshot → Session → View。

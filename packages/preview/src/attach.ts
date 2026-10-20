@@ -5,6 +5,7 @@
 import { installAccess } from './access';
 import { createPageAgent } from './agent';
 import { installDiagnostics } from './diagnostics';
+import { installFocusBoundary } from './focus';
 import { HOST_KEY, type DeviceIdentity, type PreviewHost, type ViewConnection } from './host';
 import { observeRealms } from './realms';
 
@@ -20,6 +21,7 @@ Object.defineProperty(window, 'parent', { value: window, configurable: true, wri
 applyDevice(window, view.device.navigator);
 observeRealms(window, (realm) => {
   installDiagnostics(realm, (entry) => view.report(entry));
+  installFocusBoundary(realm, window);
   // TauriTavern reaches the API through its own host kernel and the Web Host,
   // which /_studio/web-host.js installs next.
   if (view.vendorKind === 'st') installAccess(realm, view);
