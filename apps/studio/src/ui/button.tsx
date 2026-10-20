@@ -21,16 +21,18 @@ export type ButtonProps = Omit<BaseButton.Props, 'className'> & {
 
 /**
  * Disabled buttons stay focusable so a tooltip can explain why they are
- * disabled.
+ * disabled. Its layout defaults have no specificity, so a `className` that
+ * sets the same property wins wherever the stylesheet puts it.
  */
 export function Button({ variant = 'secondary', icon = false, className, ...props }: ButtonProps) {
   return (
     <BaseButton
       focusableWhenDisabled
       className={clsx(
-        'inline-flex h-(--size-control) shrink-0 cursor-pointer items-center justify-center gap-1.5 rounded-md font-medium whitespace-nowrap transition-[background-color,color,box-shadow] motion-fast select-none data-disabled:cursor-not-allowed data-disabled:opacity-45 [&_svg]:size-(--size-icon) [&_svg]:shrink-0',
+        'inline-flex cursor-pointer items-center justify-center rounded-md font-medium whitespace-nowrap transition-[background-color,color,box-shadow] motion-fast select-none data-disabled:cursor-not-allowed data-disabled:opacity-45 [&_svg]:size-(--size-icon) [&_svg]:shrink-0',
         variants[variant],
-        icon ? 'w-(--size-control)' : 'px-3',
+        '[:where(&)]:h-(--size-control) [:where(&)]:shrink-0 [:where(&)]:gap-1.5',
+        icon ? '[:where(&)]:w-(--size-control)' : '[:where(&)]:px-3',
         className,
       )}
       {...props}
