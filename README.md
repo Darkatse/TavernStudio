@@ -1,3 +1,5 @@
+<img src="apps/studio/src/brand/favicon.svg" width="64" height="64" alt="">
+
 # Tavern Studio
 
 纯前端项目，在浏览器里给 SillyTavern 和 TauriTavern 制作主题、扩展、角色卡和正则前端。以 Agent 为核心。
