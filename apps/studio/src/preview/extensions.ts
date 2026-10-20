@@ -3,9 +3,11 @@ import { verifiedBytes } from './verified-bytes';
 
 /**
  * Third-party extensions are installed from their upstream repositories at a
- * pinned version, the way SillyTavern's installer clones them. Files come
- * from jsDelivr, are checked against its SHA-256 and kept in Studio's own
- * cache, so later Sessions install offline.
+ * pinned version. SillyTavern's installer clones the whole repository; the
+ * preview takes only the files the extension loads, which spares the first
+ * start a download per source file and every start the work of placing them.
+ * Files come from jsDelivr, are checked against its SHA-256 and kept in
+ * Studio's own cache, so later Sessions install offline.
  */
 export interface ExtensionSource {
   /** The folder under extensions/, which names the extension in SillyTavern. */
@@ -13,10 +15,22 @@ export interface ExtensionSource {
   /** GitHub `owner/repository`. */
   repository: string;
   version: string;
+  /**
+   * What the extension loads, as paths from the repository root; one ending
+   * in `/` is a whole directory. A file left out answers 404 in the preview.
+   */
+  loads: readonly string[];
 }
 
 export const EXTENSIONS: readonly ExtensionSource[] = [
-  { name: 'JS-Slash-Runner', repository: 'N0VI028/JS-Slash-Runner', version: '4.11.3' },
+  {
+    name: 'JS-Slash-Runner',
+    repository: 'N0VI028/JS-Slash-Runner',
+    version: '4.11.3',
+    // The manifest names the script, the stylesheet and i18n/; the script
+    // imports lib/jsoneditor.js and its message frames load lib/tailwindcss.min.js.
+    loads: ['manifest.json', 'dist/index.js', 'dist/index.css', 'i18n/', 'lib/'],
+  },
 ];
 
 const EXTENSION_CACHE = `${STUDIO_CACHE_PREFIX}extensions`;
@@ -42,8 +56,11 @@ export async function installExtension(source: ExtensionSource): Promise<Install
 
   return Promise.all(
     listing.files
-      // Only developer tools ask for source maps.
-      .filter((file) => !file.name.endsWith('.map'))
+      .filter(({ name }) =>
+        source.loads.some((path) =>
+          path.endsWith('/') ? name.startsWith(`/${path}`) : name === `/${path}`,
+        ),
+      )
       .map(async (file) => {
         const url = `https://cdn.jsdelivr.net/gh/${ref}${file.name.split('/').map(encodeURIComponent).join('/')}`;
         const digest = hexOfBase64(file.hash);

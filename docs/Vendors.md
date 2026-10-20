@@ -80,6 +80,10 @@ const host = installWebHost({         // 返回 { emit, exit }
 ## 4. 酒馆助手
 
 - JSR 不打包进 vendor 镜像，而是按固定版本从上游安装到 Snapshot 的 `extensions/JS-Slash-Runner/`，与在 ST 里安装扩展的方式一致。安装后离线缓存。
+- 只安装 JSR 运行时载入的文件：manifest 指定的 `dist/index.js`、`dist/index.css` 与 `i18n/`，脚本 import 的 `lib/jsoneditor.js`，以及消息 iframe 载入的 `lib/tailwindcss.min.js`。
+  - 仓库里其余的源码、类型与配置运行时没有代码请求。装上它们，首次启动要多下载两百多个文件，之后每次启动都要多放置这些文件。
+  - Agent 读的 JSR 类型与文档在知识包里（[Knowledge §1](Knowledge.md#1-内容)），不来自这份安装。
+  - 清单写在 `apps/studio/src/preview/extensions.ts`，升级 JSR 时一并核对。漏掉的文件在预览里返回 404，场景脚本会把它报为问题。
 - 文件取自 jsDelivr 的 GitHub 镜像，逐个按 jsDelivr 公布的 SHA-256 校验。
 - jsDelivr 拒绝超过 50 MB 的仓库，这类扩展（如 LittleWhiteBox）改从本地文件夹安装，与本地文件夹模式用同一套机制（[Architecture §6](Architecture.md#6-项目)）。
 - JSR 的 blob URL 模式不受支持：Chromium 中 blob: iframe 不受 Preview SW 控制。默认的 srcdoc 模式不受影响。
