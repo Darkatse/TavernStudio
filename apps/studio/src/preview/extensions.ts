@@ -1,3 +1,5 @@
+import { verifiedBytes } from './verified-bytes';
+
 /**
  * Third-party extensions are installed from their upstream repositories at a
  * pinned version, the way SillyTavern's installer clones them. Files come
@@ -38,22 +40,24 @@ export async function installExtension(source: ExtensionSource): Promise<Install
   ) as Listing;
 
   return Promise.all(
-    listing.files.map(async (file) => {
-      const url = `https://cdn.jsdelivr.net/gh/${ref}${file.name.split('/').map(encodeURIComponent).join('/')}`;
-      const bytes = await cachedBytes(cache, url);
-      const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes)));
-      if (btoa(String.fromCharCode(...digest)) !== file.hash) {
-        await cache.delete(url);
-        throw new Error(
-          `${source.name} ${source.version}: ${file.name} does not match its published hash`,
-        );
-      }
-      return {
-        path: `default-user/extensions/${source.name}${file.name}`,
-        bytes,
-        sha256: Array.from(digest, (byte) => byte.toString(16).padStart(2, '0')).join(''),
-      };
-    }),
+    listing.files
+      // Only developer tools ask for source maps.
+      .filter((file) => !file.name.endsWith('.map'))
+      .map(async (file) => {
+        const url = `https://cdn.jsdelivr.net/gh/${ref}${file.name.split('/').map(encodeURIComponent).join('/')}`;
+        const digest = hexOfBase64(file.hash);
+        return {
+          path: `default-user/extensions/${source.name}${file.name}`,
+          bytes: await verifiedBytes(cache, url, digest),
+          sha256: digest,
+        };
+      }),
+  );
+}
+
+function hexOfBase64(base64: string): string {
+  return Array.from(atob(base64), (char) => char.charCodeAt(0).toString(16).padStart(2, '0')).join(
+    '',
   );
 }
 

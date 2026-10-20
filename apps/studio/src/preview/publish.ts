@@ -1,4 +1,5 @@
 import type { DataDirectory } from '@tavern-studio/backend';
+import { sha256 } from '@tavern-studio/workspace';
 import {
   SESSION_CACHE,
   SESSION_STATE_URL,
@@ -83,9 +84,4 @@ async function publishFile(
       },
     }),
   );
-}
-
-async function sha256(bytes: Uint8Array): Promise<string> {
-  const digest = await crypto.subtle.digest('SHA-256', new Uint8Array(bytes));
-  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
 }

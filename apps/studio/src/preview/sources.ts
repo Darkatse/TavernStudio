@@ -6,6 +6,7 @@ import {
   type ThemeAnatomy,
   type VendorKind,
 } from '@tavern-studio/preview';
+import { verifiedBytes, verifiedKey } from './verified-bytes';
 
 /** As vendors/lib/image.mjs lists it in /__vendor/index.json. */
 export interface VendorImage {
@@ -68,6 +69,8 @@ export function loadTemplate(name: string): Promise<PublishedDirectory> {
   return loadPublished('templates', name);
 }
 
+const PUBLISHED_CACHE = 'studio-published';
+
 async function loadPublished(
   kind: 'fixtures' | 'templates',
   name: string,
@@ -78,17 +81,25 @@ async function loadPublished(
     `${base}index.json`,
     what,
   );
-  const entries = await Promise.all(
-    Object.entries(index.files).map(async ([path, { sha256 }]) => {
-      const response = await fetch(base + path.split('/').map(encodeURIComponent).join('/'));
-      if (!response.ok) throw new Error(`The ${what}: ${path} returned HTTP ${response.status}`);
-      return { path, sha256, bytes: new Uint8Array(await response.arrayBuffer()) };
-    }),
+  const cache = await caches.open(PUBLISHED_CACHE);
+  const entries = Object.entries(index.files).map(([path, { sha256 }]) => ({
+    path,
+    sha256,
+    url: base + path.split('/').map(encodeURIComponent).join('/'),
+  }));
+  const files = await Promise.all(
+    entries.map(async ({ path, sha256, url }): Promise<[string, Uint8Array]> => [
+      path,
+      await verifiedBytes(cache, url, sha256),
+    ]),
   );
-  return {
-    files: entries.map(({ path, bytes }) => [path, bytes]),
-    hashes: new Map(entries.map(({ path, sha256 }) => [path, sha256])),
-  };
+  // What earlier builds published in this directory.
+  const current = new Set(entries.map(({ url, sha256 }) => verifiedKey(url, sha256)));
+  const prefix = new URL(base, location.href).href;
+  for (const request of await cache.keys()) {
+    if (request.url.startsWith(prefix) && !current.has(request.url)) void cache.delete(request);
+  }
+  return { files, hashes: new Map(entries.map(({ path, sha256 }) => [path, sha256])) };
 }
 
 export async function getJson<T>(url: string, what: string): Promise<T> {

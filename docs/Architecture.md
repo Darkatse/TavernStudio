@@ -235,6 +235,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | Session 的写入覆盖层与 Web Host 文档 | IndexedDB |
 | Session 子资源 | Cache Storage |
 | vendor 镜像与知识包缓存 | Cache Storage |
+| 样板、模板与第三方扩展的文件 | Cache Storage，按发布时给出的 SHA-256 校验一次，键里带摘要，之后启动不再请求网络 |
 | 密钥 | 默认只在内存中；用户勾选后持久化到 IndexedDB |
 | 手动深浅色与界面语言的设置 | cookie，首次渲染之前读取（[UI §3](UI.md#3-视觉-token)、[§6](UI.md#6-文案与本地化)） |
 
