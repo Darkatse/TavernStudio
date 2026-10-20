@@ -13,6 +13,7 @@ Studio 的大部分代码由 Agent 编写，Agent 体验是首要打磨对象。
 | Journal | Run 的事件日志，记录进度、终态和大结果的引用。按顺序追加，不改写 |
 | Checkpoint | Run 改动过的文件在改动前的内容，可以一键回滚 |
 
+- Run 不设轮数和工具调用次数的上限，作者看着它进行，随时可以停止。Studio 不压缩上下文，History 只增不减，所以上下文窗口就是 Run 的上界：窗口写满时，Run 以 `agent.output_truncated` 或模型错误结束。
 - 取消会结束当前 Run。已生效的文件修改保留，需要时经 Checkpoint 回滚。
 - 页面刷新后，缺少终态的 Run 显示为 interrupted。没有收到结果的工具调用改写为一条说明，文案与 TT 相同，工具不重放。
 - **Checkpoint 的保存**：

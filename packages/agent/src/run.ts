@@ -23,10 +23,6 @@ export interface AgentModel {
   options: SimpleStreamOptions;
 }
 
-/** TauriTavern's defaults. */
-export const MAX_ROUNDS = 80;
-export const MAX_TOOL_CALLS = 80;
-
 export interface RunEnvironment {
   agent: AgentModel;
   systemPrompt: string;
@@ -79,9 +75,8 @@ export async function runAgent(
   record({ run: id, round: 0, message });
   const tools = new Map(environment.tools.map((tool) => [modelToolName(tool.id), tool]));
   const reads: ReadState = new Map();
-  let calls = 0;
 
-  for (let round = 1; round <= MAX_ROUNDS; round++) {
+  for (let round = 1; ; round++) {
     if (signal.aborted) return end({ status: 'cancelled' });
     const guidance = environment.takeGuidance();
     if (guidance.length > 0) {
@@ -153,10 +148,9 @@ export async function runAgent(
       }
       journal({ type: 'tool_call_started', round, callId: call.id, tool: tool.id });
       const started = performance.now();
-      calls += 1;
       let outcome: Awaited<ReturnType<typeof callTool>>;
       try {
-        outcome = await callTool(tool, call, calls, { run: id, signal, reads });
+        outcome = await callTool(tool, call, { run: id, signal, reads });
       } catch (error) {
         // A tool cut short by cancelling ends the Run as cancelled; its call stays unanswered.
         if (signal.aborted) return end({ status: 'cancelled' });
@@ -183,27 +177,14 @@ export async function runAgent(
       });
     }
   }
-  return end({
-    status: 'failed',
-    code: 'agent.max_tool_rounds_exceeded',
-    message: `The Run used all ${MAX_ROUNDS} rounds without finishing`,
-  });
 }
 
-/** The budget is spent before the arguments are checked, as in TauriTavern. */
 async function callTool(
   tool: Tool,
   call: ToolCall,
-  calls: number,
   context: ToolContext,
 ): Promise<ToolResult & { error?: string }> {
   try {
-    if (calls > MAX_TOOL_CALLS) {
-      throw new ToolError(
-        'agent.tool_budget_exhausted',
-        `This Run has used all ${MAX_TOOL_CALLS} tool calls. Answer with what you have.`,
-      );
-    }
     if (call.argumentsError !== undefined) {
       throw new ToolError('tool.invalid_arguments', call.argumentsError);
     }
