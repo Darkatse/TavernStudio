@@ -20,6 +20,5 @@ export const tokenizerRoutes: Routes = {
     return json({ token_count: estimate(JSON.stringify(Array.isArray(messages) ? messages : [])) });
   },
   'POST /api/tokenizers/:tokenizer/encode': encode,
-  'POST /api/tokenizers/:tokenizer/decode': () => json({ text: '', chunks: [] }),
   'POST /api/tokenizers/remote/:api/:operation': encode,
 };
