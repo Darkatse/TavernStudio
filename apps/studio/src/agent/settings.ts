@@ -1,4 +1,4 @@
-import type { Endpoint } from '@tavern-studio/agent';
+import type { Endpoint, ModelThinkingLevel } from '@tavern-studio/agent';
 import { useSyncExternalStore } from 'react';
 import { db } from '../storage/db';
 
@@ -53,6 +53,19 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
   await database.put('preferences', {
     key: KEY,
     value: settings.rememberKeys ? settings : withoutKeys,
+  });
+}
+
+/** An endpoint whose effort the author has not chosen reasons at medium. */
+export function effortOf(endpoint: Endpoint): ModelThinkingLevel {
+  return endpoint.effort ?? 'medium';
+}
+
+export function chooseEffort(id: string, effort: ModelThinkingLevel): Promise<void> {
+  return updateAgentSettings({
+    endpoints: settings.endpoints.map((endpoint) =>
+      endpoint.id === id ? { ...endpoint, effort } : endpoint,
+    ),
   });
 }
 

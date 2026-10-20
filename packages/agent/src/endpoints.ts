@@ -1,4 +1,4 @@
-import type { Api, Model, ProviderStreams } from '@earendil-works/pi-ai';
+import type { Api, Model, ModelThinkingLevel, ProviderStreams } from '@earendil-works/pi-ai';
 
 /** Studio calls these APIs straight from the browser. */
 export type EndpointApi =
@@ -17,6 +17,8 @@ export interface Endpoint {
   model: string;
   /** Whether the model reasons; pi-ai asks for reasoning only then. */
   reasoning: boolean;
+  /** How hard the model reasons, once the author has chosen. */
+  effort?: ModelThinkingLevel;
   images: boolean;
   /** The tokens the model reads at most: the conversation, the tools and the reply. */
   contextWindow: number;
@@ -76,6 +78,15 @@ export async function endpointModel(endpoint: Endpoint): Promise<Model<Api>> {
     contextWindow: endpoint.contextWindow,
     maxTokens: endpoint.maxTokens,
   };
+}
+
+/** The efforts pi-ai knows the model to take, from `off` up. */
+export async function supportedEfforts(endpoint: Endpoint): Promise<ModelThinkingLevel[]> {
+  const [{ getSupportedThinkingLevels }, model] = await Promise.all([
+    import('@earendil-works/pi-ai/models'),
+    endpointModel(endpoint),
+  ]);
+  return getSupportedThinkingLevels(model);
 }
 
 /** Each catalog lives in its own chunk. Undefined for a provider without one. */

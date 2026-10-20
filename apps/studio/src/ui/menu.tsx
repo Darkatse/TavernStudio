@@ -5,6 +5,7 @@
  */
 import { ContextMenu as BaseContextMenu } from '@base-ui/react/context-menu';
 import { Menu as BaseMenu } from '@base-ui/react/menu';
+import { Check } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useListHighlight } from './list-highlight';
 
@@ -55,6 +56,9 @@ export function MenuContent({
   );
 }
 
+const ITEM =
+  'relative flex h-(--size-control) cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-disabled:opacity-45 [&_svg]:size-(--size-icon) [&_svg]:shrink-0 [&_svg]:text-muted';
+
 export interface MenuItemProps {
   icon?: ReactNode;
   children: ReactNode;
@@ -65,15 +69,39 @@ export interface MenuItemProps {
 
 export function MenuItem({ icon, children, shortcut, onClick, disabled = false }: MenuItemProps) {
   return (
-    <BaseMenu.Item
-      onClick={onClick}
-      disabled={disabled}
-      className="relative flex h-(--size-control) cursor-default items-center gap-2 rounded-md px-2 outline-none select-none data-disabled:opacity-45 [&_svg]:size-(--size-icon) [&_svg]:shrink-0 [&_svg]:text-muted"
-    >
+    <BaseMenu.Item onClick={onClick} disabled={disabled} className={ITEM}>
       {icon}
       {children}
       {shortcut && <kbd className="ml-auto pl-4 font-sans text-caption text-muted">{shortcut}</kbd>}
     </BaseMenu.Item>
+  );
+}
+
+export function MenuRadioGroup<Value extends string>({
+  value,
+  onValueChange,
+  children,
+}: {
+  value: Value;
+  onValueChange: (value: Value) => void;
+  children: ReactNode;
+}) {
+  return (
+    <BaseMenu.RadioGroup value={value} onValueChange={onValueChange}>
+      {children}
+    </BaseMenu.RadioGroup>
+  );
+}
+
+/** Choosing one closes the menu, as choosing an item does. */
+export function MenuRadioItem({ value, children }: { value: string; children: ReactNode }) {
+  return (
+    <BaseMenu.RadioItem value={value} closeOnClick className={ITEM}>
+      {children}
+      <BaseMenu.RadioItemIndicator className="ml-auto">
+        <Check />
+      </BaseMenu.RadioItemIndicator>
+    </BaseMenu.RadioItem>
   );
 }
 

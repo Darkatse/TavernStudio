@@ -14,7 +14,7 @@ import {
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
 import { agentPreview } from './preview-surface';
-import { agentSettings } from './settings';
+import { agentSettings, effortOf } from './settings';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
@@ -39,8 +39,14 @@ export async function runInProject(
     endpointModel(model.endpoint),
     endpointStreams(model.endpoint.api),
   ]);
+  // pi-ai turns reasoning off when a request asks for none.
+  const effort = effortOf(model.endpoint);
   await runAgent(run, history, message, {
-    agent: { model: agentModel, streams, options: { apiKey: model.apiKey, reasoning: 'medium' } },
+    agent: {
+      model: agentModel,
+      streams,
+      options: { apiKey: model.apiKey, ...(effort === 'off' ? {} : { reasoning: effort }) },
+    },
     systemPrompt: await systemPrompt(project),
     secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
     tools: [

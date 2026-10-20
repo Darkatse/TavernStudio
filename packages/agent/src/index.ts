@@ -10,6 +10,7 @@ export {
   endpointModel,
   endpointStreams,
   probeEndpoint,
+  supportedEfforts,
 } from './endpoints';
 export type { Endpoint, EndpointApi } from './endpoints';
 export { listModels } from './models';
@@ -24,6 +25,7 @@ export type { PreviewControl, Screenshot } from './preview-tools';
 export type {
   AssistantMessage,
   ImageContent,
+  ModelThinkingLevel,
   TextContent,
   ThinkingContent,
   ToolCall,

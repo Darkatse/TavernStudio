@@ -1,12 +1,16 @@
 import { clsx } from 'clsx';
 import { ArrowUp, CornerDownRight, KeyRound, Square, TriangleAlert } from 'lucide-react';
-import { useSyncExternalStore, type RefObject } from 'react';
+import { lazy, Suspense, useSyncExternalStore, type RefObject } from 'react';
 import { useMessages } from '../i18n/messages';
 import { Button } from '../ui/button';
 import type { Conversation, ConversationProblem, ConversationState } from './conversation';
 import { agentMessages, type AgentText } from './messages';
 import type { SelectedEndpoint } from './settings';
 import { connectText, useSetup } from './setup';
+
+const EffortMenu = lazy(() =>
+  import('./effort-menu').then((module) => ({ default: module.EffortMenu })),
+);
 
 /**
  * Always open for writing: when sending is blocked, what blocks it shows
@@ -88,22 +92,29 @@ export function Composer({
           className="block field-sizing-content max-h-48 min-h-[calc(2lh+--spacing(3))] w-full resize-none bg-transparent px-3.5 pt-3 text-prose outline-none placeholder:text-muted"
         />
         <div data-density="compact" className="flex items-center justify-between gap-2 p-2 pl-2">
-          <Button
-            variant="ghost"
-            className={clsx('min-w-0 px-1.5 text-caption', !model && 'invisible')}
-            onClick={onOpenModels}
-          >
-            {model && 'problem' in model ? (
-              <>
-                <KeyRound className="text-fg" />
-                <span className="truncate text-fg">{connectText(model.problem, m)}</span>
-              </>
-            ) : (
-              <span className="truncate">
-                {model && `${model.endpoint.label} · ${model.endpoint.model}`}
-              </span>
+          <div className="flex min-w-0 items-center">
+            <Button
+              variant="ghost"
+              className={clsx('min-w-0 px-1.5 text-caption', !model && 'invisible')}
+              onClick={onOpenModels}
+            >
+              {model && 'problem' in model ? (
+                <>
+                  <KeyRound className="text-fg" />
+                  <span className="truncate text-fg">{connectText(model.problem, m)}</span>
+                </>
+              ) : (
+                <span className="truncate">
+                  {model && `${model.endpoint.label} · ${model.endpoint.model}`}
+                </span>
+              )}
+            </Button>
+            {model?.endpoint?.reasoning && (
+              <Suspense>
+                <EffortMenu endpoint={model.endpoint} running={running} />
+              </Suspense>
             )}
-          </Button>
+          </div>
           <Button
             type={stop ? 'button' : 'submit'}
             variant="primary"
