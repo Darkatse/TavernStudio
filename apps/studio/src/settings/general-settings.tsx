@@ -33,7 +33,7 @@ export function GeneralSettings() {
           }}
         />
       </Setting>
-      <Setting title={m.language} hint={m.languageHint}>
+      <Setting title={m.language}>
         <SegmentedControl<LocaleChoice>
           label={m.language}
           value={locale}
@@ -58,9 +58,9 @@ function StorageUsage() {
   }, []);
   return (
     <Setting title={m.storage}>
-      {/* No hint: the estimate arrives before one would show. */}
+      {/* No loading text: the estimate arrives before one would show. */}
       {usage !== undefined && (
-        <p className="text-caption text-pretty text-muted">{m.storageUsage(formatSize(usage))}</p>
+        <p className="text-caption text-muted">{m.storageUsage(formatSize(usage))}</p>
       )}
     </Setting>
   );
@@ -81,12 +81,11 @@ function formatSize(bytes: number): string {
   });
 }
 
-function Setting({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+function Setting({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="flex flex-col items-start gap-1.5">
       <h3 className="text-caption font-medium">{title}</h3>
       {children}
-      {hint && <p className="text-caption text-pretty text-muted">{hint}</p>}
     </section>
   );
 }

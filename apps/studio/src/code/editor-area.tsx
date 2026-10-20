@@ -76,12 +76,7 @@ export function EditorArea({
         <EditorHost editors={editors} hidden={!tab?.text} />
         {!tab && (
           <div className="absolute inset-0 grid place-items-center p-6">
-            <EmptyState
-              icon={<FileCode2 />}
-              title={m.noOpenFiles}
-              description={m.noOpenFilesHint}
-              action={emptyAction}
-            />
+            <EmptyState icon={<FileCode2 />} title={m.noOpenFiles} action={emptyAction} />
           </div>
         )}
         {tab && !tab.text && (
@@ -180,7 +175,7 @@ function TabNotice({ editors, tab }: { editors: Editors; tab: Tab }) {
           </>
         }
       >
-        {removed ? m.deletedElsewhereHint : m.changedElsewhereHint}
+        {m.unsavedEdits}
       </Alert>
     );
   }

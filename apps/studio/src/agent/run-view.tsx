@@ -99,8 +99,6 @@ export const RunView = memo(function RunView({
         />
       )}
       {block.status === 'failed' && block.failure && <Failure {...block.failure} />}
-      {block.status === 'cancelled' && <p className="text-muted">{m.cancelledNote}</p>}
-      {block.status === 'interrupted' && <p className="text-muted">{m.interruptedNote}</p>}
     </section>
   );
 });

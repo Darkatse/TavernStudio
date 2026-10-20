@@ -7,8 +7,6 @@ export interface ModelInfo {
   maxTokens: number | undefined;
   images: boolean | undefined;
   reasoning: boolean | undefined;
-  /** Undefined when nobody gave the limits. */
-  limitsFrom: 'service' | 'pi-ai' | undefined;
 }
 
 /**
@@ -36,12 +34,6 @@ export async function listModels(
         maxTokens: model.maxTokens ?? known?.maxTokens,
         images: model.images ?? known?.input.includes('image'),
         reasoning: model.reasoning ?? known?.reasoning,
-        limitsFrom:
-          model.contextWindow !== undefined || model.maxTokens !== undefined
-            ? ('service' as const)
-            : known
-              ? ('pi-ai' as const)
-              : undefined,
       };
     })
     .toSorted((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));

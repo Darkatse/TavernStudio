@@ -43,7 +43,7 @@ export function AdoptionPanel({ project, differences }: AdoptionPanelProps) {
       </header>
       {groups.length === 0 ? (
         <div className="px-4 py-8">
-          <EmptyState icon={<CircleCheck />} title={m.allDone} description={m.inSync} />
+          <EmptyState icon={<CircleCheck />} title={m.allDone} />
         </div>
       ) : (
         <>

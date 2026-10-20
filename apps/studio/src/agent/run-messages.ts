@@ -16,12 +16,9 @@ export const runMessages = defineMessages({
 
     rollBackHere: '回滚到此处',
     rollBackBeforeRun: '回滚到这次运行之前',
-    cancelledNote: '已停止。已经生效的文件修改都保留着。',
-    interruptedNote: '页面关闭时这次运行还没有结束；没有结果的工具调用不会重新执行。',
     runFailed: (reason: string) => `运行失败：${reason}`,
     failureAdvice: {
-      'agent.output_truncated':
-        '回复写到单次输出上限就停了，其中的工具调用没有执行。对话越长，留给回复的空间越少：可以在「模型」设置里调高单次输出上限，或核对上下文窗口。',
+      'agent.output_truncated': '回复超出了最大输出长度，可以在模型设置里调高。',
     },
     working: '工作中',
     workingFor: (duration: string) => `工作中 · ${duration}`,
@@ -35,7 +32,7 @@ export const runMessages = defineMessages({
     runUndone: '已回滚',
     thinking: '思考中',
     thoughts: '思考过程',
-    thinkingRedacted: '（思考内容已由服务方加密）',
+    thinkingRedacted: '（思考内容已加密）',
     arguments: '参数',
     result: '结果',
     error: '错误',
@@ -59,13 +56,13 @@ export const runMessages = defineMessages({
     callFailed: (action: string) => `${action}失败`,
     /** A call without a result, because its Run stopped first. */
     callUnanswered: (action: string) => `${action}未完成`,
-    screenshotsCleared: '截图已清理，较早的运行不保留截图。',
+    screenshotsCleared: '截图已清理',
     enlargeScreenshot: '放大截图',
     shrinkScreenshot: '缩小截图',
     screenshot: '预览截图',
-    renderedScreenshot: '这张截图由页面结构渲染，背景和排版可能失真。',
+    renderedScreenshot: '近似截图，可能失真。',
     shareCapture: '开启精确截图',
-    shareCaptureFailed: '没能开启精确截图',
+    shareCaptureFailed: '开启精确截图失败',
 
     cannotRollBack: '无法回滚',
     understood: '知道了',
@@ -73,12 +70,11 @@ export const runMessages = defineMessages({
     undoRollbackDescription: '文件回到回滚之前的内容。',
     undoRollback: '撤销回滚',
     rollBackTitle: '回滚到这次运行之前？',
-    rollBackDescription:
-      '项目文件回到这次运行开始之前。之后的运行留在对话里，标为已回滚，Agent 继续对话时不再参考它们。回滚可以撤销。',
+    rollBackDescription: '项目文件恢复到这次运行之前，之后的运行不再计入对话。可以撤销。',
     affectedFiles: '受影响的文件',
     changedLater: '之后有改动',
     fileChange: { remove: '删除', recreate: '重新创建', restore: '还原' },
-    conflictNote: '标为"之后有改动"的文件在 Agent 写入之后又被修改过，回滚会覆盖这些修改。',
+    conflictNote: '回滚会覆盖"之后有改动"的文件。',
     /** Around the request of the Run rolled back to, which shortens to fit. */
     rolledBackTo: { prefix: '回滚到「', suffix: '」之前' },
     undidRollback: '撤销回滚',
@@ -98,13 +94,10 @@ export const runMessages = defineMessages({
 
     rollBackHere: 'Roll back to here',
     rollBackBeforeRun: 'Roll back to before this Run',
-    cancelledNote: 'Stopped. File changes already made are kept.',
-    interruptedNote:
-      "This Run hadn't finished when the page closed. Tool calls without a result won't run again.",
     runFailed: (reason: string) => `Run failed: ${reason}`,
     failureAdvice: {
       'agent.output_truncated':
-        "The reply stopped at the output limit, so its tool calls didn't run. The longer the conversation, the less room a reply has: raise the output limit in model settings, or check the context window.",
+        'The reply went past the max output. You can raise it in model settings.',
     },
     working: 'Working',
     workingFor: (duration: string) => `Working · ${duration}`,
@@ -117,7 +110,7 @@ export const runMessages = defineMessages({
     runUndone: 'Rolled back',
     thinking: 'Thinking',
     thoughts: 'Thought process',
-    thinkingRedacted: '(The model service encrypted this thinking.)',
+    thinkingRedacted: '(Thinking encrypted)',
     arguments: 'Arguments',
     result: 'Result',
     error: 'Error',
@@ -172,12 +165,11 @@ export const runMessages = defineMessages({
     },
     callFailed: (action: string) => `Error ${action}`,
     callUnanswered: (action: string) => `Stopped ${action}`,
-    screenshotsCleared: "Screenshot cleared. Older Runs don't keep screenshots.",
+    screenshotsCleared: 'Screenshot cleared',
     enlargeScreenshot: 'Enlarge screenshot',
     shrinkScreenshot: 'Shrink screenshot',
     screenshot: 'Preview screenshot',
-    renderedScreenshot:
-      'This screenshot was rendered from the page structure, so backgrounds and layout may be off.',
+    renderedScreenshot: 'Approximate screenshot. It may look off.',
     shareCapture: 'Turn on accurate screenshots',
     shareCaptureFailed: "Couldn't turn on accurate screenshots",
 
@@ -188,12 +180,11 @@ export const runMessages = defineMessages({
     undoRollback: 'Undo rollback',
     rollBackTitle: 'Roll back to before this Run?',
     rollBackDescription:
-      'Project files go back to how they were before this Run started. Later Runs stay in the conversation, marked as rolled back, and the Agent leaves them out from then on. You can undo the rollback.',
+      'Project files go back to before this Run, and later Runs no longer count in the conversation. You can undo this.',
     affectedFiles: 'Affected files',
     changedLater: 'Changed later',
     fileChange: { remove: 'Delete', recreate: 'Recreate', restore: 'Restore' },
-    conflictNote:
-      'Files marked “Changed later” were changed after the Agent wrote them. Rolling back overwrites those changes.',
+    conflictNote: 'Rolling back overwrites files marked “Changed later”.',
     rolledBackTo: { prefix: 'Rolled back “', suffix: '”' },
     undidRollback: 'Undid a rollback',
     rolledBack: 'Rolled back',

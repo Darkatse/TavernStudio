@@ -139,9 +139,6 @@ type Listing =
   | { state: 'done'; models: ModelInfo[] }
   | { state: 'failed'; message: string };
 
-/** Who filled the limits in; undefined once the author sets them. */
-export type LimitsFrom = ModelInfo['limitsFrom'] | 'nobody';
-
 /**
  * What is not known of a model takes the defaults, so nothing carries over
  * from the model picked before.
@@ -184,7 +181,7 @@ function EndpointForm({
   // A model list speaks for the address and key it was fetched with.
   const [listing, setListing] = useState<Listing>({ state: 'idle' });
   const listingRequest = useRef<AbortController>(null);
-  const [limitsFrom, setLimitsFrom] = useState<LimitsFrom>();
+  const [limitsUnknown, setLimitsUnknown] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const modelInput = useRef<HTMLInputElement>(null);
   const known = settings.endpoints.some((candidate) => candidate.id === endpoint.id);
@@ -235,12 +232,14 @@ function EndpointForm({
   const editModel = (model: string) => {
     const picked = models.find((candidate) => candidate.id === model.trim());
     edit(picked ? { model, ...prefill(picked) } : { model });
-    if (picked) setLimitsFrom(picked.limitsFrom ?? 'nobody');
+    if (picked) {
+      setLimitsUnknown(picked.contextWindow === undefined || picked.maxTokens === undefined);
+    }
   };
 
   const editLimit = (change: Partial<Endpoint>) => {
     edit(change);
-    setLimitsFrom(undefined);
+    setLimitsUnknown(false);
   };
 
   const test = () => {
@@ -299,7 +298,7 @@ function EndpointForm({
                   setValue(draft(event.target.value, m.customName));
                   setProbe({ state: 'idle' });
                   forgetModels();
-                  setLimitsFrom(undefined);
+                  setLimitsUnknown(false);
                 }}
                 className="h-(--size-control) w-full cursor-pointer appearance-none rounded-md bg-surface pr-9 pl-3 shadow-control transition-shadow motion-fast outline-none focus-visible:shadow-focus"
               >
@@ -326,11 +325,12 @@ function EndpointForm({
           )}
         </Field>
       )}
-      <Field label={m.baseUrl} hint={custom ? m.baseUrlHint : undefined}>
+      <Field label={m.baseUrl}>
         {(id) => (
           <Input
             id={id}
             value={value.baseUrl}
+            placeholder={m.baseUrlPlaceholder}
             inputMode="url"
             spellCheck={false}
             onChange={(event) => {
@@ -357,7 +357,6 @@ function EndpointForm({
       </Field>
       <Field
         label={m.model}
-        hint={listing.state === 'done' ? m.modelsListed(listing.models.length) : m.modelHint}
         error={
           listing.state === 'failed'
             ? requestAdvice(listing.message, m, m.listingFailed)
@@ -427,9 +426,7 @@ function EndpointForm({
             )}
           </Field>
         </div>
-        <p className="text-caption text-pretty text-muted">
-          {limitsFrom ? m.limitsFrom[limitsFrom] : m.limitsHint}
-        </p>
+        {limitsUnknown && <p className="text-caption text-pretty text-muted">{m.limitsUnknown}</p>}
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         <Toggle
@@ -462,7 +459,6 @@ function EndpointForm({
             </AlertDialogTrigger>
             <AlertDialogContent
               title={m.removeTitle(endpoint.label)}
-              description={m.removeDescription}
               action={m.remove}
               onAction={remove}
             />

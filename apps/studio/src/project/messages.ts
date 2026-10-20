@@ -15,18 +15,18 @@ export const projectMessages = defineMessages({
     templates: {
       theme: {
         kind: '主题',
-        description: '配色、字体和界面样式',
+        description: '配色、字体和样式',
         action: '新建主题项目',
         name: '我的主题',
       },
       extension: {
         kind: '扩展',
-        description: '给 SillyTavern 添加功能',
+        description: '为 SillyTavern 加功能',
         action: '新建扩展项目',
         name: '我的扩展',
       },
     } satisfies Record<ProjectTemplate['folder'], TemplateText>,
-    createFailed: '项目没能新建',
+    createFailed: '新建项目失败',
     /** As the save dialog lists the kinds of file. */
     fileTypes: {
       project: 'Studio 项目',
@@ -38,13 +38,13 @@ export const projectMessages = defineMessages({
     templates: {
       theme: {
         kind: 'Theme',
-        description: 'Colors, fonts and the look of the interface',
+        description: 'Colors, fonts and styles',
         action: 'New theme project',
         name: 'My theme',
       },
       extension: {
         kind: 'Extension',
-        description: 'New features for SillyTavern',
+        description: 'Add features to SillyTavern',
         action: 'New extension project',
         name: 'My extension',
       },

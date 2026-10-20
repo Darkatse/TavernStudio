@@ -1,5 +1,4 @@
 import { ModelSettings } from '../agent/model-settings';
-import { modelSettingsMessages } from '../agent/model-settings-messages';
 import { useMessages } from '../i18n/messages';
 import { DialogContent } from '../ui/dialog';
 import { Tab, Tabs, TabsList, TabsPanel } from '../ui/tabs';
@@ -20,7 +19,6 @@ export function SettingsDialog({
   onSectionChange: (section: SettingsSection) => void;
 }) {
   const m = useMessages(settingsMessages);
-  const models = useMessages(modelSettingsMessages);
   return (
     <DialogContent size="lg" title={m.settings}>
       <Tabs
@@ -40,7 +38,6 @@ export function SettingsDialog({
           <GeneralSettings />
         </TabsPanel>
         <TabsPanel value="models" className="flex flex-col gap-4">
-          <p className="text-pretty text-muted">{models.description}</p>
           <ModelSettings />
         </TabsPanel>
       </Tabs>

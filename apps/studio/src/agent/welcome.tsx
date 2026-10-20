@@ -1,5 +1,5 @@
 import { clsx } from 'clsx';
-import { Check, KeyRound, MessagesSquare } from 'lucide-react';
+import { Check, ChevronRight, MessagesSquare } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useMessages } from '../i18n/messages';
 import { exportsOf } from '../project/export';
@@ -7,7 +7,6 @@ import { projectMessages } from '../project/messages';
 import { usePlacements } from '../project/mount-points';
 import { startProject, useStartingProject } from '../project/start';
 import { PROJECT_TEMPLATES } from '../project/templates';
-import { Button } from '../ui/button';
 import { EmptyState } from '../ui/empty-state';
 import { agentMessages } from './messages';
 import { connectText, useSetup } from './setup';
@@ -24,7 +23,7 @@ export function Welcome({
   const setup = useSetup();
   if (!setup) return <div className="flex-1" />;
   const { project, model } = setup;
-  const left = Number(!project) + Number('problem' in model);
+  const ready = project && !('problem' in model);
 
   return (
     <div className="flex min-h-0 flex-1 overflow-y-auto px-6">
@@ -32,33 +31,23 @@ export function Welcome({
         <EmptyState
           icon={<MessagesSquare />}
           title={m.welcome}
-          description={left > 0 ? m.setup.stepsLeft(left) : m.welcomeReady}
           action={
-            left > 0 ? (
+            ready ? (
+              <Suggestions onSuggest={onSuggest} />
+            ) : (
               <ol className="flex w-full max-w-80 flex-col gap-2 text-left transition-opacity motion-moderate starting:opacity-0">
                 <Step title={m.setup.project} done={project?.record.name}>
-                  <p className="text-caption text-pretty text-muted">{m.setup.projectHint}</p>
                   <TemplateCards />
                 </Step>
-                <Step
-                  title={m.setup.model}
-                  done={
-                    'problem' in model
-                      ? undefined
-                      : `${model.endpoint.label} · ${model.endpoint.model}`
-                  }
-                >
-                  <p className="text-caption text-pretty text-muted">{m.setup.modelHint}</p>
-                  {'problem' in model && (
-                    <Button className="self-start" onClick={onOpenModels}>
-                      <KeyRound />
-                      {connectText(model.problem, m)}
-                    </Button>
-                  )}
-                </Step>
+                {'problem' in model ? (
+                  <Step title={connectText(model.problem, m)} onClick={onOpenModels} />
+                ) : (
+                  <Step
+                    title={m.setup.model}
+                    done={`${model.endpoint.label} · ${model.endpoint.model}`}
+                  />
+                )}
               </ol>
-            ) : (
-              <Suggestions onSuggest={onSuggest} />
             )
           }
         />
@@ -67,36 +56,52 @@ export function Welcome({
   );
 }
 
-/** A step not done shows how to do it; one done shows what it was done with. */
+/** A step done shows what it was done with; one to do shows how, or is itself the way. */
 function Step({
   title,
   done,
+  onClick,
   children,
 }: {
   title: string;
-  done: string | undefined;
-  children: ReactNode;
+  done?: string | undefined;
+  onClick?: () => void;
+  children?: ReactNode;
 }) {
   const m = useMessages(agentMessages);
-  return (
-    <li className="flex flex-col gap-2.5 rounded-xl bg-sunken p-3">
-      <div className="flex min-w-0 items-center gap-2.5">
-        {done === undefined ? (
-          <span className="size-4 shrink-0 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-line-strong)]" />
-        ) : (
-          <span className="grid size-4 shrink-0 place-items-center rounded-full bg-fg text-surface transition-[opacity,scale] motion-moderate starting:opacity-0 motion-safe:starting:scale-50">
-            <Check className="size-2.5" strokeWidth={3} />
-            <span className="sr-only">{m.setup.done}</span>
-          </span>
-        )}
-        <span className={clsx('shrink-0 font-medium', done !== undefined && 'text-muted')}>
-          {title}
+  const row = (
+    <>
+      {done === undefined ? (
+        <span className="size-4 shrink-0 rounded-full shadow-[inset_0_0_0_1.5px_var(--color-line-strong)]" />
+      ) : (
+        <span className="grid size-4 shrink-0 place-items-center rounded-full bg-fg text-surface transition-[opacity,scale] motion-moderate starting:opacity-0 motion-safe:starting:scale-50">
+          <Check className="size-2.5" strokeWidth={3} />
+          <span className="sr-only">{m.setup.done}</span>
         </span>
-        {done !== undefined && (
-          <span className="ml-auto min-w-0 truncate text-caption text-muted">{done}</span>
-        )}
-      </div>
-      {done === undefined && children}
+      )}
+      <span className={clsx('min-w-0 truncate font-medium', done !== undefined && 'text-muted')}>
+        {title}
+      </span>
+      {done !== undefined && (
+        <span className="ml-auto min-w-0 truncate text-caption text-muted">{done}</span>
+      )}
+      {onClick && <ChevronRight className="ml-auto size-(--size-icon) shrink-0 text-muted" />}
+    </>
+  );
+  return (
+    <li className="flex flex-col rounded-xl bg-sunken">
+      {onClick ? (
+        <button
+          type="button"
+          onClick={onClick}
+          className="flex cursor-pointer items-center gap-2.5 rounded-xl p-3 text-left transition-colors motion-fast hover:bg-hover"
+        >
+          {row}
+        </button>
+      ) : (
+        <div className="flex items-center gap-2.5 p-3">{row}</div>
+      )}
+      {done === undefined && children && <div className="px-3 pb-3">{children}</div>}
     </li>
   );
 }

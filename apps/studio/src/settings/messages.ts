@@ -12,10 +12,8 @@ export const settingsMessages = defineMessages({
     dark: '深色',
     language: '语言',
     followBrowser: '跟随浏览器',
-    languageHint: '预览里的 SillyTavern 和 TauriTavern 按它们自己的语言设置显示。',
     storage: '存储',
-    storageUsage: (size: string) =>
-      `Studio 在这个浏览器里占用 ${size}。只有最近 20 次运行保留截图和长结果；Checkpoint 每个项目最多保留 100 MB，超出时从最早的清理。`,
+    storageUsage: (size: string) => `已用 ${size}`,
   },
   en: {
     settings: 'Settings',
@@ -28,9 +26,7 @@ export const settingsMessages = defineMessages({
     dark: 'Dark',
     language: 'Language',
     followBrowser: 'Browser',
-    languageHint: 'SillyTavern and TauriTavern in the preview follow their own language setting.',
     storage: 'Storage',
-    storageUsage: (size: string) =>
-      `Studio uses ${size} in this browser. Only the latest 20 Runs keep screenshots and long results; each project's Checkpoint keeps up to 100 MB and clears the oldest first.`,
+    storageUsage: (size: string) => `${size} used`,
   },
 });

@@ -39,9 +39,9 @@ function Adoption({ project }: { project: Project }) {
     const text = messagesNow(workbenchMessages).adoption;
     showToast({
       title: text.overwritten,
-      description: text.overwrittenDetail(
-        overwritten.map((difference) => describe(difference, text.deleted)).join(text.separator),
-      ),
+      description: overwritten
+        .map((difference) => describe(difference, text.deleted))
+        .join(text.separator),
       stay: true,
     });
   }, [overwritten]);

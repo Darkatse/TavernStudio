@@ -97,10 +97,7 @@ function Elsewhere() {
       <span className="grid size-10 place-items-center rounded-xl bg-sunken text-muted shadow-[inset_0_0_0_1px_var(--color-line)]">
         <AppWindow className="size-5" />
       </span>
-      <div className="flex flex-col gap-1">
-        <h2 className="text-subtitle">{m.elsewhere}</h2>
-        <p className="text-pretty text-muted">{m.elsewhereDetail}</p>
-      </div>
+      <h2 className="text-subtitle">{m.elsewhere}</h2>
       <Button onClick={() => location.reload()}>{m.continueHere}</Button>
     </div>
   );

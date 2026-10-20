@@ -85,7 +85,7 @@ export function ProjectMenu() {
                 const text = messagesNow(projectMenuMessages);
                 showToast({
                   title: outcome === 'saved' ? text.saved : text.downloaded,
-                  description: text.archived(`${project.record.name}.zip`),
+                  description: `${project.record.name}.zip`,
                 });
               });
             }}

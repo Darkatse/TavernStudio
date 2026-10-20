@@ -362,7 +362,6 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
           <EmptyState
             icon={<FilePlus />}
             title={m.noFiles}
-            description={m.noFilesHint}
             action={<Button onClick={() => startCreate(nodeOf(ROOT), false)}>{m.newFile}</Button>}
           />
         </div>

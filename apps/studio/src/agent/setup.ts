@@ -26,5 +26,5 @@ export function useSetup(): Setup | undefined {
 
 /** The one name for what fixes a model problem, wherever it is offered. */
 export function connectText(problem: ModelProblem, m: AgentText): string {
-  return problem.kind === 'no-key' ? m.setup.enterKey(problem.label) : m.setup.connect;
+  return problem.kind === 'no-key' ? m.setup.enterKey(problem.label) : m.setup.model;
 }

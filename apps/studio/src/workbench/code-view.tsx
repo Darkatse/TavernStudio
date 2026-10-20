@@ -28,7 +28,6 @@ export function CodeView({ shown }: { shown: boolean }) {
         <EmptyState
           icon={<FileCode2 />}
           title={m.empty}
-          description={m.emptyDetail}
           action={
             <div className="flex flex-wrap justify-center gap-2">
               {PROJECT_TEMPLATES.map((template) => (
