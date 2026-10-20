@@ -1,12 +1,10 @@
-import { SESSION_CACHE } from '@tavern-studio/preview';
+import { STUDIO_CACHE_PREFIX } from '@tavern-studio/preview';
 import { DATABASE } from '../storage/db';
-import { EXTENSION_CACHE } from './extensions';
 
 /**
  * Studio's own storage on the origin. Everything else is browser-side state
  * written by the vendor and the code it runs.
  */
-const STUDIO_CACHES = new Set([SESSION_CACHE, EXTENSION_CACHE]);
 const STUDIO_DATABASES = new Set([DATABASE]);
 /** app-use's snapshot counter belongs to the Agent: refs must never repeat within a Run. */
 const AGENT_KEYS = new Set(['tauritavern:in_app_agent_snapshot_sequence']);
@@ -30,7 +28,7 @@ export async function clearBrowserState(): Promise<void> {
   );
 
   for (const name of await caches.keys()) {
-    if (!STUDIO_CACHES.has(name)) await caches.delete(name);
+    if (!name.startsWith(STUDIO_CACHE_PREFIX)) await caches.delete(name);
   }
 }
 

@@ -1,4 +1,5 @@
-export const SESSION_CACHE = 'studio-session';
+export const STUDIO_CACHE_PREFIX = 'studio-';
+export const SESSION_CACHE = `${STUDIO_CACHE_PREFIX}session`;
 
 /** A synthetic entry in the same cache telling the Preview SW which vendor image is open. */
 export const SESSION_STATE_URL = '/_studio/session-state';

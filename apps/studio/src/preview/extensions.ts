@@ -1,3 +1,4 @@
+import { STUDIO_CACHE_PREFIX } from '@tavern-studio/preview';
 import { verifiedBytes } from './verified-bytes';
 
 /**
@@ -18,7 +19,7 @@ export const EXTENSIONS: readonly ExtensionSource[] = [
   { name: 'JS-Slash-Runner', repository: 'N0VI028/JS-Slash-Runner', version: '4.11.3' },
 ];
 
-export const EXTENSION_CACHE = 'studio-extensions';
+export const EXTENSION_CACHE = `${STUDIO_CACHE_PREFIX}extensions`;
 
 export interface InstalledFile {
   path: string;

@@ -1,6 +1,7 @@
 import type { VendorInfo } from '@tavern-studio/backend';
 import {
   anatomyUrl,
+  STUDIO_CACHE_PREFIX,
   VENDOR_IMAGES,
   vendorDescriptorUrl,
   type ThemeAnatomy,
@@ -69,7 +70,7 @@ export function loadTemplate(name: string): Promise<PublishedDirectory> {
   return loadPublished('templates', name);
 }
 
-const PUBLISHED_CACHE = 'studio-published';
+const PUBLISHED_CACHE = `${STUDIO_CACHE_PREFIX}published`;
 
 async function loadPublished(
   kind: 'fixtures' | 'templates',
