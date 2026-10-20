@@ -1,21 +1,18 @@
-import { Import } from 'lucide-react';
 import type { Difference } from '@tavern-studio/workspace';
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { messagesNow, useMessages } from '../i18n/messages';
+import { lazy, Suspense, useDeferredValue, useEffect, useState } from 'react';
+import { messagesNow } from '../i18n/messages';
 import { useOverwritten } from '../preview/use-session';
 import type { Project } from '../project/project';
 import { useCurrentProject, useProjectState } from '../project/use-project';
-import { Button } from '../ui/button';
-import { LoadingLine } from '../ui/loading';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import { showToast } from '../ui/toast';
 import { workbenchMessages } from './messages';
 
-const loadPanel = () => import('../adoption/adoption-panel');
-const AdoptionPanel = lazy(() => loadPanel().then((module) => ({ default: module.AdoptionPanel })));
-const prefetch = () => void loadPanel();
+// The badge brings the popover with it, so it loads once there is something to adopt.
+const AdoptionBadge = lazy(() =>
+  import('./adoption-badge').then((module) => ({ default: module.AdoptionBadge })),
+);
 
-/** Each overwrite is told once, however often the badge mounts. */
+/** Each overwrite is told once, however often the button mounts. */
 const announced = new WeakSet<readonly Difference[]>();
 
 function describe(difference: Difference, deleted: string): string {
@@ -30,10 +27,8 @@ export function AdoptionButton() {
 }
 
 function Adoption({ project }: { project: Project }) {
-  const m = useMessages(workbenchMessages).adoption;
   const { differences } = useProjectState(project);
   const overwritten = useOverwritten();
-  const count = new Set(differences.map((difference) => difference.placement)).size;
   const [open, setOpen] = useState(false);
   useEffect(() => {
     if (overwritten.length === 0 || announced.has(overwritten)) return;
@@ -47,39 +42,19 @@ function Adoption({ project }: { project: Project }) {
       stay: true,
     });
   }, [overwritten]);
-  if (count === 0 && !open) return null;
+  // Deferred, the badge appears with its code, so its entrance plays.
+  const shown = useDeferredValue(differences.length > 0 || open, false);
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <span className="flex transition-[opacity,scale] motion-moderate starting:opacity-0 motion-safe:starting:scale-90">
-        <PopoverTrigger
-          render={
-            <Button
-              aria-label={m.count(count)}
-              onPointerEnter={prefetch}
-              onFocus={prefetch}
-              className="pr-2 max-md:pl-2"
-            />
-          }
-        >
-          <Import />
-          <span className="max-md:hidden">{m.label}</span>
-          <span className="min-w-4 rounded-full bg-primary px-1 text-center text-micro text-primary-fg tabular-nums">
-            {count}
-          </span>
-        </PopoverTrigger>
-      </span>
-      <PopoverContent className="@container w-[min(36rem,calc(100vw-1rem))]">
-        <Suspense
-          fallback={
-            <div aria-busy="true" className="relative h-24">
-              <LoadingLine label={m.loading} />
-            </div>
-          }
-        >
-          <AdoptionPanel project={project} differences={differences} />
-        </Suspense>
-      </PopoverContent>
-    </Popover>
+    <Suspense>
+      {shown && (
+        <AdoptionBadge
+          project={project}
+          differences={differences}
+          open={open}
+          onOpenChange={setOpen}
+        />
+      )}
+    </Suspense>
   );
 }
