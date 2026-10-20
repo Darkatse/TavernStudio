@@ -39,7 +39,7 @@ export async function runInProject(
     endpointStreams(model.endpoint.api),
   ]);
   await runAgent(run, history, message, {
-    agent: { model: agentModel, streams, options: { apiKey: model.apiKey } },
+    agent: { model: agentModel, streams, options: { apiKey: model.apiKey, reasoning: 'medium' } },
     systemPrompt: await systemPrompt(project),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
