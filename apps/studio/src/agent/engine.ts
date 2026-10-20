@@ -14,10 +14,11 @@ import {
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
 import { agentPreview } from './preview-surface';
+import { agentSettings } from './settings';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
-export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools'>;
+export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools' | 'secrets'>;
 
 /**
  * The Run writes the project through `projectRoot`, which keeps its
@@ -41,6 +42,7 @@ export async function runInProject(
   await runAgent(run, history, message, {
     agent: { model: agentModel, streams, options: { apiKey: model.apiKey, reasoning: 'medium' } },
     systemPrompt: await systemPrompt(project),
+    secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
       ...previewTools(preview.control, { images: model.endpoint.images }),

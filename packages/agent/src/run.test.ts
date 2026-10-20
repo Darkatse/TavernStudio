@@ -77,6 +77,7 @@ function environment(streams: ProviderStreams) {
     agent: { model, streams, options: {} },
     systemPrompt: 'Help.',
     tools: [echo],
+    secrets: [],
     toolResults: { put: () => Promise.resolve() },
     record: (entry) => history.push(entry),
     journal: (event) => journal.push(event),

@@ -29,6 +29,7 @@ export interface RunEnvironment {
   agent: AgentModel;
   systemPrompt: string;
   tools: readonly Tool[];
+  secrets: readonly string[];
   toolResults: ToolResultStore;
   record(entry: HistoryEntry): void;
   journal(event: JournalEvent): void;
@@ -168,8 +169,10 @@ export async function runAgent(
         if (signal.aborted) return end({ status: 'cancelled' });
         throw error;
       }
+      let text = outcome.text;
+      for (const secret of environment.secrets) text = text.replaceAll(secret, '[redacted]');
       const result = await resultForModel(
-        outcome.text,
+        text,
         { runId: id, round, callId: call.id },
         environment.toolResults,
       );
