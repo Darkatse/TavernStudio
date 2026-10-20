@@ -8,6 +8,8 @@ const vendorsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '.
 export const WORK = path.join(vendorsDir, '.work');
 /** Served as /__vendor/ by Studio's dev server. */
 export const OUT = path.join(vendorsDir, 'out', '__vendor');
+/** The TauriTavern release Studio is pinned to. */
+export const TT_RELEASE = path.join(vendorsDir, 'tt', 'release.json');
 
 const ANCHOR = '<base href="/">';
 

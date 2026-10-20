@@ -1,6 +1,6 @@
 # Tavern Studio（暂名）
 
-> 状态：S0 已完成　日期：2026-10-18　TauriTavern 基线：`dev` 2bd2c302
+> 状态：S0 已完成　日期：2026-10-18　TauriTavern 基线：`dev` 40e1956d
 
 Tavern Studio 是面向 SillyTavern 生态作者的纯前端工作台。主题、扩展、酒馆助手脚本、前端卡与正则美化，都在真实的 SillyTavern / TauriTavern 前端里所见即所得地编写和预览。内置的 Agent 能改文件、看页面、操作界面。
 

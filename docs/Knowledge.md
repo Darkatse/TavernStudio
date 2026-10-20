@@ -60,7 +60,7 @@ Agent 依据的知识按可靠性排序：与 vendor 版本对应的生成物 > 
 
 P1 由脚本生成，随 Studio 发布：
 - `pnpm knowledge [<id>...] --tt-checkout <TT 仓库>` 运行 `knowledge/build.mjs`，按 `sources.mjs` 中固定的提交取各来源。每个来源产出一个分片 `knowledge/out/<id>/`。
-- 文件从 jsDelivr 下载，逐个核对其文件列表里的 SHA-256，缓存在 `knowledge/.work/`。TT 文档从本地 TT 仓库读取，提交取自已构建的 TT 镜像。
+- 文件从 jsDelivr 下载，逐个核对其文件列表里的 SHA-256，缓存在 `knowledge/.work/`。TT 文档从本地 TT 仓库读取，提交取自 `vendors/tt/release.json` 固定的版本。
 - 只收文本：不是 UTF-8 的文件让生成停下，需要在 `sources.mjs` 里排除。
 - 生成器核对 LICENSE 与声明的许可：有标题的许可看标题，MIT 没有标题，看授权条款的开头。不符时停下，报出来源与 LICENSE 的开头。
 - 分片整体替换：先写进临时目录，再换上；内容没变时不动。Windows 上，运行中的 dev server 占着它发布的子目录，带子目录的分片就换不上：生成器报错，原分片保持不变，停下 dev server 后再生成。

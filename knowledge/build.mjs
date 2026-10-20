@@ -5,7 +5,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
-import { OUT as VENDOR_IMAGES } from '../vendors/lib/image.mjs';
+import { TT_RELEASE } from '../vendors/lib/image.mjs';
 import { SOURCES } from './sources.mjs';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
@@ -75,7 +75,7 @@ async function collect(source) {
   }
 
   const origin = source.vendorImage
-    ? ttImage(options['tt-checkout'])
+    ? ttPinned(options['tt-checkout'])
     : { refName: source.refName, ...jsDelivr(source.repository, source.ref) };
   const files = new Map();
   await eachLimited(select(source, origin.ref, await origin.paths()), async (file) => {
@@ -215,30 +215,19 @@ function jsDelivr(repository, ref) {
 }
 
 /**
- * The TT vendor image's commit need not be on GitHub, so it is read from a
- * checkout. Git checks its own objects, so there is no listing to check
- * against; the blobs are the repository's bytes, as GitHub serves them.
+ * knowledge/tt follows the TauriTavern commit Studio is pinned to. That commit
+ * need not be on GitHub, so it is read from a checkout. Git checks its own
+ * objects, so there is no listing to check against; the blobs are the
+ * repository's bytes, as GitHub serves them.
  */
-function ttImage(checkout) {
+function ttPinned(checkout) {
   const git = (args, encoding) =>
     execFileSync('git', ['-C', checkout, ...args], { encoding, maxBuffer: 256 * 1024 * 1024 });
-  const images = readJson(
-    path.join(VENDOR_IMAGES, 'index.json'),
-    'the vendor images (build one with `pnpm vendor:tt <checkout> <commit>`)',
-  ).filter((image) => image.kind === 'tt');
-  if (images.length !== 1) {
-    throw new Error(
-      `knowledge/tt follows the TauriTavern vendor image, so exactly one must be built; found ${images.map((image) => image.id).join(', ') || 'none'}`,
-    );
-  }
-  const [{ id }] = images;
-  const { source } = readJson(path.join(VENDOR_IMAGES, `${id}.json`), `vendor image ${id}`);
-  const commit = /^git:([0-9a-f]+)$/.exec(source)?.[1];
-  if (!commit) throw new Error(`Vendor image ${id} was not built from a commit: ${source}`);
+  const { commit } = readJson(TT_RELEASE, 'the pinned TauriTavern release');
   const ref = git(['rev-parse', '--verify', `${commit}^{commit}`], 'utf8').trim();
   return {
     ref,
-    refName: id,
+    refName: null,
     async paths() {
       return git(['ls-tree', '-r', '-z', '--name-only', ref], 'utf8').split('\0').filter(Boolean);
     },

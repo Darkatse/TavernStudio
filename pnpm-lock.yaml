@@ -20,6 +20,9 @@ importers:
       acorn-walk:
         specifier: ^8.3.5
         version: 8.3.5
+      fflate:
+        specifier: ^0.8.3
+        version: 0.8.3
       oxlint:
         specifier: ^1.88.0
         version: 1.88.0(oxlint-tsgolint@7.0.2004)

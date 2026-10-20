@@ -6,10 +6,15 @@ Vendor 镜像是一个前端发行版本的不可变静态文件集，部署在 
 
 | | ST 镜像 | TT 镜像 |
 |---|---|---|
-| 来源 | npm `sillytavern@<version>` | TauriTavern release 附带的 web 发行物 |
+| 来源 | npm `sillytavern@<version>` | TauriTavern 的 web 发行物，固定在 `vendors/tt/release.json` |
 | 构建 | 按上游 webpack 配置、用相同的依赖版本预构建 `/lib.js` | 无需构建，发行物已含构建产物 |
 | 注入 | Attach | Attach，加上 Web Host 安装脚本 |
 | API 接入 | ST 接入 | TT host kernel + Web Host |
+
+TT 镜像的来源：
+- `release.json` 记下资产地址、SHA-256、TauriTavern 提交与版本。`pnpm vendor:tt` 按它下载，核对摘要后按摘要缓存在 `vendors/.work/downloads/`；摘要不符即失败。镜像 id 为 `tt@<版本>+<提交前 8 位>`。
+- 资产放在 Studio 自己的预发布 `vendor-tt-<提交>` 里，是 TauriTavern 发行物的原样副本。TauriTavern 的 Canary 随发布替换，旧资产会被清理，不能直接固定。
+- 联调 TauriTavern 与 Studio 时，`pnpm vendor:tt <检出目录> <提交>` 从本地检出的提交构建（`git archive` 后 `pnpm web:build`），其余装配相同，id 的规则也相同。
 
 每个镜像都保留原始文件的 hash 清单，并生成 Vendor 解剖图（见 [Knowledge §1](Knowledge.md#1-内容)）。解剖图在 `out/__vendor/anatomy/<id>/`，由镜像构建写出；`pnpm vendor:anatomy [<id>]` 可以不重建镜像而单独重新生成。
 
@@ -80,6 +85,6 @@ const host = installWebHost({         // 返回 { emit, exit }
 
 ## 5. 升级
 
-1. ST 或 TT 发布新版本后，构建新镜像并生成解剖图。
+1. ST 或 TT 发布新版本后，构建新镜像并生成解剖图。TT 先把新的 web 发行物原样复制到 Studio 的预发布 `vendor-tt-<提交>`，再更新 `release.json` 的四项。
 2. 与上一版本的解剖图对比，差异就是影响面，可能涉及注入锚点、Session Backend 端点、主题控件 id、ST 接入。
 3. 修正受影响的部分，跑预览冒烟测试，然后发布镜像。旧镜像保留若干个版本，供已固定版本的项目使用。
