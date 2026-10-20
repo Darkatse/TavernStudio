@@ -95,6 +95,16 @@ export async function runAgent(
       if ('partial' in event) environment.streaming?.(event.partial, round);
     }
     const reply = await stream.result();
+    const callIds = new Set<string>();
+    reply.content = reply.content.map((part) => {
+      if (part.type !== 'toolCall') return part;
+      const callId =
+        part.id === '' || callIds.has(part.id)
+          ? `call_${crypto.randomUUID().replaceAll('-', '').slice(0, 24)}`
+          : part.id;
+      callIds.add(callId);
+      return callId === part.id ? part : { ...part, id: callId };
+    });
     record({ run: id, round, message: reply });
     journal({
       type: 'model_completed',
