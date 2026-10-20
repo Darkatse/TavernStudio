@@ -70,14 +70,14 @@ const echo: Tool = {
   },
 };
 
-function environment(streams: ProviderStreams) {
+function environment(streams: ProviderStreams, secrets: readonly string[] = []) {
   const history: HistoryEntry[] = [];
   const journal: JournalEvent[] = [];
   const env: RunEnvironment = {
     agent: { model, streams, options: {} },
     systemPrompt: 'Help.',
     tools: [echo],
-    secrets: [],
+    secrets,
     toolResults: { put: () => Promise.resolve() },
     record: (entry) => history.push(entry),
     journal: (event) => journal.push(event),
@@ -135,6 +135,49 @@ describe('runAgent', () => {
       type: 'text',
       text: '## Tool error\ndemo.missing_text: text is required',
     });
+  });
+
+  test('calls that come without distinct ids get their own, and the next request pairs them', async () => {
+    const { env, history } = environment(
+      scripted(
+        reply(
+          'toolUse',
+          call('', 'demo_echo', { text: 'one' }),
+          call('', 'demo_echo', { text: 'two' }),
+        ),
+        reply('stop', { type: 'text', text: 'Done.' }),
+      ),
+    );
+    expect(await runAgent('run-1', [], ask, env)).toEqual({ status: 'completed' });
+    const calls = history.flatMap((entry) =>
+      entry.message.role === 'assistant'
+        ? entry.message.content.filter((part) => part.type === 'toolCall')
+        : [],
+    );
+    const ids = calls.map((part) => part.id);
+    expect(ids).toHaveLength(2);
+    expect(ids.every((id) => id !== '')).toBe(true);
+    expect(new Set(ids).size).toBe(2);
+    const answered = history.flatMap((entry) =>
+      entry.message.role === 'toolResult' ? [entry.message.toolCallId] : [],
+    );
+    expect(answered).toEqual(ids);
+    expect(() => closeToolGroups(history.map((entry) => entry.message))).not.toThrow();
+  });
+
+  test('a configured key in a tool result reaches History redacted', async () => {
+    const { env, history } = environment(
+      scripted(
+        reply('toolUse', call('a', 'demo_echo', { text: 'key sk-secret here' })),
+        reply('stop', { type: 'text', text: 'Done.' }),
+      ),
+      ['sk-secret'],
+    );
+    await runAgent('run-1', [], ask, env);
+    const [result] = history.flatMap((entry) =>
+      entry.message.role === 'toolResult' ? [entry.message] : [],
+    );
+    expect(result?.content[0]).toEqual({ type: 'text', text: 'echo: key [redacted] here' });
   });
 
   test('a reply cut off at the length limit runs none of its calls', async () => {
