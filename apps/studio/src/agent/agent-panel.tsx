@@ -8,7 +8,7 @@ import {
   useTransition,
   type ReactNode,
 } from 'react';
-import { BrandMark } from '../brand/brand-mark';
+import { Brand } from '../brand/brand';
 import { useMessages } from '../i18n/messages';
 import { settingsMessages } from '../settings/messages';
 import type { SettingsSection } from '../settings/settings-dialog';
@@ -73,14 +73,13 @@ export function AgentPanel() {
         data-density="compact"
         className="flex h-12 shrink-0 items-center gap-0.5 pr-2.5 pl-4"
       >
-        <BrandMark className="size-5 shrink-0" />
-        {conversations ? (
-          <Suspense fallback={<ConversationButton conversations={conversations} />}>
-            <ConversationMenu conversations={conversations} />
-          </Suspense>
-        ) : (
-          <span className="pl-2 text-subtitle">Tavern Studio</span>
-        )}
+        <Brand>
+          {conversations && (
+            <Suspense fallback={<ConversationButton conversations={conversations} />}>
+              <ConversationMenu conversations={conversations} />
+            </Suspense>
+          )}
+        </Brand>
         <div className="ml-auto flex shrink-0 items-center gap-0.5">
           {conversations && (
             <Tooltip content={m.newConversation}>
