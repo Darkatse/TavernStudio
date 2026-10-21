@@ -18,7 +18,7 @@ import { Field, Input } from '../ui/input';
 import { Select } from '../ui/select';
 import { agentMessages } from './messages';
 import { modelSettingsMessages, type ModelSettingsText } from './model-settings-messages';
-import { updateAgentSettings, useAgentSettings } from './settings';
+import { COMPACT_AT, updateAgentSettings, useAgentSettings } from './settings';
 
 const CUSTOM = 'custom';
 
@@ -102,7 +102,47 @@ export function ModelSettings() {
           </p>
         </div>
       </div>
+      <CompactionSetting />
     </>
+  );
+}
+
+/** A value outside the range stays in the field, with its problem, and is not stored. */
+function CompactionSetting() {
+  const m = useMessages(modelSettingsMessages);
+  const settings = useAgentSettings();
+  const [typed, setTyped] = useState(String(settings.compactAt));
+  const value = Number(typed);
+  const valid = Number.isInteger(value) && value >= COMPACT_AT.min && value <= COMPACT_AT.max;
+  return (
+    <Field
+      label={m.compactAt}
+      hint={m.compactAtHint}
+      error={valid ? undefined : m.compactAtRange(COMPACT_AT.min, COMPACT_AT.max)}
+    >
+      {(id) => (
+        <span className="flex items-center gap-2">
+          <Input
+            id={id}
+            type="number"
+            inputMode="numeric"
+            min={COMPACT_AT.min}
+            max={COMPACT_AT.max}
+            step={1}
+            value={typed}
+            className="w-20"
+            onChange={(event) => {
+              setTyped(event.target.value);
+              const next = event.target.valueAsNumber;
+              if (Number.isInteger(next) && next >= COMPACT_AT.min && next <= COMPACT_AT.max) {
+                void updateAgentSettings({ compactAt: next });
+              }
+            }}
+          />
+          <span className="text-muted">%</span>
+        </span>
+      )}
+    </Field>
   );
 }
 

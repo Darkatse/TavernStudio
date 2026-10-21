@@ -44,6 +44,10 @@ export async function startScriptedModel(port, script) {
       });
     }
     send({}, reply.calls?.length ? 'tool_calls' : 'stop');
+    // As a real service reports what it read, here roughly four characters a token.
+    response.write(
+      `data: ${JSON.stringify({ id: 'scripted', object: 'chat.completion.chunk', created: 0, model: payload.model, choices: [], usage: { prompt_tokens: Math.round(body.length / 4), completion_tokens: 10, total_tokens: Math.round(body.length / 4) + 10 } })}\n\n`,
+    );
     response.end('data: [DONE]\n\n');
   });
   await new Promise((resolve) => server.listen(port, resolve));

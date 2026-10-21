@@ -9,10 +9,20 @@ export interface AgentSettings {
   keys: Readonly<Record<string, string>>;
   /** Off by default: same-origin code, extensions included, can read whatever Studio keeps. */
   rememberKeys: boolean;
+  /** The percentage of the context window at which the context is compacted. */
+  compactAt: number;
 }
 
+export const COMPACT_AT = { initial: 95, min: 50, max: 95 } as const;
+
 const KEY = 'agent';
-let settings: AgentSettings = { endpoints: [], selected: undefined, keys: {}, rememberKeys: false };
+let settings: AgentSettings = {
+  endpoints: [],
+  selected: undefined,
+  keys: {},
+  rememberKeys: false,
+  compactAt: COMPACT_AT.initial,
+};
 let read = false;
 const listeners = new Set<() => void>();
 const loaded = db

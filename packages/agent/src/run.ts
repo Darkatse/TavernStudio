@@ -10,7 +10,16 @@ import type {
 } from '@earendil-works/pi-ai';
 import { normalizeContext } from '@earendil-works/pi-ai/utils/transcript';
 import { normalizeArguments } from './arguments';
-import { modelContext } from './context';
+import {
+  CompactionError,
+  compactionPoint,
+  contextTokens,
+  handoffMessage,
+  keptFrom,
+  overflowed,
+  writeHandoff,
+} from './compaction';
+import { contextEntries, modelContext } from './context';
 import type { HistoryEntry } from './history';
 import type { JournalEvent } from './journal';
 import type { ReadState } from './read-state';
@@ -36,6 +45,8 @@ export interface RunEnvironment {
   streaming?(partial: AssistantMessage, round: number): void;
   /** Guidance the author added since the last request; the Run takes it before each request. */
   takeGuidance(): string[];
+  /** The share of the context window at which the context is compacted. */
+  compactAt: number;
   signal: AbortSignal;
 }
 
@@ -60,24 +71,18 @@ export async function runAgent(
   environment: RunEnvironment,
 ): Promise<RunOutcome> {
   const { agent, signal } = environment;
-  const entries = [...history];
-  const record = (entry: HistoryEntry) => {
-    entries.push(entry);
-    environment.record(entry);
-  };
-  const journal = (event: DistributiveOmit<JournalEvent, 'run' | 'time'>) =>
-    environment.journal({ ...event, run: id, time: Date.now() });
-  const end = (outcome: RunOutcome): RunOutcome => {
-    if (outcome.status === 'completed') journal({ type: 'run_completed' });
-    else if (outcome.status === 'cancelled') journal({ type: 'run_cancelled' });
-    else journal({ type: 'run_failed', code: outcome.code, message: outcome.message });
-    return outcome;
-  };
-
-  journal({ type: 'run_created' });
+  const operation = startOperation(id, history, environment);
+  const { entries, record, journal, end, requesting, point } = operation;
   record({ run: id, round: 0, message });
   const tools = new Map(environment.tools.map((tool) => [modelToolName(tool.id), tool]));
   const reads: ReadState = new Map();
+  const context = () => modelContext(environment.systemPrompt, environment.tools, entries);
+  const compact = async (round: number): Promise<RunOutcome | undefined> => {
+    const failure = await compactContext(round, operation, environment);
+    // The Run's reads left the context with the Rounds the handoff replaced.
+    if (!failure) reads.clear();
+    return failure && end(failure);
+  };
 
   for (let round = 1; ; round++) {
     if (signal.aborted) return end({ status: 'cancelled' });
@@ -87,30 +92,43 @@ export async function runAgent(
       journal({ type: 'guidance_added', round });
     }
 
-    journal({ type: 'model_request', round });
-    const context = modelContext(environment.systemPrompt, environment.tools, entries);
-    const stream = agent.streams.streamSimple(agent.model, normalizeContext(context), {
-      ...agent.options,
-      maxRetries: MODEL_RETRIES,
-      signal,
-    });
-    for await (const event of stream) {
-      if ('partial' in event) environment.streaming?.(event.partial, round);
+    // At most once a Round, before its request or when the request overflows.
+    let compacted = false;
+    if (contextTokens(context()) >= point) {
+      const stopped = await compact(round);
+      if (stopped) return stopped;
+      compacted = true;
     }
-    const reply = withDistinctCallIds(await stream.result());
+    let reply: AssistantMessage;
+    for (;;) {
+      journal({ type: 'model_request', round });
+      const stream = agent.streams.streamSimple(agent.model, normalizeContext(context()), {
+        ...requesting.options,
+        signal,
+      });
+      for await (const event of stream) {
+        if ('partial' in event) environment.streaming?.(event.partial, round);
+      }
+      reply = withDistinctCallIds(await stream.result());
+      journal({
+        type: 'model_completed',
+        round,
+        stopReason: reply.stopReason,
+        durationMs: reply.durationMs,
+        usage: {
+          input: reply.usage.input,
+          output: reply.usage.output,
+          cacheRead: reply.usage.cacheRead,
+          cacheWrite: reply.usage.cacheWrite,
+        },
+      });
+      if (compacted || !overflowed(reply, agent.model)) break;
+      // The estimate fell short of what the provider counts.
+      const stopped = await compact(round);
+      if (stopped) return stopped;
+      compacted = true;
+    }
     record({ run: id, round, message: reply });
-    journal({
-      type: 'model_completed',
-      round,
-      stopReason: reply.stopReason,
-      durationMs: reply.durationMs,
-      usage: {
-        input: reply.usage.input,
-        output: reply.usage.output,
-        cacheRead: reply.usage.cacheRead,
-        cacheWrite: reply.usage.cacheWrite,
-      },
-    });
 
     if (reply.stopReason === 'aborted') return end({ status: 'cancelled' });
     if (reply.stopReason === 'error') {
@@ -182,6 +200,105 @@ export async function runAgent(
       });
     }
   }
+}
+
+/**
+ * Compacts a conversation's context when the author asks: an operation of its
+ * own in the Journal, as a Run is, so that a rollback past it undoes it.
+ */
+export async function compactConversation(
+  id: string,
+  history: readonly HistoryEntry[],
+  environment: RunEnvironment,
+): Promise<RunOutcome> {
+  const operation = startOperation(id, history, environment);
+  const failure = await compactContext(0, operation, environment);
+  return operation.end(failure ?? { status: 'completed' });
+}
+
+interface Operation {
+  id: string;
+  entries: HistoryEntry[];
+  record: (entry: HistoryEntry) => void;
+  journal: (event: DistributiveOmit<JournalEvent, 'run' | 'time'>) => void;
+  end: (outcome: RunOutcome) => RunOutcome;
+  /** The model as the operation requests it. */
+  requesting: AgentModel;
+  /** The tokens at which the context is compacted. */
+  point: number;
+}
+
+function startOperation(
+  id: string,
+  history: readonly HistoryEntry[],
+  environment: RunEnvironment,
+): Operation {
+  const entries = [...history];
+  const journal = (event: DistributiveOmit<JournalEvent, 'run' | 'time'>) =>
+    environment.journal({ ...event, run: id, time: Date.now() });
+  journal({ type: 'run_created' });
+  const { agent } = environment;
+  return {
+    id,
+    entries,
+    record: (entry) => {
+      entries.push(entry);
+      environment.record(entry);
+    },
+    journal,
+    end: (outcome) => {
+      if (outcome.status === 'completed') journal({ type: 'run_completed' });
+      else if (outcome.status === 'cancelled') journal({ type: 'run_cancelled' });
+      else journal({ type: 'run_failed', code: outcome.code, message: outcome.message });
+      return outcome;
+    },
+    requesting: { ...agent, options: { ...agent.options, maxRetries: MODEL_RETRIES } },
+    point: compactionPoint(agent.model, environment.compactAt),
+  };
+}
+
+/**
+ * Replaces the context's earlier Rounds with a handoff the model writes,
+ * keeping the latest Rounds as they were. Resolves to the outcome when the
+ * operation cannot go on.
+ */
+async function compactContext(
+  round: number,
+  { id: run, entries, record, journal, requesting: agent, point }: Operation,
+  environment: RunEnvironment,
+): Promise<RunOutcome | undefined> {
+  const context = () => modelContext(environment.systemPrompt, environment.tools, entries);
+  const before = contextTokens(context());
+  journal({ type: 'compaction_started', round });
+  const inContext = contextEntries(entries);
+  let handoff: string;
+  try {
+    handoff = await writeHandoff(
+      agent,
+      context(),
+      inContext[0]?.handoff !== undefined,
+      environment.signal,
+    );
+  } catch (error) {
+    if (environment.signal.aborted) return { status: 'cancelled' };
+    if (!(error instanceof CompactionError)) throw error;
+    return { status: 'failed', code: 'agent.compaction_failed', message: error.message };
+  }
+  const kept = inContext.filter((entry) => entry.handoff === undefined);
+  record({
+    run,
+    round,
+    message: handoffMessage(handoff),
+    handoff: { keptFrom: keptFrom(kept, point) },
+  });
+  const after = contextTokens(context());
+  journal({ type: 'context_compacted', round, before, after });
+  if (after < point) return undefined;
+  return {
+    status: 'failed',
+    code: 'agent.context_full',
+    message: `The context is still ${after} tokens after compaction, at or above the ${point} at which it compacts`,
+  };
 }
 
 async function callTool(

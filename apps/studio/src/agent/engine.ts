@@ -1,5 +1,6 @@
 import {
   appTools,
+  compactConversation,
   conversationTitle,
   endpointModel,
   endpointStreams,
@@ -20,7 +21,10 @@ import { agentSettings, effortOf } from './settings';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
-export type RunHooks = Omit<RunEnvironment, 'agent' | 'systemPrompt' | 'tools' | 'secrets'>;
+export type RunHooks = Omit<
+  RunEnvironment,
+  'agent' | 'systemPrompt' | 'tools' | 'secrets' | 'compactAt'
+>;
 
 export interface SelectedModel {
   endpoint: Endpoint;
@@ -41,19 +45,45 @@ export async function runInProject(
   model: SelectedModel,
   hooks: RunHooks,
 ): Promise<void> {
+  await runAgent(run, history, message, await environment(project, projectRoot, model, hooks));
+}
+
+/**
+ * Compacts the conversation at the author's request, with the Run's own
+ * system prompt and tools, so the request is the one the model's cache holds.
+ */
+export async function compactInProject(
+  project: Project,
+  projectRoot: WorkspaceRoot,
+  run: string,
+  history: readonly HistoryEntry[],
+  model: SelectedModel,
+  hooks: RunHooks,
+): Promise<void> {
+  await compactConversation(run, history, await environment(project, projectRoot, model, hooks));
+}
+
+async function environment(
+  project: Project,
+  projectRoot: WorkspaceRoot,
+  model: SelectedModel,
+  hooks: RunHooks,
+): Promise<RunEnvironment> {
   const preview = agentPreview(project);
-  await runAgent(run, history, message, {
+  const settings = agentSettings();
+  return {
     agent: await agentModel(model),
     systemPrompt: await systemPrompt(project),
-    secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
+    secrets: Object.values(settings.keys).filter((key) => key !== ''),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
       ...previewTools(preview.control, { images: model.endpoint.images }),
       ...appTools(preview.surface),
       ...inspectTools(preview.inspect),
     ],
+    compactAt: settings.compactAt / 100,
     ...hooks,
-  });
+  };
 }
 
 /** A name for a new conversation, asked of the model beside its first Run. */

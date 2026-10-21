@@ -3,6 +3,9 @@ import type { Locale } from '../i18n/locale';
 import { defineMessages } from '../i18n/messages';
 import type { RunStatus } from './runs';
 
+/** Token counts, in the reader's numerals: 152K, 15万. */
+const COMPACT: Intl.NumberFormatOptions = { notation: 'compact', maximumFractionDigits: 1 };
+
 export const runMessages = defineMessages({
   zh: {
     conversation: '与 Agent 的对话',
@@ -19,7 +22,13 @@ export const runMessages = defineMessages({
     runFailed: (reason: string) => `运行失败：${reason}`,
     failureAdvice: {
       'agent.output_truncated': '回复超出了最大输出长度，可以在模型设置里调高。',
+      'agent.compaction_failed': '压缩上下文时没能写出交接摘要。',
+      'agent.context_full': '压缩之后上下文仍然太长，可以开一个新对话继续。',
     },
+    compacting: '正在压缩上下文',
+    compacted: '压缩了上下文',
+    compactedTokens: (before: number, after: number) =>
+      `${formatNumber(before, COMPACT)} → ${formatNumber(after, COMPACT)}`,
     working: '工作中',
     workingFor: (duration: string) => `工作中 · ${duration}`,
     // A space only between Chinese and a number: "工作了 8 秒", "工作了不到 1 秒".
@@ -99,7 +108,14 @@ export const runMessages = defineMessages({
     failureAdvice: {
       'agent.output_truncated':
         'The reply went past the max output. You can raise it in model settings.',
+      'agent.compaction_failed': "Compacting the context didn't produce a handoff.",
+      'agent.context_full':
+        'The context is still too long after compaction. You can continue in a new conversation.',
     },
+    compacting: 'Compacting the context',
+    compacted: 'Compacted the context',
+    compactedTokens: (before: number, after: number) =>
+      `${formatNumber(before, COMPACT)} → ${formatNumber(after, COMPACT)}`,
     working: 'Working',
     workingFor: (duration: string) => `Working · ${duration}`,
     workedFor: (duration: string) => `Worked for ${duration}`,

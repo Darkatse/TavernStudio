@@ -10,6 +10,7 @@ import {
 import { db } from '../storage/db';
 import type { RollbackPlan } from './checkpoints';
 import type { Conversations, ConversationsState } from './conversations';
+import type { RunHooks, SelectedModel } from './engine';
 import { agentSettings, selectedEndpoint, settingsLoaded, type ModelProblem } from './settings';
 
 export interface ActiveRun {
@@ -121,6 +122,38 @@ export class Conversation {
       this.#set({ guidance: [...state.guidance, text] });
       return;
     }
+    const message: UserMessage = { role: 'user', content: text, timestamp: Date.now() };
+    await this.#operate((engine, run, history, model, hooks) => {
+      this.#conversations.sent(this, text, model);
+      const root = this.#conversations.root(run);
+      const project = this.#conversations.project;
+      return engine.runInProject(project, root, run, history, message, model, hooks);
+    });
+  }
+
+  /** Compacts the context now, as an operation of its own. */
+  async compact(): Promise<void> {
+    const state = this.state;
+    if (!state.loaded || state.active || state.elsewhere || state.rollingBack) {
+      throw new Error('The conversation cannot be compacted while the project is busy');
+    }
+    await this.#operate((engine, run, history, model, hooks) => {
+      const root = this.#conversations.root(run);
+      const project = this.#conversations.project;
+      return engine.compactInProject(project, root, run, history, model, hooks);
+    });
+  }
+
+  /** Runs one operation of the conversation: a Run, or a compaction. */
+  async #operate(
+    start: (
+      engine: typeof import('./engine'),
+      run: string,
+      history: readonly HistoryEntry[],
+      model: SelectedModel,
+      hooks: RunHooks,
+    ) => Promise<void>,
+  ): Promise<void> {
     await settingsLoaded();
     const selected = selectedEndpoint(agentSettings());
     if ('problem' in selected) {
@@ -132,45 +165,35 @@ export class Conversation {
     const controller = new AbortController();
     this.#controller = controller;
     this.#set({ active: { id, round: 0, partial: undefined }, problem: undefined });
-    const message: UserMessage = { role: 'user', content: text, timestamp: Date.now() };
     try {
-      this.#conversations.sent(this, text, selected);
       // What was rolled back is not part of the conversation the model continues.
       const undone = undoneOperations(this.state.events);
       const history = this.#own.entries.filter((entry) => !undone.has(entry.run));
-      const { runInProject } = await import('./engine');
-      await runInProject(
-        this.#conversations.project,
-        this.#conversations.root(id),
-        id,
-        history,
-        message,
-        selected,
-        {
-          toolResults: {
-            put: async (path, result) => {
-              const database = await db;
-              await database.put('toolResults', {
-                path,
-                project: this.#conversations.project.record.id,
-                text: result,
-              });
-            },
+      const engine = await import('./engine');
+      await start(engine, id, history, selected, {
+        toolResults: {
+          put: async (path, result) => {
+            const database = await db;
+            await database.put('toolResults', {
+              path,
+              project: this.#conversations.project.record.id,
+              text: result,
+            });
           },
-          record: (entry) => this.#record(entry),
-          journal: (event) => this.#conversations.journal(event),
-          streaming: (partial, round) => this.#stream(id, partial, round),
-          takeGuidance: () => {
-            const { guidance } = this.#own;
-            this.#set({ guidance: [] });
-            return [...guidance];
-          },
-          signal: controller.signal,
         },
-      );
+        record: (entry) => this.#record(entry),
+        journal: (event) => this.#conversations.journal(event),
+        streaming: (partial, round) => this.#stream(id, partial, round),
+        takeGuidance: () => {
+          const { guidance } = this.#own;
+          this.#set({ guidance: [] });
+          return [...guidance];
+        },
+        signal: controller.signal,
+      });
     } catch (error) {
-      // Anything runAgent did not turn into an outcome is Studio's own failure.
-      if (this.#own.entries.some((entry) => entry.run === id)) {
+      // Anything the engine did not turn into an outcome is Studio's own failure.
+      if (this.state.events.some((event) => event.run === id)) {
         this.#conversations.journal({
           type: 'run_failed',
           run: id,
@@ -179,7 +202,7 @@ export class Conversation {
           message: messageOf(error),
         });
       } else {
-        // Nothing of the Run reached History, so the Transcript has nowhere to show it.
+        // Nothing of the operation reached the Journal, so the Transcript has nowhere to show it.
         this.#set({ problem: { kind: 'start', error: messageOf(error) } });
       }
     } finally {

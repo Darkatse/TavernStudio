@@ -28,8 +28,37 @@ export function modelContext(
   return {
     systemPrompt,
     tools: tools.map(modelTool),
-    messages: keepLatestImages(closeToolGroups(history.map((entry) => entry.message)), IMAGES_KEPT),
+    messages: keepLatestImages(
+      closeToolGroups(contextEntries(history).map((entry) => entry.message)),
+      IMAGES_KEPT,
+    ),
   };
+}
+
+/**
+ * What the model's context holds of the History: since the latest handoff,
+ * the handoff, the Rounds it kept, and everything after it.
+ */
+export function contextEntries(history: readonly HistoryEntry[]): readonly HistoryEntry[] {
+  const at = history.findLastIndex((entry) => entry.handoff !== undefined);
+  if (at === -1) return history;
+  const handoff = history[at]!;
+  const from = handoff.handoff!.keptFrom;
+  let kept: readonly HistoryEntry[] = [];
+  if (from) {
+    const start = history.findIndex(
+      (entry) => entry.run === from.run && entry.round === from.round,
+    );
+    // A rollback that undoes kept Rounds undoes the later handoff too.
+    if (start === -1 || start > at) {
+      throw new Error(
+        'agent.handoff_kept_missing: the Rounds a handoff kept are not in the History',
+      );
+    }
+    // A handoff comes within its Round, so kept Rounds may hold an earlier, superseded one.
+    kept = history.slice(start, at).filter((entry) => entry.handoff === undefined);
+  }
+  return [handoff, ...kept, ...history.slice(at + 1)];
 }
 
 function modelTool(tool: Tool): ModelTool {

@@ -4,12 +4,14 @@ import type {
   AssistantMessage,
   Model,
   ProviderStreams,
+  SimpleStreamOptions,
   StopReason,
   ToolCall,
+  TranscriptContext,
   UserMessage,
 } from '@earendil-works/pi-ai';
 import { createAssistantMessageEventStream } from '@earendil-works/pi-ai/utils/event-stream';
-import { closeToolGroups } from './context';
+import { closeToolGroups, contextEntries } from './context';
 import type { HistoryEntry } from './history';
 import type { JournalEvent } from './journal';
 import { runAgent, type RunEnvironment } from './run';
@@ -42,12 +44,27 @@ function call(id: string, name: string, args: ToolCall['arguments'] = {}): ToolC
 }
 
 function scripted(...replies: AssistantMessage[]): ProviderStreams {
-  const streamSimple = () => {
+  return recording(...replies).streams;
+}
+
+/** The streams, and the context and options of each request they received. */
+function recording(...replies: AssistantMessage[]) {
+  const requests: { context: TranscriptContext; options: SimpleStreamOptions | undefined }[] = [];
+  const streamSimple = (
+    _model: Model<Api>,
+    context: TranscriptContext,
+    options?: SimpleStreamOptions,
+  ) => {
+    requests.push({ context, options });
     const stream = createAssistantMessageEventStream();
     const message = replies.shift();
     if (!message) throw new Error('The script ran out of replies');
     queueMicrotask(() => {
       stream.push({ type: 'start', partial: message });
+      if (message.stopReason === 'error' || message.stopReason === 'aborted') {
+        stream.push({ type: 'error', reason: message.stopReason, error: message });
+        return;
+      }
       stream.push({
         type: 'done',
         reason: message.stopReason as 'stop' | 'length' | 'toolUse',
@@ -56,7 +73,7 @@ function scripted(...replies: AssistantMessage[]): ProviderStreams {
     });
     return stream;
   };
-  return { stream: streamSimple, streamSimple };
+  return { streams: { stream: streamSimple, streamSimple } as ProviderStreams, requests };
 }
 
 const echo: Tool = {
@@ -82,6 +99,7 @@ function environment(streams: ProviderStreams, secrets: readonly string[] = []) 
     record: (entry) => history.push(entry),
     journal: (event) => journal.push(event),
     takeGuidance: () => [],
+    compactAt: 0.95,
     signal: new AbortController().signal,
   };
   return { env, history, journal };
@@ -189,6 +207,102 @@ describe('runAgent', () => {
       code: 'agent.output_truncated',
     });
     expect(history.some((entry) => entry.message.role === 'toolResult')).toBe(false);
+  });
+});
+
+/** A reply carrying the provider's count of what it read. */
+function counted(input: number, message: AssistantMessage): AssistantMessage {
+  return { ...message, usage: { ...message.usage, input, totalTokens: input } };
+}
+
+function text(value: string) {
+  return { type: 'text' as const, text: value };
+}
+
+describe('Compaction', () => {
+  /** It compacts at 20,000 tokens: the window less the room a handoff needs. */
+  const small = { ...model, contextWindow: 40_000, maxTokens: 8_000 } as Model<Api>;
+
+  test("at its point, the handoff is asked in the Run's own request, and the next starts from it", async () => {
+    const { streams, requests } = recording(
+      counted(21_000, reply('toolUse', call('a', 'demo_echo', { text: 'x'.repeat(30_000) }))),
+      reply('stop', text('Notes.')),
+      reply('stop', text('Done.')),
+    );
+    const { env, history, journal } = environment(streams);
+    env.agent = { ...env.agent, model: small };
+    expect(await runAgent('r', [], ask, env)).toEqual({ status: 'completed' });
+
+    const [first, handoff, next] = requests;
+    // The provider's cached prefix serves it: nothing before the instruction changes.
+    expect(handoff!.context.messages.slice(0, first!.context.messages.length)).toEqual(
+      first!.context.messages,
+    );
+    expect(handoff!.context.messages.at(-1)).toMatchObject({ role: 'user' });
+    expect(handoff!.options?.toolChoice).toBeUndefined();
+    // The round's tool result was too long to keep, so the handoff stands alone.
+    expect(next!.context.messages.slice(1)).toEqual([
+      expect.objectContaining({
+        role: 'user',
+        content: expect.stringContaining('<handoff>\nNotes.\n</handoff>'),
+      }),
+    ]);
+    expect(history.find((entry) => entry.handoff)?.handoff).toEqual({ keptFrom: null });
+    expect(journal.map((event) => event.type)).toContain('context_compacted');
+  });
+
+  test('a request the provider finds too long compacts once and goes again', async () => {
+    const tooLong = {
+      ...reply('error'),
+      errorMessage: 'prompt is too long: 213462 tokens > 200000 maximum',
+    };
+    const { streams, requests } = recording(
+      tooLong,
+      reply('stop', text('Notes.')),
+      reply('stop', text('Done.')),
+    );
+    const { env, history } = environment(streams);
+    env.agent = { ...env.agent, model: { ...small, contextWindow: 200_000 } };
+    expect(await runAgent('r', [], ask, env)).toEqual({ status: 'completed' });
+
+    expect(requests).toHaveLength(3);
+    // The rejected reply is not kept; the author's message is, after the handoff.
+    expect(history.map((entry) => entry.message.role)).toEqual(['user', 'user', 'assistant']);
+    expect(history[1]!.handoff).toEqual({ keptFrom: { run: 'r', round: 0 } });
+    expect(requests[2]!.context.messages.slice(1).map((message) => message.role)).toEqual([
+      'user',
+      'user',
+    ]);
+  });
+});
+
+function user(content: string): UserMessage {
+  return { role: 'user', content, timestamp: 0 };
+}
+
+function inRun(
+  round: number,
+  message: HistoryEntry['message'],
+  handoff?: HistoryEntry['handoff'],
+): HistoryEntry {
+  return { run: 'r', round, message, ...(handoff ? { handoff } : {}) };
+}
+
+describe('contextEntries', () => {
+  test('starts at the latest handoff, which supersedes one inside the Rounds it keeps', () => {
+    const guidance = inRun(2, user('Bluer.'));
+    const first = inRun(2, user('First handoff.'), { keptFrom: { run: 'r', round: 2 } });
+    const answer = inRun(2, reply('stop', text('Done.')));
+    const second = inRun(3, user('Second handoff.'), { keptFrom: { run: 'r', round: 2 } });
+    const history = [
+      inRun(0, ask),
+      inRun(1, reply('stop', text('Hi.'))),
+      guidance,
+      first,
+      answer,
+      second,
+    ];
+    expect(contextEntries(history)).toEqual([second, guidance, answer]);
   });
 });
 

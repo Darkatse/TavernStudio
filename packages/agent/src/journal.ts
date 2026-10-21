@@ -21,6 +21,10 @@ export type JournalEvent = { run: string; time: number } & (
       storedAt?: string;
     }
   | { type: 'guidance_added'; round: number }
+  /** The context is being compacted before the Round's request. */
+  | { type: 'compaction_started'; round: number }
+  /** Tokens of the context before and after, as estimated. */
+  | { type: 'context_compacted'; round: number; before: number; after: number }
   | { type: 'run_completed' }
   | { type: 'run_cancelled' }
   | { type: 'run_failed'; code: string; message: string }

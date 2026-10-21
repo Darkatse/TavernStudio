@@ -8,6 +8,10 @@ export const modelSettingsMessages = defineMessages({
     addService: '添加模型',
     rememberKeys: '记住 API Key',
     rememberKeysHint: '记住后，预览里的扩展和卡片也能读到它，请注意风险。',
+    compactAt: '自动压缩',
+    compactAtHint:
+      '上下文达到窗口的这个比例时，Agent 先写一份交接摘要，再接着工作。窗口只剩不到 2 万 tokens 时也会压缩。',
+    compactAtRange: (min: number, max: number) => `填 ${min} 到 ${max} 之间的整数`,
     /** The name a new OpenAI-compatible endpoint starts with. */
     customName: '自定义',
     service: '服务',
@@ -42,6 +46,10 @@ export const modelSettingsMessages = defineMessages({
     rememberKeys: 'Remember API Keys',
     rememberKeysHint:
       'Extensions and cards in the preview can read remembered keys. Be aware of the risk.',
+    compactAt: 'Auto-compaction',
+    compactAtHint:
+      'When the context reaches this share of the window, the Agent writes a handoff and carries on from it. It also compacts when fewer than 20K tokens of the window are left.',
+    compactAtRange: (min: number, max: number) => `Enter a whole number from ${min} to ${max}`,
     customName: 'Custom',
     service: 'Service',
     customService: 'Custom (OpenAI-compatible)',

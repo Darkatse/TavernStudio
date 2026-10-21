@@ -23,7 +23,8 @@ interface Operation {
 
 export interface RunBlock extends Operation {
   kind: 'run';
-  request: string;
+  /** None for a compaction the author asked for. */
+  request: string | undefined;
   /** Everything between the request and the final answer: rounds, guidance, tool calls. */
   work: HistoryEntry[];
   /** The last reply without a tool call. */
@@ -33,6 +34,10 @@ export interface RunBlock extends Operation {
   startedAt: number | undefined;
   endedAt: number | undefined;
   toolCalls: number;
+  /** Tokens of the context before and after each compaction, by Round. */
+  compactions: Map<number, { before: number; after: number }>;
+  /** A compaction is being written. */
+  compacting: boolean;
 }
 
 export interface RollbackBlock extends Operation {
@@ -68,7 +73,7 @@ export function transcriptBlocks({
       runs.set(entry.run, block);
     }
     const { message } = entry;
-    if (entry.round === 0 && message.role === 'user') {
+    if (entry.round === 0 && message.role === 'user' && !entry.handoff) {
       block.request = textOf(message.content);
       continue;
     }
@@ -111,7 +116,13 @@ export function transcriptBlocks({
       block.startedAt = event.time;
       blocks.set(block.id, block);
     }
+    if (event.type === 'compaction_started') block.compacting = true;
+    if (event.type === 'context_compacted') {
+      block.compacting = false;
+      block.compactions.set(event.round, { before: event.before, after: event.after });
+    }
     if (!TERMINAL_EVENTS.has(event.type)) continue;
+    block.compacting = false;
     block.endedAt = event.time;
     if (event.type === 'run_completed') block.status = 'completed';
     if (event.type === 'run_cancelled') block.status = 'cancelled';
@@ -138,7 +149,7 @@ function newRun(id: string): RunBlock {
   return {
     kind: 'run',
     id,
-    request: '',
+    request: undefined,
     work: [],
     answer: undefined,
     status: 'interrupted',
@@ -146,6 +157,8 @@ function newRun(id: string): RunBlock {
     startedAt: undefined,
     endedAt: undefined,
     toolCalls: 0,
+    compactions: new Map(),
+    compacting: false,
     undone: false,
     restorable: false,
   };

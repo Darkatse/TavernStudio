@@ -11,6 +11,9 @@ import { connectText, useSetup } from './setup';
 const EffortMenu = lazy(() =>
   import('./effort-menu').then((module) => ({ default: module.EffortMenu })),
 );
+const ContextMeter = lazy(() =>
+  import('./context-meter').then((module) => ({ default: module.ContextMeter })),
+);
 
 /**
  * Always open for writing: when sending is blocked, what blocks it shows
@@ -112,6 +115,11 @@ export function Composer({
             {model?.endpoint?.reasoning && (
               <Suspense>
                 <EffortMenu endpoint={model.endpoint} running={running} />
+              </Suspense>
+            )}
+            {conversation && state && state.entries.length > 0 && (
+              <Suspense>
+                <ContextMeter conversation={conversation} onOpenModels={onOpenModels} />
               </Suspense>
             )}
           </div>

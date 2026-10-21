@@ -1,14 +1,17 @@
-import type {
-  AssistantMessage,
-  HistoryEntry,
-  ToolCall,
-  ToolResultMessage,
+import {
+  handoffText,
+  type AssistantMessage,
+  type HistoryEntry,
+  type ToolCall,
+  type ToolResultMessage,
+  type UserMessage,
 } from '@tavern-studio/agent';
 import { clsx } from 'clsx';
 import {
   Check,
   ChevronRight,
   CircleSlash,
+  FoldVertical,
   LoaderCircle,
   RotateCcw,
   TriangleAlert,
@@ -73,17 +76,33 @@ export const RunView = memo(function RunView({
             </Tooltip>
           </div>
         )}
-        <p className="rounded-xl bg-sunken px-3.5 py-2 text-prose whitespace-pre-wrap">
-          {block.request}
-        </p>
+        {block.request !== undefined && (
+          <p className="rounded-xl bg-sunken px-3.5 py-2 text-prose whitespace-pre-wrap">
+            {block.request}
+          </p>
+        )}
       </div>
       {(block.work.length > 0 || running) && (
         <Collapsible open={expanded} onOpenChange={setOpen}>
           <RunBar block={block} />
           <CollapsiblePanel keepMounted={false} className="flex flex-col gap-3 pt-3">
-            {block.work.map((entry) => (
-              <WorkEntry key={entryKey(entry)} entry={entry} results={results} running={running} />
-            ))}
+            {block.work.map((entry) =>
+              entry.handoff && entry.message.role === 'user' ? (
+                <Handoff
+                  key={entryKey(entry)}
+                  message={entry.message}
+                  tokens={block.compactions.get(entry.round)}
+                />
+              ) : (
+                <WorkEntry
+                  key={entryKey(entry)}
+                  entry={entry}
+                  results={results}
+                  running={running}
+                />
+              ),
+            )}
+            {block.compacting && <Compacting />}
             {streamingWork && partial && (
               <Reply message={partial} results={results} running streaming />
             )}
@@ -180,6 +199,42 @@ function WorkEntry({
     );
   }
   return null; // Tool results show in the row of their call.
+}
+
+/** The handoff the Agent wrote as its context was compacted, open on demand. */
+function Handoff({
+  message,
+  tokens,
+}: {
+  message: UserMessage;
+  tokens: { before: number; after: number } | undefined;
+}) {
+  const m = useMessages(runMessages);
+  return (
+    <Collapsible>
+      <CollapsibleTrigger className="group -mx-1.5 flex h-7 w-[calc(100%+0.75rem)] cursor-pointer items-center gap-2 rounded-md px-1.5 text-left transition-colors motion-fast hover:bg-hover">
+        <FoldVertical className="size-3.5 shrink-0 text-muted" />
+        <span className="shrink-0">{m.compacted}</span>
+        <span className="ml-auto shrink-0 text-caption text-muted tabular-nums">
+          {tokens && m.compactedTokens(tokens.before, tokens.after)}
+        </span>
+        <ChevronRight className="size-3.5 shrink-0 text-muted transition-transform motion-moderate group-data-panel-open:rotate-90 motion-reduce:transition-none" />
+      </CollapsibleTrigger>
+      <CollapsiblePanel keepMounted={false} className="pt-1.5 pl-5.5 text-muted">
+        <Markdown text={handoffText(message)} streaming={false} />
+      </CollapsiblePanel>
+    </Collapsible>
+  );
+}
+
+function Compacting() {
+  const m = useMessages(runMessages);
+  return (
+    <p className="flex h-7 items-center gap-2">
+      <LoaderCircle className="size-3.5 shrink-0 animate-spin text-muted" />
+      {m.compacting}
+    </p>
+  );
 }
 
 function Reply({
