@@ -1,19 +1,14 @@
 import { Settings2, SquarePen } from 'lucide-react';
-import {
-  lazy,
-  Suspense,
-  useDeferredValue,
-  useRef,
-  useState,
-  useTransition,
-  type ReactNode,
-} from 'react';
+import { lazy, Suspense, useDeferredValue, useRef, useState, type ReactNode } from 'react';
+import { flushSync } from 'react-dom';
 import { Brand } from '../brand/brand';
 import { useMessages } from '../i18n/messages';
 import { settingsMessages } from '../settings/messages';
-import type { SettingsSection } from '../settings/settings-dialog';
+import type {
+  SettingsDialog as SettingsDialogType,
+  SettingsSection,
+} from '../settings/settings-dialog';
 import { Button } from '../ui/button';
-import { Dialog } from '../ui/dialog';
 import { Tooltip } from '../ui/tooltip';
 import { Composer } from './composer';
 import type { Conversation } from './conversation';
@@ -26,11 +21,8 @@ import { Welcome } from './welcome';
 const loadTranscript = () => import('./transcript');
 const Transcript = lazy(() => loadTranscript().then((module) => ({ default: module.Transcript })));
 const prefetchTranscript = () => void loadTranscript();
-// The settings bring the model list's combobox, so they load when first wanted.
+// The settings bring their dialog and the model list's combobox, so they load when first wanted.
 const loadSettings = () => import('../settings/settings-dialog');
-const SettingsDialog = lazy(() =>
-  loadSettings().then((module) => ({ default: module.SettingsDialog })),
-);
 const prefetchSettings = () => void loadSettings();
 const ConversationMenu = lazy(() =>
   import('./conversation-menu').then((module) => ({ default: module.ConversationMenu })),
@@ -42,12 +34,17 @@ export function AgentPanel() {
   const conversations = useConversations();
   const conversation = useConversation();
   // Undefined until the settings are first opened; they stay mounted from then on, to animate out.
-  const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>();
-  const [, startTransition] = useTransition();
-  // In a transition the dialog stays shut until its code is in, then opens with
-  // its content in one commit: no empty fallback swallows its entrance.
+  const [SettingsDialog, setSettingsDialog] = useState<typeof SettingsDialogType>();
+  const [settings, setSettings] = useState<{ open: boolean; section: SettingsSection }>({
+    open: false,
+    section: 'general',
+  });
   const openSettings = (section: SettingsSection) =>
-    startTransition(() => setSettings({ open: true, section }));
+    void loadSettings().then((module) => {
+      // A dialog that mounts open skips its entrance, so it first commits shut.
+      flushSync(() => setSettingsDialog(() => module.SettingsDialog));
+      setSettings({ open: true, section });
+    });
   const [draft, setDraft] = useState('');
   const writeDraft = (next: string) => {
     setDraft(next);
@@ -119,19 +116,14 @@ export function AgentPanel() {
         onDraftChange={writeDraft}
         onOpenModels={openModels}
       />
-      <Dialog
-        open={settings?.open ?? false}
-        onOpenChange={(open) => setSettings((current) => current && { ...current, open })}
-      >
-        <Suspense>
-          {settings && (
-            <SettingsDialog
-              section={settings.section}
-              onSectionChange={(section) => setSettings({ open: true, section })}
-            />
-          )}
-        </Suspense>
-      </Dialog>
+      {SettingsDialog && (
+        <SettingsDialog
+          open={settings.open}
+          onOpenChange={(open) => setSettings((current) => ({ ...current, open }))}
+          section={settings.section}
+          onSectionChange={(section) => setSettings({ open: true, section })}
+        />
+      )}
     </aside>
   );
 }

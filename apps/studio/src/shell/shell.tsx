@@ -1,7 +1,6 @@
 import { clsx } from 'clsx';
 import { Code2, Eye } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
-import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { AgentPanel } from '../agent/agent-panel';
 import { BrandIcon } from '../brand/brand-icon';
 import { BrandMark } from '../brand/brand-mark';
@@ -11,6 +10,7 @@ import { startStudio } from '../project/projects';
 import { usePersistenceError } from '../preview/use-session';
 import { Button } from '../ui/button';
 import { SegmentedControl, type SegmentedOption } from '../ui/segmented-control';
+import { Split } from '../ui/split';
 import { Tooltip } from '../ui/tooltip';
 import { showToast } from '../ui/toast';
 import { Workbench, type WorkbenchView } from '../workbench/workbench';
@@ -57,18 +57,12 @@ const AGENT_MIN_WIDTH = 320 + 8;
 
 function WideShell({ view, onViewChange }: ShellLayoutProps) {
   const m = useMessages(shellMessages);
-  const agent = usePanelRef();
   const agentColumn = useRef<HTMLDivElement>(null);
-  const workbenchColumn = useRef<HTMLDivElement>(null);
   const [agentCollapsed, setAgentCollapsed] = useState(false);
-  // The share of the row the Agent takes when shown. It keeps that width
-  // while its column opens or closes around it, so nothing in it rewraps.
-  const [agentShare, setAgentShare] = useState<number>();
 
   const toggleAgent = () => {
-    glide([agentColumn.current!, workbenchColumn.current!], agentCollapsed);
-    if (agentCollapsed) agent.current?.expand();
-    else agent.current?.collapse();
+    glide(agentColumn.current!, agentCollapsed);
+    setAgentCollapsed(!agentCollapsed);
   };
 
   const agentToggle = (
@@ -88,59 +82,35 @@ function WideShell({ view, onViewChange }: ShellLayoutProps) {
 
   return (
     <div className="h-dvh py-2 pr-2">
-      {/* A container, so the Agent's width can be given in the row's width. */}
-      <Group
-        orientation="horizontal"
-        className="@container h-full"
-        onLayoutChange={(layout) => {
-          const share = layout.agent!;
-          setAgentCollapsed(share === 0);
-          if (share > 0) setAgentShare(share);
-        }}
-      >
-        <Panel
-          id="agent"
-          panelRef={agent}
-          elementRef={agentColumn}
-          className="relative"
-          defaultSize={AGENT_WIDTH}
-          minSize={AGENT_MIN_WIDTH}
-          maxSize="50%"
-          collapsible
-          groupResizeBehavior="preserve-pixel-size"
-        >
-          <div
-            inert={agentCollapsed}
-            className="absolute inset-y-0 right-0 pl-2"
-            style={{
-              // The row less the separator, which is w-2.
-              width:
-                agentShare === undefined
-                  ? '100%'
-                  : `calc((100cqw - var(--spacing) * 2) * ${agentShare / 100})`,
-            }}
-          >
+      <Split
+        className="h-full"
+        defaultSize={AGENT_WIDTH}
+        minSize={AGENT_MIN_WIDTH}
+        mainMinSize={420}
+        collapsed={agentCollapsed}
+        onCollapsedChange={setAgentCollapsed}
+        separator="gap"
+        sideId="agent"
+        sideRef={agentColumn}
+        side={
+          <div className="h-full pl-2">
             <AgentPanel />
           </div>
-        </Panel>
-        <Separator className="group flex w-2 items-center justify-center outline-none">
-          <span className="h-10 w-0.5 rounded-full bg-line-strong opacity-0 transition-[opacity,background-color] motion-fast group-hover:opacity-100 group-focus-visible:bg-accent group-focus-visible:opacity-100 group-data-[separator=active]:bg-accent group-data-[separator=active]:opacity-100" />
-        </Separator>
-        <Panel id="workbench" elementRef={workbenchColumn} minSize={420}>
-          <Workbench view={view} onViewChange={onViewChange} leading={agentToggle} />
-        </Panel>
-      </Group>
+        }
+      >
+        <Workbench view={view} onViewChange={onViewChange} leading={agentToggle} />
+      </Split>
     </div>
   );
 }
 
 /**
- * The panel library sets the columns' flex-grow at once. Each is animated from
- * where it was to where the library puts it, on one timing, so the boundary
- * moves while the two still fill the row. The animations end on their own, so
- * a drag or a window resize after them is not held back.
+ * The split sets the column's width at once. It is animated from where it
+ * was to where the split puts it, so the boundary moves while the workbench
+ * fills the rest of the row. The animation ends on its own, so a drag or a
+ * window resize after it is not held back.
  */
-function glide(columns: readonly HTMLElement[], opening: boolean) {
+function glide(column: HTMLElement, opening: boolean) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const tokens = getComputedStyle(document.documentElement);
   // The minifier may rewrite a duration from ms to s.
@@ -158,12 +128,10 @@ function glide(columns: readonly HTMLElement[], opening: boolean) {
         duration: milliseconds('--motion-slow-exit'),
         easing: tokens.getPropertyValue('--ease-exit'),
       };
-  for (const column of columns) {
-    const from = getComputedStyle(column).flexGrow;
-    for (const running of column.getAnimations()) running.cancel();
-    // Without an end keyframe, the animation runs to the value the library sets.
-    column.animate([{ flexGrow: from, offset: 0 }], timing);
-  }
+  const from = getComputedStyle(column).width;
+  for (const running of column.getAnimations()) running.cancel();
+  // Without an end keyframe, the animation runs to the width the split sets.
+  column.animate([{ width: from, offset: 0 }], timing);
 }
 
 /** Lucide's PanelLeftClose (ISC), whose arrow turns over into PanelLeftOpen's. */

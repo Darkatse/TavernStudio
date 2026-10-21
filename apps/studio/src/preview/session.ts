@@ -1,4 +1,4 @@
-import { createSessionBackend, DataDirectory, type SessionBackend } from '@tavern-studio/backend';
+import type { DataDirectory, SessionBackend } from '@tavern-studio/backend';
 import {
   canHotApply,
   hotApply,
@@ -512,12 +512,14 @@ export class PreviewSession implements PreviewHost {
     const resumed =
       stored?.record.fixture === fixture && stored.record.vendor === vendor.id ? stored : undefined;
     this.#vendors = { images, selected: vendor.id };
-    const [info, anatomy, files, extensions, published] = await Promise.all([
+    const [info, anatomy, files, extensions, published, backend] = await Promise.all([
       loadVendorInfo(vendor.id),
       loadAnatomy(vendor.id),
       loadFixture(fixture),
       Promise.all(EXTENSIONS.map(installExtension)).then((installed) => installed.flat()),
       readSessionState(),
+      // The Session Backend is the preview's runtime, not the shell's first screen.
+      import('@tavern-studio/backend'),
     ]);
     // Browser-side state follows the vendor image that wrote it.
     if (published && published.vendor !== vendor.id) await clearBrowserState();
@@ -531,8 +533,8 @@ export class PreviewSession implements PreviewHost {
     ]);
     // The data is the Snapshot, the fixture with the project mounted, or the
     // persisted Session moved from the placements it reflects to the current ones.
-    const fixtureData = new DataDirectory(base);
-    const data = new DataDirectory(base);
+    const fixtureData = new backend.DataDirectory(base);
+    const data = new backend.DataDirectory(base);
     restoreFiles(data, resumed?.files ?? []);
     const reflected = resumed?.record.placements ?? [];
     this.#reportOverwritten(overwrittenBy(data, reflected, placements));
@@ -558,7 +560,7 @@ export class PreviewSession implements PreviewHost {
       anatomy,
       fixture: fixtureData,
       data,
-      backend: createSessionBackend(data, info),
+      backend: backend.createSessionBackend(data, info),
     };
     (window as Window & { [HOST_KEY]?: PreviewHost })[HOST_KEY] = this;
     performance.measure('studio:session-worker', { start: started, end: workerReady });

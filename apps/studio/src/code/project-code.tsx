@@ -1,7 +1,6 @@
 import { clsx } from 'clsx';
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import { useEffect, useId, useRef, useState } from 'react';
-import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { editorsOf, useEditors } from '../editor/editors';
 import { messagesNow, useMessages } from '../i18n/messages';
 import { useMediaQuery } from '../lib/use-media-query';
@@ -9,6 +8,7 @@ import { mountPointsBySource, usePlacements } from '../project/mount-points';
 import type { Project } from '../project/project';
 import { useProjectState } from '../project/use-project';
 import { Button } from '../ui/button';
+import { Split } from '../ui/split';
 import { showToast } from '../ui/toast';
 import { Tooltip } from '../ui/tooltip';
 import { EditorArea } from './editor-area';
@@ -24,7 +24,6 @@ export function ProjectCode({ project }: { project: Project }) {
   const mountPoints = mountPointsBySource(usePlacements());
   const panelId = useId();
   const filesId = useId();
-  const filesPanel = usePanelRef();
   const toggleButton = useRef<HTMLButtonElement>(null);
   const filesOverlay = useRef<HTMLDivElement>(null);
   // Wide: whether the tree's panel is expanded. Narrow: whether the tree covers
@@ -46,12 +45,8 @@ export function ProjectCode({ project }: { project: Project }) {
   }, []);
 
   const showFiles = (show: boolean) => {
-    if (wide) {
-      if (show) filesPanel.current?.expand();
-      else filesPanel.current?.collapse();
-      return;
-    }
     setShown(show);
+    if (wide) return;
     if (show) {
       requestAnimationFrame(() =>
         filesOverlay.current
@@ -122,28 +117,19 @@ export function ProjectCode({ project }: { project: Project }) {
 
   if (wide) {
     return (
-      <Group orientation="horizontal" className="min-h-0 min-w-0 flex-1">
-        <Panel
-          id="files"
-          panelRef={filesPanel}
-          defaultSize={232}
-          minSize={180}
-          maxSize="50%"
-          collapsible
-          groupResizeBehavior="preserve-pixel-size"
-          onResize={(size) => setShown(size.inPixels > 0)}
-        >
-          <div id={filesId} className="h-full">
-            {tree}
-          </div>
-        </Panel>
-        <Separator className="group relative w-px bg-line outline-none">
-          <span className="absolute inset-y-0 -left-px w-[3px] bg-accent opacity-0 transition-opacity motion-fast group-hover:opacity-60 group-focus-visible:opacity-100 group-data-[separator=active]:opacity-100" />
-        </Separator>
-        <Panel id="editor" minSize={320}>
-          {editorArea}
-        </Panel>
-      </Group>
+      <Split
+        className="min-h-0 min-w-0 flex-1"
+        defaultSize={232}
+        minSize={180}
+        mainMinSize={320}
+        collapsed={!shown}
+        onCollapsedChange={(collapsed) => setShown(!collapsed)}
+        separator="line"
+        sideId={filesId}
+        side={tree}
+      >
+        {editorArea}
+      </Split>
     );
   }
 
