@@ -1,8 +1,9 @@
 import { clsx } from 'clsx';
-import { Bot, Code2, Eye } from 'lucide-react';
+import { Code2, Eye } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Group, Panel, Separator, usePanelRef } from 'react-resizable-panels';
 import { AgentPanel } from '../agent/agent-panel';
+import { BrandIcon } from '../brand/brand-icon';
 import { BrandMark } from '../brand/brand-mark';
 import { messagesNow, useMessages } from '../i18n/messages';
 import { useMediaQuery } from '../lib/use-media-query';
@@ -197,7 +198,7 @@ function NarrowShell({ view, onViewChange }: ShellLayoutProps) {
   const m = useMessages(shellMessages);
   const [agentShown, setAgentShown] = useState(false);
   const narrowPanes: SegmentedOption<NarrowPane>[] = [
-    { value: 'agent', label: m.agent, icon: <Bot /> },
+    { value: 'agent', label: m.agent, icon: <BrandIcon /> },
     { value: 'preview', label: m.preview, icon: <Eye /> },
     { value: 'code', label: m.code, icon: <Code2 /> },
   ];

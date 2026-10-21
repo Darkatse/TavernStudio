@@ -33,6 +33,7 @@ Studio 的外壳要美观、克制、快。外壳是作者工作的框架，不�
 - Fluid Functionalism 与 beUI 的组件依赖 Motion，取用时把动效改写为 §4 的 CSS 档位。
 - 不引入 cmdk 与 `@shadcn/react`：前者带 Radix 原语，后者把组件逻辑放进了 npm 包。
 - 文件树用 headless-tree（MIT）加自绘的行；diff 用 `@codemirror/merge`（MIT）。
+- 图标用 Lucide。在 Lucide 图标之间代表 Studio 时，例如窄屏面板切换里的 Agent，用标志的线性版（`brand/brand-icon`）：线宽、圆头与 Lucide 相同，颜色跟随文字。彩色的标志只用于品牌本身，例如 Agent 栏的标题。
 
 ## 3. 视觉 token
 
