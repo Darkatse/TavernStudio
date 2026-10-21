@@ -22,6 +22,7 @@ import {
 } from '@codemirror/view';
 import { messagesNow } from '../i18n/messages';
 import { editorMessages, type Phrases } from './messages';
+import { colorSwatches } from './swatches';
 import { studioTheme } from './theme';
 
 const setPhrases = StateEffect.define<Phrases>();
@@ -30,7 +31,7 @@ const setPhrases = StateEffect.define<Phrases>();
  * A state keeps the language it was created in until `phrasesNow` brings it
  * to one chosen since.
  */
-export const phrases: Extension = StateField.define<Phrases>({
+const phrases: Extension = StateField.define<Phrases>({
   create: () => messagesNow(editorMessages).phrases,
   update: (value, transaction) => {
     for (const effect of transaction.effects) if (effect.is(setPhrases)) return effect.value;
@@ -61,6 +62,9 @@ export async function languageOf(path: string): Promise<Extension> {
   }
 }
 
+/** What every view of code has, the editor's and a change's to adopt alike. */
+export const codeView: Extension = [phrases, studioTheme, colorSwatches];
+
 /**
  * Tab indents; Esc and then Tab leaves the editor, which CodeMirror's view
  * provides on its own for keyboard users once Tab is bound.
@@ -90,6 +94,5 @@ export const editing: Extension = [
     ...completionKeymap,
     indentWithTab,
   ]),
-  phrases,
-  studioTheme,
+  codeView,
 ];

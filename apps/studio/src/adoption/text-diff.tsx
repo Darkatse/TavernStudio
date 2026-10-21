@@ -2,8 +2,7 @@ import { unifiedMergeView } from '@codemirror/merge';
 import { EditorState } from '@codemirror/state';
 import { EditorView } from '@codemirror/view';
 import { useEffect, useRef } from 'react';
-import { languageOf, phrases } from '../editor/extensions';
-import { studioTheme } from '../editor/theme';
+import { codeView, languageOf } from '../editor/extensions';
 import { useMessages } from '../i18n/messages';
 import { adoptionMessages } from './messages';
 
@@ -37,8 +36,7 @@ export function TextDiff({ original, changed, path }: TextDiffProps) {
             EditorView.lineWrapping,
             EditorView.contentAttributes.of({ 'aria-label': changesTo(path) }),
             language,
-            phrases,
-            studioTheme,
+            codeView,
             unifiedMergeView({
               original,
               mergeControls: false,

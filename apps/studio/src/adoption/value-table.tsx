@@ -1,6 +1,7 @@
 import type { JsonValue, Pointer } from '@tavern-studio/workspace';
 import { clsx } from 'clsx';
 import { useMessages } from '../i18n/messages';
+import { isColor } from '../ui/swatch';
 import { adoptionMessages } from './messages';
 
 export interface ValueRow {
@@ -65,26 +66,14 @@ function Value({ value, side }: { value: JsonValue | undefined; side: 'project' 
     >
       <span aria-hidden="true">{removed ? '−' : '+'}</span>
       <span className="sr-only">{removed ? m.projectValue : m.sessionValue}</span>
-      {typeof value === 'string' && isColor(value) && <Swatch color={value} />}
+      {typeof value === 'string' && isColor(value) && (
+        <span aria-hidden="true" className="mt-1 swatch shrink-0" style={{ color: value }} />
+      )}
       {text === undefined ? (
         <span className="font-sans italic">{m.none}</span>
       ) : (
         <span className={clsx('min-w-0 break-all', removed && 'line-through')}>{text}</span>
       )}
     </span>
-  );
-}
-
-function isColor(value: string): boolean {
-  return value.trim() !== '' && CSS.supports('color', value);
-}
-
-function Swatch({ color }: { color: string }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="mt-0.5 size-3 shrink-0 rounded-full shadow-[inset_0_0_0_1px_var(--color-line-strong)]"
-      style={{ background: color }}
-    />
   );
 }

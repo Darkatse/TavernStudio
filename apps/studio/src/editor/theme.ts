@@ -91,6 +91,7 @@ const theme = EditorView.theme({
   },
   '.cm-searchMatch.cm-searchMatch-selected': { backgroundColor: accentWash(45) },
   '.cm-specialChar': { color: 'var(--color-syntax-invalid)' },
+  '.cm-swatch': { marginInlineEnd: '4px', verticalAlign: 'middle' },
 
   '.cm-panels': { backgroundColor: 'var(--color-sunken)', color: 'var(--color-fg)' },
   '.cm-panels.cm-panels-top': { borderBottom: '1px solid var(--color-line)' },

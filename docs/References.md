@@ -40,6 +40,7 @@
 | [Beautiful UI](https://www.beautifului.dev) | MIT | Agent 界面：思考过程、流式文本、工具调用、审批、diff、代码块 |
 | [Animate UI](https://animate-ui.com/docs) | MIT + Commons Clause | 动效原则：退出快于进入，只动 transform 与 opacity，键盘导航不加动画。许可与 AGPL 不兼容，不复制代码 |
 | v0、Lovable、bolt.new | 闭源产品 | 布局：对话在左、预览与代码在右，预览与代码以标签切换 |
+| [Chrome DevTools](https://github.com/ChromeDevTools/devtools-frontend)、[VS Code](https://github.com/microsoft/vscode) 的色样 | BSD-3-Clause、MIT | 代码里颜色值前的色样；DevTools 把半透明颜色画在棋盘格上 |
 | [Anthropic 官网](https://www.anthropic.com)的字标 | 闭源产品 | 品牌字标的展开：字母从标志处散开，散开过半才淡入 |
 
 ## 已对比的方案
