@@ -108,38 +108,95 @@ interface StudioSchema extends DBSchema {
 
 export type StudioDatabase = IDBPDatabase<StudioSchema>;
 
-export const db: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 3, {
-  async upgrade(database, oldVersion, _newVersion, transaction) {
-    if (oldVersion < 1) {
-      database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
-      database.createObjectStore('session', { keyPath: 'id' });
-      database.createObjectStore('sessionFiles', { keyPath: 'path' });
-      for (const store of ['history', 'journal'] as const) {
-        database
-          .createObjectStore(store, { keyPath: 'seq', autoIncrement: true })
-          .createIndex('project', 'project');
-      }
-      database
-        .createObjectStore('toolResults', { keyPath: 'path' })
-        .createIndex('project', 'project');
-      database.createObjectStore('preferences', { keyPath: 'key' });
+/** Failures that mean the connection could not serve the work, not that the work was wrong. */
+const LOST = new Set(['InvalidStateError', 'UnknownError', 'AbortError']);
+
+let connection: Promise<StudioDatabase> | undefined;
+
+/**
+ * Runs a unit of work on Studio's database.
+ *
+ * Browsers close a connection while the page lives on: Safari when its
+ * network process ends, as iOS has it do in the background; when a page in
+ * the back/forward cache stands in the way of another page's upgrade; and
+ * when the site's data is removed. A closed connection refuses every
+ * transaction. Work that fails for that reason runs once more on a new
+ * connection; its transactions were aborted and committed nothing, so
+ * nothing is written twice. A unit should hold only database work.
+ */
+export async function withDatabase<T>(work: (database: StudioDatabase) => Promise<T>): Promise<T> {
+  const used = (connection ??= open());
+  try {
+    return await work(await used);
+  } catch (error) {
+    if (!(error instanceof DOMException && LOST.has(error.name))) throw error;
+    retire(used);
+    return work(await (connection ??= open()));
+  }
+}
+
+function open(): Promise<StudioDatabase> {
+  const opening: Promise<StudioDatabase> = openDB<StudioSchema>(DATABASE, 3, {
+    upgrade,
+    terminated: () => retire(opening),
+    // A newer Studio in another tab is upgrading: make way, and open again when next used.
+    blocking: () => retire(opening),
+  }).catch((error: unknown) => {
+    retire(opening);
+    if (error instanceof DOMException && error.name === 'VersionError') {
+      throw new Error('A newer Studio has upgraded its database in another tab; reload this tab', {
+        cause: error,
+      });
     }
-    if (oldVersion < 2) {
+    throw error;
+  });
+  return opening;
+}
+
+/** Forgets a connection and closes it, so it holds back no other tab. */
+function retire(used: Promise<StudioDatabase>): void {
+  if (connection === used) connection = undefined;
+  void used.then(
+    (database) => database.close(),
+    () => {},
+  );
+}
+
+async function upgrade(
+  database: IDBPDatabase<StudioSchema>,
+  oldVersion: number,
+  _newVersion: number | null,
+  transaction: IDBPTransaction<StudioSchema, StoreNames<StudioSchema>[], 'versionchange'>,
+): Promise<void> {
+  if (oldVersion < 1) {
+    database.createObjectStore('projects', { keyPath: 'id' }).createIndex('openedAt', 'openedAt');
+    database.createObjectStore('session', { keyPath: 'id' });
+    database.createObjectStore('sessionFiles', { keyPath: 'path' });
+    for (const store of ['history', 'journal'] as const) {
       database
-        .createObjectStore('checkpointFiles', { keyPath: ['op', 'path'] })
+        .createObjectStore(store, { keyPath: 'seq', autoIncrement: true })
         .createIndex('project', 'project');
-      database.createObjectStore('checkpointBlobs', { keyPath: 'sha256' });
     }
-    if (oldVersion < 3) {
-      database
-        .createObjectStore('conversations', { keyPath: 'id' })
-        .createIndex('project', 'project');
-      const history = transaction.objectStore('history');
-      history.createIndex('conversation', 'conversation');
-      await conversationsFromHistory(transaction);
-    }
-  },
-});
+    database
+      .createObjectStore('toolResults', { keyPath: 'path' })
+      .createIndex('project', 'project');
+    database.createObjectStore('preferences', { keyPath: 'key' });
+  }
+  if (oldVersion < 2) {
+    database
+      .createObjectStore('checkpointFiles', { keyPath: ['op', 'path'] })
+      .createIndex('project', 'project');
+    database.createObjectStore('checkpointBlobs', { keyPath: 'sha256' });
+  }
+  if (oldVersion < 3) {
+    database
+      .createObjectStore('conversations', { keyPath: 'id' })
+      .createIndex('project', 'project');
+    const history = transaction.objectStore('history');
+    history.createIndex('conversation', 'conversation');
+    await conversationsFromHistory(transaction);
+  }
+}
 
 /** Until version 3 a project had one conversation: its History becomes the project's first. */
 async function conversationsFromHistory(

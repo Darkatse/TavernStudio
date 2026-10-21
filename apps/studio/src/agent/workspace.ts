@@ -7,7 +7,7 @@ import {
 import { anatomyUrl, vendorUrl } from '@tavern-studio/preview';
 import { previewSession } from '../preview/session';
 import { getJson, loadVendorFiles } from '../preview/sources';
-import { db } from '../storage/db';
+import { withDatabase } from '../storage/db';
 import { loadSkills, skillUrl } from './skills';
 
 const encoder = new TextEncoder();
@@ -50,12 +50,14 @@ function listedRoot(
 
 function toolResultsRoot(project: string): WorkspaceRoot {
   return listedRoot(async () => {
-    const paths = await (await db).getAllKeysFromIndex('toolResults', 'project', project);
+    const paths = await withDatabase((database) =>
+      database.getAllKeysFromIndex('toolResults', 'project', project),
+    );
     return new Map(
       paths.map((path) => [
         path,
         async () => {
-          const result = await (await db).get('toolResults', path);
+          const result = await withDatabase((database) => database.get('toolResults', path));
           if (!result) throw new DOMException(`No tool result at ${path}`, 'NotFoundError');
           return encoder.encode(result.text);
         },

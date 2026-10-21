@@ -1,6 +1,11 @@
 import type { DataDirectory } from '@tavern-studio/backend';
 import { bytesEqual, type Placement } from '@tavern-studio/workspace';
-import { db, type SessionFile, type SessionRecord } from '../storage/db';
+import {
+  withDatabase,
+  type SessionFile,
+  type SessionRecord,
+  type StudioDatabase,
+} from '../storage/db';
 
 export interface StoredSession {
   record: SessionRecord;
@@ -57,15 +62,16 @@ export class SessionPersistence {
 
   async load(): Promise<StoredSession | undefined> {
     await this.#queue;
-    const database = await db;
-    const record = await database.get('session', 'session');
-    return record && { record, files: await database.getAll('sessionFiles') };
+    return withDatabase(async (database) => {
+      const record = await database.get('session', 'session');
+      return record && { record, files: await database.getAll('sessionFiles') };
+    });
   }
 
   begin(record: SessionRecord, files: SessionFile[]): Promise<void> {
     this.#error = undefined;
-    return this.#enqueue(async () => {
-      const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
+    return this.#enqueue(async (database) => {
+      const tx = database.transaction(['session', 'sessionFiles'], 'readwrite');
       const stored = tx.objectStore('sessionFiles');
       await stored.clear();
       await Promise.all([
@@ -78,24 +84,23 @@ export class SessionPersistence {
 
   /** A file now holds `content`, or the fixture's own content when undefined. */
   file(path: string, content: Uint8Array | null | undefined): void {
-    void this.#enqueue(async () => {
-      const database = await db;
+    void this.#enqueue(async (database) => {
       if (content === undefined) await database.delete('sessionFiles', path);
       else await database.put('sessionFiles', { path, content });
     });
   }
 
   placements(placements: readonly Placement[]): void {
-    void this.#enqueue(() => update({ placements }));
+    void this.#enqueue((database) => update(database, { placements }));
   }
 
   webHost(state: Record<string, unknown> | null): void {
-    void this.#enqueue(() => update({ webHost: state }));
+    void this.#enqueue((database) => update(database, { webHost: state }));
   }
 
   clear(): Promise<void> {
-    return this.#enqueue(async () => {
-      const tx = (await db).transaction(['session', 'sessionFiles'], 'readwrite');
+    return this.#enqueue(async (database) => {
+      const tx = database.transaction(['session', 'sessionFiles'], 'readwrite');
       await Promise.all([
         tx.objectStore('sessionFiles').clear(),
         tx.objectStore('session').clear(),
@@ -108,22 +113,24 @@ export class SessionPersistence {
     return this.#queue;
   }
 
-  #enqueue(write: () => Promise<void>): Promise<void> {
-    const done = this.#queue.then(write).then(
-      () => undefined,
-      (error: unknown) => {
-        if (this.#error !== undefined) return;
-        this.#error = error instanceof Error ? error.message : String(error);
-        this.#onFailure(error);
-      },
-    );
+  #enqueue(write: (database: StudioDatabase) => Promise<void>): Promise<void> {
+    const done = this.#queue
+      .then(() => withDatabase(write))
+      .then(
+        () => undefined,
+        (error: unknown) => {
+          if (this.#error !== undefined) return;
+          this.#error = error instanceof Error ? error.message : String(error);
+          this.#onFailure(error);
+        },
+      );
     this.#queue = done;
     return done;
   }
 }
 
-async function update(change: Partial<SessionRecord>): Promise<void> {
-  const tx = (await db).transaction('session', 'readwrite');
+async function update(database: StudioDatabase, change: Partial<SessionRecord>): Promise<void> {
+  const tx = database.transaction('session', 'readwrite');
   const record = await tx.store.get('session');
   if (record) await tx.store.put({ ...record, ...change });
   await tx.done;

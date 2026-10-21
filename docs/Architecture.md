@@ -250,6 +250,10 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 | 手动深浅色与界面语言的设置 | cookie，首次渲染之前读取（[UI §3](UI.md#3-视觉-token)、[§6](UI.md#6-文案与本地化)） |
 
 - Cache 名统一带 Studio 前缀 `studio-`，清理浏览器端状态时按这个前缀识别 Studio 的缓存。
+- IndexedDB 的每次读写都经 `withDatabase`：
+  - 浏览器会在页面还在时关闭连接。Safari 在网络进程结束时会这样做（iOS 在后台常会结束它），往返缓存里的页面挡住另一页升级时也会，网站数据被删除时同样会。关闭的连接拒绝一切事务。
+  - 因为连接没法用而失败的读写，换一个新连接重做一次。失败的事务已经回滚，重做不会写两遍。
+  - 另一个标签页里更新的 Studio 升级数据库时，本页让出连接；之后本页再用时会报出要刷新。
 - Studio 不使用 localStorage 和 sessionStorage：vendor 与项目代码同源，随时可能调用 `localStorage.clear()`。
 - 启动时调用 `navigator.storage.persist()`，并以项目归档（§6）作为备份手段。
 - **Session 的持久化**：

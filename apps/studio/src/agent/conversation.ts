@@ -7,7 +7,7 @@ import {
   type JournalEvent,
   type UserMessage,
 } from '@tavern-studio/agent';
-import { db } from '../storage/db';
+import { withDatabase, type StudioDatabase } from '../storage/db';
 import type { RollbackPlan } from './checkpoints';
 import type { Conversations, ConversationsState } from './conversations';
 import type { RunHooks, SelectedModel } from './engine';
@@ -102,7 +102,9 @@ export class Conversation {
   async load(): Promise<void> {
     try {
       // Within one conversation, the index orders records by their primary key, the sequence.
-      const history = await (await db).getAllFromIndex('history', 'conversation', this.id);
+      const history = await withDatabase((database) =>
+        database.getAllFromIndex('history', 'conversation', this.id),
+      );
       this.#set({
         loaded: true,
         entries: history.map(({ run, round, message }) => ({ run, round, message })),
@@ -173,12 +175,10 @@ export class Conversation {
       await start(engine, id, history, selected, {
         toolResults: {
           put: async (path, result) => {
-            const database = await db;
-            await database.put('toolResults', {
-              path,
-              project: this.#conversations.project.record.id,
-              text: result,
-            });
+            const project = this.#conversations.project.record.id;
+            await withDatabase((database) =>
+              database.put('toolResults', { path, project, text: result }),
+            );
           },
         },
         record: (entry) => this.#record(entry),
@@ -244,7 +244,7 @@ export class Conversation {
       project: this.#conversations.project.record.id,
       conversation: this.id,
     };
-    this.#save(async () => (await db).add('history', record));
+    this.#save((database) => database.add('history', record));
   }
 
   #stream(run: string, partial: AssistantMessage | undefined, round: number): void {
@@ -256,10 +256,12 @@ export class Conversation {
     else this.#frame = requestAnimationFrame(apply);
   }
 
-  #save(write: () => Promise<unknown>): void {
-    this.#saving = this.#saving.then(write).catch((error: unknown) => {
-      this.#set({ problem: { kind: 'save', error: messageOf(error) } });
-    });
+  #save(write: (database: StudioDatabase) => Promise<unknown>): void {
+    this.#saving = this.#saving
+      .then(() => withDatabase(write))
+      .catch((error: unknown) => {
+        this.#set({ problem: { kind: 'save', error: messageOf(error) } });
+      });
   }
 
   #set(change: Partial<Own>): void {

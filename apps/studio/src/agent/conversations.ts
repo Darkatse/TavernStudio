@@ -1,7 +1,7 @@
 import { withoutImages, type CheckpointFile, type JournalEvent } from '@tavern-studio/agent';
 import type { WorkspaceRoot } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
-import { db, type ConversationRecord } from '../storage/db';
+import { withDatabase, type ConversationRecord, type StudioDatabase } from '../storage/db';
 import { Checkpoints, type RollbackPlan } from './checkpoints';
 import { Conversation, messageOf, type ConversationFailure } from './conversation';
 import type { SelectedModel } from './engine';
@@ -69,11 +69,14 @@ export class Conversations {
   async load(): Promise<void> {
     const project = this.project.record.id;
     try {
-      const database = await db;
       // Within one project, the index orders records by their primary key, the sequence.
-      const [records, journal, files] = await Promise.all([
-        database.getAllFromIndex('conversations', 'project', project),
-        database.getAllFromIndex('journal', 'project', project),
+      const [[records, journal], files] = await Promise.all([
+        withDatabase((database) =>
+          Promise.all([
+            database.getAllFromIndex('conversations', 'project', project),
+            database.getAllFromIndex('journal', 'project', project),
+          ]),
+        ),
         this.#checkpoints.load(),
       ]);
       const sorted = byUse(records);
@@ -123,8 +126,7 @@ export class Conversations {
     this.#open.delete(id);
     this.#set({ records, current });
     const project = this.project.record.id;
-    this.#save(async () => {
-      const database = await db;
+    this.#save(async (database) => {
       const transaction = database.transaction(
         ['conversations', 'history', 'toolResults'],
         'readwrite',
@@ -187,7 +189,7 @@ export class Conversations {
   journal(event: JournalEvent): void {
     this.#set({ events: [...this.#state.events, event] });
     const record = { project: this.project.record.id, event };
-    this.#save(async () => (await db).add('journal', record));
+    this.#save((database) => database.add('journal', record));
   }
 
   planRollback(target: string): Promise<RollbackPlan> {
@@ -251,8 +253,7 @@ export class Conversations {
     if (old.size === 0) return;
     for (const conversation of this.#open.values()) conversation.dropMedia(old);
     const project = this.project.record.id;
-    this.#save(async () => {
-      const database = await db;
+    this.#save(async (database) => {
       const transaction = database.transaction(['history', 'toolResults'], 'readwrite');
       const history = transaction.objectStore('history');
       for (const record of await history.index('project').getAll(project)) {
@@ -305,13 +306,15 @@ export class Conversations {
     this.#set({
       records: byUse([record, ...this.#state.records.filter((each) => each.id !== record.id)]),
     });
-    this.#save(async () => (await db).put('conversations', record));
+    this.#save((database) => database.put('conversations', record));
   }
 
-  #save(write: () => Promise<unknown>): void {
-    this.#saving = this.#saving.then(write).catch((error: unknown) => {
-      this.#set({ problem: { kind: 'save', error: messageOf(error) } });
-    });
+  #save(write: (database: StudioDatabase) => Promise<unknown>): void {
+    this.#saving = this.#saving
+      .then(() => withDatabase(write))
+      .catch((error: unknown) => {
+        this.#set({ problem: { kind: 'save', error: messageOf(error) } });
+      });
   }
 
   #set(change: Partial<ConversationsState>): void {

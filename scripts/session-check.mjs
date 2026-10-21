@@ -113,6 +113,43 @@ async function generate(frame) {
   );
 }
 
+/**
+ * The browser closes Studio's database connection while the page lives on,
+ * as Safari does when its network process ends. Clearing the origin's
+ * IndexedDB closes it the same way in Chromium; a Session write afterwards
+ * must still reach storage.
+ */
+async function persistsAfterClose(page) {
+  const cdp = await page.context().newCDPSession(page);
+  await cdp.send('Storage.clearDataForOrigin', {
+    origin: new URL(options.url).origin,
+    storageTypes: 'indexeddb',
+  });
+  await write(await readyPage(page));
+  await page.waitForTimeout(SAVE_DELAY_MS);
+  return page.evaluate(
+    (mark) =>
+      new Promise((resolve, reject) => {
+        const request = indexedDB.open('tavern-studio');
+        request.addEventListener('error', () => reject(request.error));
+        request.addEventListener('success', () => {
+          const database = request.result;
+          const get = database
+            .transaction('sessionFiles')
+            .objectStore('sessionFiles')
+            .get('default-user/settings.json');
+          get.addEventListener('error', () => reject(get.error));
+          get.addEventListener('success', () => {
+            database.close();
+            const content = get.result?.content ?? new Uint8Array();
+            resolve(new TextDecoder().decode(content).includes(mark));
+          });
+        });
+      }),
+    MARK,
+  );
+}
+
 const session = await launch(options);
 const result = { vendor: options.vendor };
 try {
@@ -130,6 +167,10 @@ try {
     (first) => window.SillyTavern.getContext().chat.at(-1)?.mes.startsWith(first) ?? false,
     FIRST_REPLY,
   );
+  // Last, as it clears Studio's database. The browser protocol it needs is Chromium's.
+  if (session.browser.browserType().name() === 'chromium') {
+    result.persistsAfterClose = await persistsAfterClose(page);
+  }
 
   for (const entry of await diagnostics(page)) {
     session.problems.push(`${entry.level} (${entry.frame}, ${entry.kind}): ${entry.message}`);
@@ -138,7 +179,8 @@ try {
     Object.values(result.afterReload).every(Boolean) &&
     result.generation.messages === 2 &&
     result.generation.streamedLengths > 2 &&
-    result.replyAfterReload;
+    result.replyAfterReload &&
+    result.persistsAfterClose !== false;
 } catch (error) {
   session.problems.push(error.message);
 }

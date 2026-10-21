@@ -47,6 +47,7 @@
 | 浏览器里不运行 TypeScript | 代码主要由 Agent 编写；作者代码几乎都是 JS，运行时注入的全局类型不全，静态检查误报多。事实来源是真实 vendor 的运行结果：诊断取自运行时，补全读取生成的 API 索引 | TS 6 LanguageService worker；TS 7 的浏览器构建（官方尚未发布，Go 的 wasm 只能单线程）。P2 浏览器内构建出现确需类型检查的 TS 项目时，重新评估 |
 | 浏览器端状态不进入 Session，换用 vendor 镜像时清理 | 以 vendor 后端契约为界，与真实部署和 PureTavern 一致。同源先后运行不同镜像是 Studio 带来的情况，而状态格式由镜像代码定义：ST 1.19.0 的缩略图缓存是裸 Blob，TT 是对象 | 归 Session 所有、随重置清理，并让 Fixture 携带 storage：要求比真实部署更强的确定性，多出一套机制。在预览 realm 中包装 Storage 与 `indexedDB`、按 vendor 加前缀：改写浏览器 API，偏离生产路径 |
 | Studio 不使用 localStorage 和 sessionStorage | 同源代码随时可能清空它们 | 把密钥放在 sessionStorage |
+| IndexedDB 的读写经 `withDatabase`：因为连接没法用（InvalidStateError、UnknownError、AbortError）而失败的，换新连接重做一次 | 原先整页只打开一次连接，Safari 关闭它之后，Session、对话与项目的写入一直失败，直到刷新。一个入口覆盖全部读写，错误按原样交给原来的报告方式。只重做这三类错误：失败的事务已回滚，重做不会写两遍；约束冲突、配额等错误重做也没用，照常报告。Dexie 与 localForage 也是重开后重试一次 | 换用 Dexie：它自带重开，但首屏要多约 30 kB。每类数据各写一套恢复：要分别知道 Session、History、Journal 漏了哪几笔。所有错误都重试：会把代码错误和约束冲突也重做一遍 |
 | IndexedDB 经 idb（约 1 kB）访问 | Studio 的状态以内存为准，界面经各自 store 订阅，用不到 Dexie 的 `liveQuery`。Dexie 在首屏 JS 中占约 30.5 kB（gzip），是首屏预算 200 kB 的六分之一 | Dexie：原先的选择，冲着 `liveQuery` 去的，而这一订阅方式最终没有用上 |
 | zip 用 fflate，按需加载 | 压缩与解压都有，项目归档和扩展 zip 共用一份。归档所在的按需 chunk 约 7.2 kB（gzip），不进首屏 | JSZip：体积大数倍。在浏览器自带的 `CompressionStream('deflate-raw')` 上自写 zip 容器：中央目录、UTF-8 文件名标志和各家压缩工具的变体都要自己处理 |
 | 首次渲染之前要读到的偏好存在 cookie 里：深浅色由 `index.html` 的内联脚本在首帧之前读出，界面语言在模块加载时读出 | IndexedDB 是异步的：读到之前，页面已经按系统配色画了一帧，React 也已经渲染了一遍文字。两项共用 `lib/preference-cookie.ts`，cookie 是它们唯一的存储位置，丢失时只会回到跟随系统 | 存在 IndexedDB，接受首帧闪一下，或推迟首次渲染。同时存在 IndexedDB 与 cookie：同一个设置有两份 |

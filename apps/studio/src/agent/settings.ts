@@ -1,6 +1,6 @@
 import type { Endpoint, ModelThinkingLevel } from '@tavern-studio/agent';
 import { useSyncExternalStore } from 'react';
-import { db } from '../storage/db';
+import { withDatabase } from '../storage/db';
 
 export interface AgentSettings {
   endpoints: readonly Endpoint[];
@@ -23,13 +23,11 @@ let settings: AgentSettings = {
 };
 let read = false;
 const listeners = new Set<() => void>();
-const loaded = db
-  .then((database) => database.get('preferences', KEY))
-  .then((record) => {
-    if (record) settings = { ...settings, ...(record.value as Partial<AgentSettings>) };
-    read = true;
-    for (const listener of listeners) listener();
-  });
+const loaded = withDatabase((database) => database.get('preferences', KEY)).then((record) => {
+  if (record) settings = { ...settings, ...(record.value as Partial<AgentSettings>) };
+  read = true;
+  for (const listener of listeners) listener();
+});
 
 export function agentSettings(): AgentSettings {
   return settings;
@@ -57,11 +55,8 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
   settings = { ...settings, ...change };
   for (const listener of listeners) listener();
   const { keys: _keys, ...withoutKeys } = settings;
-  const database = await db;
-  await database.put('preferences', {
-    key: KEY,
-    value: settings.rememberKeys ? settings : withoutKeys,
-  });
+  const value = settings.rememberKeys ? settings : withoutKeys;
+  await withDatabase((database) => database.put('preferences', { key: KEY, value }));
 }
 
 /** An endpoint whose effort the author has not chosen reasons at medium. */

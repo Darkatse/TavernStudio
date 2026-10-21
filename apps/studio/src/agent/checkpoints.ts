@@ -7,7 +7,7 @@ import {
 } from '@tavern-studio/agent';
 import type { ProjectStore, ReplacedContent } from '@tavern-studio/workspace';
 import { sha256 } from '@tavern-studio/workspace';
-import { db, type CheckpointFileRecord } from '../storage/db';
+import { withDatabase, type CheckpointFileRecord } from '../storage/db';
 
 /** Bytes of compressed content a project's Checkpoint holds at most. */
 export const CHECKPOINT_LIMIT = 100 * 1024 * 1024;
@@ -39,8 +39,7 @@ export class Checkpoints {
   }
 
   async load(): Promise<CheckpointFile[]> {
-    const database = await db;
-    const records = await database.getAllFromIndex('checkpointFiles', 'project', this.#project);
+    const records = await this.#records();
     return records.map(({ op, path, before, after }) => ({ op, path, before, after }));
   }
 
@@ -110,8 +109,7 @@ export class Checkpoints {
   }
 
   async prune(events: readonly JournalEvent[]): Promise<string[]> {
-    const database = await db;
-    let records = await database.getAllFromIndex('checkpointFiles', 'project', this.#project);
+    let records = await this.#records();
     const pruned = new Set(
       events.filter((event) => event.type === 'checkpoint_pruned').map((event) => event.run),
     );
@@ -119,11 +117,12 @@ export class Checkpoints {
     for (const op of operations(events)) {
       if (keptSize(records) <= CHECKPOINT_LIMIT) break;
       if (pruned.has(op)) continue;
-      const transaction = database.transaction('checkpointFiles', 'readwrite');
-      for (const record of records.filter((candidate) => candidate.op === op)) {
-        void transaction.store.delete([record.op, record.path]);
-      }
-      await transaction.done;
+      const gone = records.filter((candidate) => candidate.op === op);
+      await withDatabase(async (database) => {
+        const transaction = database.transaction('checkpointFiles', 'readwrite');
+        for (const record of gone) void transaction.store.delete([record.op, record.path]);
+        await transaction.done;
+      });
       records = records.filter((record) => record.op !== op);
       cleared.push(op);
     }
@@ -131,18 +130,27 @@ export class Checkpoints {
     return cleared;
   }
 
+  #records(): Promise<CheckpointFileRecord[]> {
+    return withDatabase((database) =>
+      database.getAllFromIndex('checkpointFiles', 'project', this.#project),
+    );
+  }
+
   async #keep(replaced: ReplacedContent): Promise<{ before: string | null; size: number }> {
     if (!replaced) return { before: null, size: 0 };
-    const database = await db;
-    const stored = await database.get('checkpointBlobs', replaced.sha256);
+    const stored = await withDatabase((database) =>
+      database.get('checkpointBlobs', replaced.sha256),
+    );
     if (stored) return { before: replaced.sha256, size: stored.gzip.length };
     const compressed = await gzip(replaced.bytes);
-    await database.put('checkpointBlobs', { sha256: replaced.sha256, gzip: compressed });
+    await withDatabase((database) =>
+      database.put('checkpointBlobs', { sha256: replaced.sha256, gzip: compressed }),
+    );
     return { before: replaced.sha256, size: compressed.length };
   }
 
   async #content(hash: string): Promise<Uint8Array> {
-    const stored = await (await db).get('checkpointBlobs', hash);
+    const stored = await withDatabase((database) => database.get('checkpointBlobs', hash));
     if (!stored) throw new Error(`The Checkpoint no longer holds the content ${hash}`);
     return gunzip(stored.gzip);
   }
@@ -154,7 +162,9 @@ export class Checkpoints {
   }
 
   async #put(file: CheckpointFile & { size: number }): Promise<void> {
-    await (await db).put('checkpointFiles', { ...file, project: this.#project });
+    await withDatabase((database) =>
+      database.put('checkpointFiles', { ...file, project: this.#project }),
+    );
     this.#changed({ op: file.op, path: file.path, before: file.before, after: file.after });
   }
 }
@@ -165,16 +175,17 @@ function keptSize(records: readonly CheckpointFileRecord[]): number {
   return [...sizes.values()].reduce((sum, size) => sum + size, 0);
 }
 
-async function collectGarbage(): Promise<void> {
-  const database = await db;
-  const transaction = database.transaction(['checkpointFiles', 'checkpointBlobs'], 'readwrite');
-  const records = await transaction.objectStore('checkpointFiles').getAll();
-  const referenced = new Set(records.map((record) => record.before));
-  const blobs = transaction.objectStore('checkpointBlobs');
-  for (const hash of await blobs.getAllKeys()) {
-    if (!referenced.has(hash)) void blobs.delete(hash);
-  }
-  await transaction.done;
+function collectGarbage(): Promise<void> {
+  return withDatabase(async (database) => {
+    const transaction = database.transaction(['checkpointFiles', 'checkpointBlobs'], 'readwrite');
+    const records = await transaction.objectStore('checkpointFiles').getAll();
+    const referenced = new Set(records.map((record) => record.before));
+    const blobs = transaction.objectStore('checkpointBlobs');
+    for (const hash of await blobs.getAllKeys()) {
+      if (!referenced.has(hash)) void blobs.delete(hash);
+    }
+    await transaction.done;
+  });
 }
 
 async function gzip(bytes: Uint8Array): Promise<Uint8Array> {

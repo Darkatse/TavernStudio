@@ -2,7 +2,7 @@ import { ProjectStore } from '@tavern-studio/workspace';
 import { messagesNow } from '../i18n/messages';
 import { previewSession } from '../preview/session';
 import { loadTemplate } from '../preview/sources';
-import { db, type ProjectRecord } from '../storage/db';
+import { withDatabase, type ProjectRecord } from '../storage/db';
 import { projectMessages } from './messages';
 import { Project } from './project';
 import type { ProjectTemplate } from './templates';
@@ -78,7 +78,7 @@ export async function createProject(
   let unique = name;
   for (let number = 2; taken.has(unique); number++) unique = `${name} ${number}`;
   const record: ProjectRecord = { id, name: unique, origin, createdAt: now, openedAt: now };
-  await (await db).add('projects', record);
+  await withDatabase((database) => database.add('projects', record));
   await refreshRecords();
   return record;
 }
@@ -90,7 +90,7 @@ export async function openProject(record: ProjectRecord): Promise<void> {
   current = project;
   restored = true;
   notify();
-  await (await db).put('projects', opened);
+  await withDatabase((database) => database.put('projects', opened));
   await refreshRecords();
   await project.start();
 }
@@ -112,17 +112,20 @@ export function projectNameProblem(
 export async function renameProject(record: ProjectRecord, name: string): Promise<void> {
   const problem = projectNameProblem(name, record);
   if (problem) throw new Error(`Can't rename project ${record.id}: the name is ${problem}`);
-  const tx = (await db).transaction('projects', 'readwrite');
-  const stored = await tx.store.get(record.id);
-  if (!stored) throw new Error(`Project ${record.id} is not stored`);
-  const renamed = { ...stored, name: name.trim() };
-  await Promise.all([tx.store.put(renamed), tx.done]);
+  const renamed = await withDatabase(async (database) => {
+    const tx = database.transaction('projects', 'readwrite');
+    const stored = await tx.store.get(record.id);
+    if (!stored) throw new Error(`Project ${record.id} is not stored`);
+    const named = { ...stored, name: name.trim() };
+    await Promise.all([tx.store.put(named), tx.done]);
+    return named;
+  });
   if (current?.record.id === record.id) current.record = renamed;
   await refreshRecords();
 }
 
 async function refreshRecords(): Promise<void> {
-  const stored = await (await db).getAllFromIndex('projects', 'openedAt');
+  const stored = await withDatabase((database) => database.getAllFromIndex('projects', 'openedAt'));
   records = stored.toReversed();
   notify();
 }
