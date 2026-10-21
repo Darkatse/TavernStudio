@@ -172,6 +172,11 @@ export class Editors implements OpenFileHost {
     await this.open(path);
   }
 
+  /** Writes files brought in from outside, replacing any already at their paths. */
+  async importFiles(entries: readonly { path: string; bytes: Uint8Array }[]): Promise<void> {
+    for (const { path, bytes } of entries) await this.#store.write(path, bytes);
+  }
+
   async rename(from: string, to: string): Promise<void> {
     if (await this.#store.kind(to)) throw new PathTakenError(to);
     const sources = (await this.#store.files('')).filter((path) => isWithin(path, from));

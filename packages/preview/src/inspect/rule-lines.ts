@@ -28,14 +28,19 @@ export function ruleLines(sheet: CSSStyleSheet, text: string): Map<CSSRule, numb
 
 /**
  * What a rule says before its `{`, as CSSOM serializes it: a style rule's
- * selectors, or the at-rule and its condition. Undefined for rules without a
- * block of rules or declarations, such as `@import`.
+ * selectors, or the at-rule and its condition. An `@import`, which has no
+ * block, by the URL it names, which CSSOM keeps as written.
  */
 function preludeOf(rule: CSSRule): string | undefined {
   if ('selectorText' in rule) return (rule as CSSStyleRule).selectorText;
-  if (!('cssRules' in rule)) return undefined;
+  if ('href' in rule && 'styleSheet' in rule) return importPrelude((rule as CSSImportRule).href);
   const brace = rule.cssText.indexOf('{');
   return brace === -1 ? undefined : rule.cssText.slice(0, brace);
+}
+
+/** `@import url("x")` and `@import "x"` name the same sheet. */
+function importPrelude(url: string): string {
+  return `@import ${url}`;
 }
 
 const normalize = (prelude: string) =>
@@ -72,6 +77,10 @@ function readPreludes(text: string): { key: string; line: number }[] {
       if (prelude.trim()) preludes.push({ key: normalize(prelude), line: startLine });
       prelude = '';
     } else if (char === '}' || char === ';') {
+      const imported =
+        char === ';' && /^\s*@import\s+(?:url\(\s*)?(["']?)([^"')\s]+)\1/i.exec(prelude);
+      if (imported)
+        preludes.push({ key: normalize(importPrelude(imported[2] ?? '')), line: startLine });
       prelude = '';
     } else {
       if (prelude.trim() === '' && !/\s/.test(char)) startLine = line;

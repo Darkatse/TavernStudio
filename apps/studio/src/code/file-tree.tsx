@@ -8,12 +8,13 @@ import { useTree } from '@headless-tree/react/react-compiler';
 import {
   FilePlus,
   FolderPlus,
+  Import,
   PanelLeftClose,
   PencilLine,
   Trash2,
   TriangleAlert,
 } from 'lucide-react';
-import { useRef, useState } from 'react';
+import { useRef, useState, type DragEvent } from 'react';
 import { PathTakenError, UnsavedEditsError, type Editors } from '../editor/editors';
 import { common } from '../i18n/common';
 import type { Locale } from '../i18n/locale';
@@ -22,7 +23,7 @@ import { mountPointsBySource, usePlacements } from '../project/mount-points';
 import { isWithin, join, nameOf, parentOf, ROOT } from '../project/paths';
 import type { Project } from '../project/project';
 import { relist, useProjectFiles } from '../project/project-files';
-import { useCurrentRecord } from '../project/use-project';
+import { useCurrentRecord, useProjectState } from '../project/use-project';
 import { Alert } from '../ui/alert';
 import { AlertDialog, AlertDialogContent } from '../ui/alert-dialog';
 import { Button } from '../ui/button';
@@ -71,6 +72,29 @@ function describe(problem: Problem, words: (typeof codeMessages)[Locale]['namePr
   }
 }
 
+/** The folder a node stands for: itself, or the one holding it. */
+function folderOf(node: TreeNode): string {
+  return node.folder ? node.path : parentOf(node.path);
+}
+
+interface Imported {
+  path: string;
+  bytes: Uint8Array;
+}
+
+function importFailed(error: unknown): void {
+  showToast({
+    kind: 'error',
+    title: messagesNow(codeMessages).importFailed,
+    description:
+      error instanceof PathTakenError
+        ? messagesNow(codeMessages).nameProblem.taken(nameOf(error.path))
+        : error instanceof Error
+          ? error.message
+          : String(error),
+  });
+}
+
 export interface FileTreeProps {
   project: Project;
   editors: Editors;
@@ -86,10 +110,23 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const c = useMessages(common);
   const record = useCurrentRecord();
   const listing = useProjectFiles(project.store);
-  const mountPoints = mountPointsBySource(usePlacements());
+  const { mountFolders } = useProjectState(project);
+  const mountPoints = new Map(mountPointsBySource(usePlacements()));
+  for (const { folder, point } of mountFolders) mountPoints.set(folder, [point]);
   // The store lists only files, so until a file is written inside, a new
-  // folder lives only in the tree.
-  const [folders, setFolders] = useState<readonly string[]>([]);
+  // folder lives only in the tree, as a folder Mount's does.
+  const [created, setFolders] = useState<readonly string[]>([]);
+  const folders = [...created, ...mountFolders.map(({ folder }) => folder)];
+  const picker = useRef<HTMLInputElement>(null);
+  const importTo = useRef<string>(ROOT);
+  // Kept while the replace dialog animates out.
+  const [replacing, setReplacing] = useState<{
+    folder: string;
+    entries: Imported[];
+    taken: string[];
+  }>();
+  const [replaceOpen, setReplaceOpen] = useState(false);
+  const [dropTarget, setDropTarget] = useState<string>();
   const [editing, setEditing] = useState<Editing>();
   // Kept while the delete dialog animates out.
   const [removing, setRemoving] = useState<TreeNode>();
@@ -193,11 +230,83 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   };
 
   const startCreate = (node: TreeNode, folder: boolean) => {
-    const parent = node.folder ? node.path : parentOf(node.path);
+    const parent = folderOf(node);
     if (parent !== ROOT && !expanded.includes(parent)) setExpanded([...expanded, parent]);
     focusAfterMenu.current = false;
     committed.current = false;
     setEditing({ kind: 'create', parent, folder, value: '', problem: undefined });
+  };
+
+  const startImport = (node: TreeNode) => {
+    importTo.current = folderOf(node);
+    picker.current?.click();
+  };
+
+  const importFiles = async (folder: string, chosen: readonly File[]) => {
+    if (chosen.length === 0) return;
+    try {
+      const entries = await Promise.all(
+        chosen.map(async (file) => ({
+          path: join(folder, file.name),
+          bytes: new Uint8Array(await file.arrayBuffer()),
+        })),
+      );
+      const folderNamed = entries.find((entry) => nodes.get(entry.path)?.folder);
+      if (folderNamed) throw new PathTakenError(folderNamed.path);
+      const taken = entries.filter((entry) => nodes.has(entry.path)).map((entry) => entry.path);
+      if (taken.length > 0) {
+        setReplacing({ folder, entries, taken });
+        setReplaceOpen(true);
+        return;
+      }
+      await writeImported(folder, entries);
+    } catch (error) {
+      importFailed(error);
+    }
+  };
+
+  const writeImported = async (folder: string, entries: readonly Imported[]) => {
+    try {
+      await editors.importFiles(entries);
+      if (folder !== ROOT && !expanded.includes(folder)) setExpanded([...expanded, folder]);
+      const [first] = entries;
+      if (first) onOpen(first.path, false);
+    } catch (error) {
+      importFailed(error);
+    }
+  };
+
+  const folderUnder = (event: DragEvent<HTMLElement>) => {
+    const row =
+      event.target instanceof Element ? event.target.closest<HTMLElement>('[data-path]') : null;
+    return folderOf(nodeOf(row?.dataset.path ?? ROOT));
+  };
+
+  // Only files dropped from outside: folders and the tree's own rows are not imported.
+  const dragProps = {
+    onDragOver: (event: DragEvent<HTMLElement>) => {
+      if (!event.dataTransfer.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setDropTarget(folderUnder(event));
+    },
+    onDragLeave: (event: DragEvent<HTMLElement>) => {
+      if (!event.currentTarget.contains(event.relatedTarget as Node | null)) {
+        setDropTarget(undefined);
+      }
+    },
+    onDrop: (event: DragEvent<HTMLElement>) => {
+      if (!event.dataTransfer.types.includes('Files')) return;
+      event.preventDefault();
+      const folder = folderUnder(event);
+      setDropTarget(undefined);
+      const dropped = [...event.dataTransfer.items].flatMap((item) =>
+        item.kind === 'file' && !item.webkitGetAsEntry()?.isDirectory
+          ? [item.getAsFile()].filter((file): file is File => file !== null)
+          : [],
+      );
+      void importFiles(folder, dropped);
+    },
   };
 
   const askRemove = (node: TreeNode) => {
@@ -287,6 +396,9 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
       <MenuItem icon={<FolderPlus />} onClick={() => startCreate(node, true)}>
         {m.newFolder}
       </MenuItem>
+      <MenuItem icon={<Import />} onClick={() => startImport(node)}>
+        {m.importFilesMenuItem}
+      </MenuItem>
       {node.path !== ROOT && (
         <>
           <MenuSeparator />
@@ -312,7 +424,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
   const focused = items.find((item) => item.isFocused())?.getItemData() ?? nodeOf(ROOT);
 
   return (
-    <div className="flex h-full min-h-0 flex-col">
+    <div className="flex h-full min-h-0 flex-col" {...dragProps}>
       <header
         data-density="compact"
         className="flex h-9 shrink-0 items-center gap-1 border-b border-line pr-1 pl-3"
@@ -340,6 +452,28 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
             <FolderPlus />
           </Button>
         </Tooltip>
+        <Tooltip content={m.importFiles}>
+          <Button
+            variant="ghost"
+            icon
+            aria-label={m.importFiles}
+            onClick={() => startImport(focused)}
+          >
+            <Import />
+          </Button>
+        </Tooltip>
+        <input
+          ref={picker}
+          type="file"
+          multiple
+          hidden
+          onChange={(event) => {
+            const chosen = [...(event.target.files ?? [])];
+            // The same file can be chosen again.
+            event.target.value = '';
+            void importFiles(importTo.current, chosen);
+          }}
+        />
         {onClose && (
           <Tooltip content={m.hideFileList}>
             <Button variant="ghost" icon aria-label={m.hideFileList} onClick={onClose}>
@@ -386,7 +520,8 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
               {...tree().getContainerProps(m.projectFiles)}
               {...listProps}
               data-density="compact"
-              className="relative p-1 outline-none"
+              data-drop-target={dropTarget === ROOT || undefined}
+              className="relative min-h-full rounded-md p-1 outline-none data-drop-target:bg-hover"
             >
               {block}
               {items.map((item: ItemInstance<TreeNode>) => {
@@ -399,6 +534,7 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
                     mountPoints={mountPoints.get(node.path)}
                     naming={naming(node)}
                     menu={menu}
+                    dropTarget={dropTarget !== ROOT && dropTarget === node.path}
                   />
                 );
               })}
@@ -418,6 +554,34 @@ export function FileTree({ project, editors, active, onOpen, onClose }: FileTree
           )
         }
       </Menu>
+      <AlertDialog
+        open={replaceOpen}
+        onOpenChange={setReplaceOpen}
+        onOpenChangeComplete={(open) => {
+          if (!open) setReplacing(undefined);
+        }}
+      >
+        {replacing && (
+          <AlertDialogContent
+            title={
+              replacing.taken.length === 1
+                ? m.replaceOne(nameOf(replacing.taken[0] ?? ''))
+                : m.replaceMany(replacing.taken.length)
+            }
+            description={m.replaceWarning}
+            action={m.replace}
+            onAction={() => void writeImported(replacing.folder, replacing.entries)}
+          >
+            <ul className="flex flex-col gap-1 font-mono text-caption break-words">
+              {replacing.taken.map((path) => (
+                <li key={path}>
+                  <PathText path={path} />
+                </li>
+              ))}
+            </ul>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
       <AlertDialog
         open={removeOpen}
         onOpenChange={setRemoveOpen}

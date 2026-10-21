@@ -107,6 +107,7 @@ export function ProjectCode({ project }: { project: Project }) {
   const editorArea = (
     <EditorArea
       editors={editors}
+      store={project.store}
       tabs={tabs}
       active={active}
       mountPoints={mountPoints}

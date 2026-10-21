@@ -51,10 +51,15 @@ export async function resolveMounts(
 ): Promise<Placement[]> {
   const placements = await Promise.all(
     manifest.mounts.map(async (mount, index): Promise<Placement[]> => {
-      const where = `Mount ${index + 1} (${mount.from})`;
+      const where = `Mount ${index + 1} (${mount.from}${mount.folder ? '/' : ''})`;
       const kind = await project.kind(mount.from);
-      if (kind === undefined)
+      if (kind === undefined) {
+        if (mount.folder) return [];
         throw new MountError(`${where}: the project has no such file or folder`);
+      }
+      if (mount.folder && kind === 'file') {
+        throw new MountError(`${where}: this is a file, and the trailing "/" names a folder`);
+      }
       const base = { mount: index, source: mount.from, path: mount.to.path };
 
       if (kind === 'directory') {

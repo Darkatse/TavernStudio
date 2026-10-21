@@ -240,6 +240,8 @@
     --motion-popup-scale: 0.96;
     --motion-fold-offset: -4px;
     --motion-toast-distance: 100%;
+    /* Behind what may let light through: a swatch, an image. */
+    --checker: repeating-conic-gradient(var(--color-line-strong) 0 25%, transparent 0 50%);
 
     --size-control: 36px;
     --size-icon: 16px;
@@ -529,9 +531,13 @@
   border-radius: 50%;
   background:
     linear-gradient(currentColor, currentColor),
-    repeating-conic-gradient(var(--color-line-strong) 0 25%, transparent 0 50%) 0 0 /
-      --spacing(1.25) --spacing(1.25);
+    var(--checker) 0 0 / --spacing(1.25) --spacing(1.25);
   box-shadow: inset 0 0 0 1px var(--color-line-strong);
+}
+
+/* A checkerboard shows through the transparent parts of what is on it. */
+@utility checkerboard {
+  background: var(--checker) 0 0 / --spacing(4) --spacing(4);
 }
 
 /* Off screen a Run skips layout and paint and keeps its last size. */

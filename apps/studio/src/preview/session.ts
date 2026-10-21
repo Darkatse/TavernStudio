@@ -36,7 +36,7 @@ import {
 } from './sources';
 import type { DeviceId } from './devices';
 import { Views, type View, type ViewHooks } from './views';
-import { registerWorker, reportUnansweredRequests } from './worker';
+import { registerWorker, reportWorkerDiagnostics } from './worker';
 
 export type { ViewHooks } from './views';
 
@@ -491,7 +491,7 @@ export class PreviewSession implements PreviewHost {
     this.#placements = placements;
     const started = performance.now();
     const worker = await registerWorker();
-    reportUnansweredRequests(this.#report);
+    reportWorkerDiagnostics(this.#report);
     const workerReady = performance.now();
 
     this.#setStatus({ phase: 'opening', step: 'data' });

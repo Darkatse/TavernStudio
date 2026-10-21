@@ -27,6 +27,7 @@ const CONTENT_TYPES: Record<string, string> = {
   woff: 'font/woff',
   woff2: 'font/woff2',
   ttf: 'font/ttf',
+  otf: 'font/otf',
   mp3: 'audio/mpeg',
   wav: 'audio/wav',
   ogg: 'audio/ogg',

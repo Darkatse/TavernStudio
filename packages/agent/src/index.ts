@@ -45,4 +45,5 @@ export { RESULT_INLINE_CHAR_LIMIT, resultForModel } from './tool-results';
 export type { ModelResult, ToolCallOrigin, ToolResultStore } from './tool-results';
 export { TOOL_RESULTS_ROOT } from './workspace';
 export type { AgentWorkspace, WorkspaceRoot } from './workspace';
+export type { MediaOptions, MediaReader, MediaView } from './read-file';
 export { workspaceTools } from './workspace-tools';

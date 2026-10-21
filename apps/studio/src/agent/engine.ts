@@ -16,6 +16,7 @@ import {
   type WorkspaceRoot,
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
+import { agentMedia } from './media';
 import { agentPreview } from './preview-surface';
 import { agentSettings, compactAtOf, effortOf } from './settings';
 import { systemPrompt } from './system-prompt';
@@ -75,7 +76,10 @@ async function environment(
     systemPrompt: await systemPrompt(project),
     secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
     tools: [
-      ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
+      ...workspaceTools(agentWorkspace(project.record.id, projectRoot), {
+        reader: agentMedia,
+        images: model.endpoint.images,
+      }),
       ...previewTools(preview.control, { images: model.endpoint.images }),
       ...appTools(preview.surface),
       ...inspectTools(preview.inspect),

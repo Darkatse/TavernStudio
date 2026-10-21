@@ -26,9 +26,14 @@ export interface FileRowProps {
   mountPoints: readonly string[] | undefined;
   naming: Naming | undefined;
   menu: MenuHandle<TreeNode>;
+  /** Files dragged over the tree would land in this folder. */
+  dropTarget: boolean;
 }
 
-export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProps) {
+export function FileRow({ item, active, mountPoints, naming, menu, dropTarget }: FileRowProps) {
+  // headless-tree mutates the item in place: memoizing on it would freeze
+  // its expanded state and position among its siblings.
+  'use no memo';
   const m = useMessages(codeMessages);
   const node = item.getItemData();
   const level = item.getItemMeta().level;
@@ -40,7 +45,8 @@ export function FileRow({ item, active, mountPoints, naming, menu }: FileRowProp
       aria-selected={active}
       aria-description={mountPoints && m.mountedAtPoints(mountPoints)}
       data-path={node.path}
-      className="group/row relative flex h-(--size-control) cursor-default items-center gap-1.5 rounded-md pr-1 transition-opacity motion-fast outline-none select-none aria-selected:bg-selected starting:opacity-0"
+      data-drop-target={dropTarget || undefined}
+      className="group/row relative flex h-(--size-control) cursor-default items-center gap-1.5 rounded-md pr-1 transition-opacity motion-fast outline-none select-none aria-selected:bg-selected data-drop-target:bg-hover starting:opacity-0"
       style={{ paddingInlineStart: `calc(var(--spacing) * ${1 + level * 3})` }}
     >
       <span className="grid size-4 shrink-0 place-items-center text-muted">

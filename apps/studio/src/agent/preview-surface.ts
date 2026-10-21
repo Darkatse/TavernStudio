@@ -10,6 +10,7 @@ import {
 import { CAPTURE_IMAGE, type DiagnosticEntry } from '@tavern-studio/preview';
 import { auditRegion } from '@tavern-studio/preview/inspect';
 import { sourceNamer } from '../inspect/sources';
+import { inspectResources } from '../inspect/resources';
 import { inspectStyles } from '../inspect/styles';
 import {
   drawMarks,
@@ -21,6 +22,7 @@ import {
 import { devices, isDeviceId } from '../preview/devices';
 import { previewSession, type PreviewPage } from '../preview/session';
 import { loadVendorFiles, type VendorImage } from '../preview/sources';
+import { base64 } from '../lib/base64';
 import type { Project } from '../project/project';
 
 const START_TIMEOUT_MS = 60_000;
@@ -109,6 +111,20 @@ export function agentPreview(project: Project): {
       const root = target ? page.agent.resolve(run, target) : pageWindow.document.documentElement;
       return auditRegion(pageWindow, root);
     },
+    async resources(signal) {
+      const page = await caughtUp(signal);
+      const { anatomy, placements, status } = previewSession;
+      const pageWindow = page.frame.contentWindow;
+      if (!anatomy || !pageWindow || status.phase !== 'open') {
+        throw new Error('The preview is still starting');
+      }
+      const namer = sourceNamer({
+        anatomy,
+        placements,
+        vendorFiles: await loadVendorFiles(status.vendor.id),
+      });
+      return inspectResources(pageWindow, namer);
+    },
   };
   return { surface, control, inspect };
 }
@@ -155,16 +171,6 @@ async function screenshot(
       ? { marks: { page: marked.page, refs: marked.refs, drawn: drawn.drawn } }
       : {}),
   };
-}
-
-async function base64(blob: Blob): Promise<string> {
-  const bytes = new Uint8Array(await blob.arrayBuffer());
-  let binary = '';
-  // In slices, since an argument list has a length limit.
-  for (let at = 0; at < bytes.length; at += 0x8000) {
-    binary += String.fromCharCode(...bytes.subarray(at, at + 0x8000));
-  }
-  return btoa(binary);
 }
 
 /** One image per frontend, the last built, as the workbench's switch offers them. */

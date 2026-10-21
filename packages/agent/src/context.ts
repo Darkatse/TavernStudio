@@ -17,7 +17,7 @@ const INTERRUPTED =
   'The previous turn stopped. Actions without recorded results have an unknown outcome; check the current state before repeating them.';
 const IMAGE_REMOVED: TextContent = {
   type: 'text',
-  text: '[An earlier screenshot was removed from the context.]',
+  text: '[An earlier image was removed from the context.]',
 };
 
 export function modelContext(

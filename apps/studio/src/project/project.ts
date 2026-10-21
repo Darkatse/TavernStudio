@@ -14,6 +14,11 @@ import type { ProjectRecord } from '../storage/db';
 export interface ProjectState {
   error: string | undefined;
   differences: readonly Difference[];
+  /**
+   * The folders of folder Mounts and the data folders they mount on, which
+   * the file tree shows before a file is in them.
+   */
+  mountFolders: readonly { folder: string; point: string }[];
 }
 
 const decoder = new TextDecoder();
@@ -22,7 +27,7 @@ export class Project {
   /** A rename replaces it; the id stays. */
   record: ProjectRecord;
   readonly store: ProjectStore;
-  #state: ProjectState = { error: undefined, differences: [] };
+  #state: ProjectState = { error: undefined, differences: [], mountFolders: [] };
   #resolving: Promise<void> | undefined;
   #stale = false;
   #comparing = false;
@@ -98,7 +103,12 @@ export class Project {
       const manifest = parseManifest(decoder.decode(await this.store.read(MANIFEST)));
       const placements = await resolveMounts(manifest, this.store);
       await previewSession.open(manifest.fixture, placements);
-      this.#setState({ error: undefined });
+      this.#setState({
+        error: undefined,
+        mountFolders: manifest.mounts.flatMap((mount) =>
+          mount.folder ? [{ folder: mount.from, point: mount.to.path }] : [],
+        ),
+      });
     } catch (error) {
       this.#setState({ error: error instanceof Error ? error.message : String(error) });
     }

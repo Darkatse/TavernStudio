@@ -1,4 +1,5 @@
-import { Check, FileCode2, FileX2, GitCompareArrows, Link2, TriangleAlert } from 'lucide-react';
+import type { ProjectStore } from '@tavern-studio/workspace';
+import { Check, FileCode2, GitCompareArrows, Link2, TriangleAlert } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Editors, Tab } from '../editor/editors';
 import { common } from '../i18n/common';
@@ -9,12 +10,15 @@ import { Collapsible, CollapsiblePanel } from '../ui/collapsible';
 import { EmptyState } from '../ui/empty-state';
 import { Tooltip } from '../ui/tooltip';
 import { FileTabs } from './file-tabs';
+import { MediaView } from './media-view';
 import { MountPointList } from './file-row';
 import { codeMessages } from './messages';
 import { nameOf, parentOf } from '../project/paths';
 
 export interface EditorAreaProps {
   editors: Editors;
+  /** Where a file that is not text is read from, to show it as an image or a font. */
+  store: ProjectStore;
   tabs: readonly Tab[];
   active: string | undefined;
   mountPoints: ReadonlyMap<string, readonly string[]>;
@@ -26,6 +30,7 @@ export interface EditorAreaProps {
 
 export function EditorArea({
   editors,
+  store,
   tabs,
   active,
   mountPoints,
@@ -80,8 +85,8 @@ export function EditorArea({
           </div>
         )}
         {tab && !tab.text && (
-          <div className="absolute inset-0 grid place-items-center p-6">
-            <EmptyState icon={<FileX2 />} title={m.notText} description={m.notTextHint} />
+          <div className="absolute inset-0 grid place-items-center">
+            <MediaView store={store} path={tab.path} />
           </div>
         )}
       </div>

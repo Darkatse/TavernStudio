@@ -1,6 +1,7 @@
 /**
  * The Preview SW holds no business logic: API requests belong to the in-page
- * layer, and one reaching the worker is reported as unanswered.
+ * layer, and one reaching the worker is reported as unanswered, as is a data
+ * file the Session does not have.
  */
 import { SESSION_CACHE, SESSION_STATE_URL, type SessionState } from './cache';
 import { dataPathForUrl, isApiPath, isStudioPath, urlPathForData, vendorUrl } from './routes';
@@ -40,7 +41,7 @@ async function route(request: Request, url: URL): Promise<Response> {
   if (!session) return new Response('No preview session is open', { status: 503 });
 
   const dataPath = dataPathForUrl(url);
-  if (dataPath) return serveData(request, dataPath);
+  if (dataPath) return serveData(request, url, dataPath);
 
   const path = request.mode === 'navigate' && url.pathname === '/' ? '/index.html' : url.pathname;
   const response = await fetch(vendorUrl(session.vendor, path), {
@@ -53,11 +54,18 @@ async function route(request: Request, url: URL): Promise<Response> {
   return rehome(response);
 }
 
-async function serveData(request: Request, dataPath: string): Promise<Response> {
+async function serveData(request: Request, url: URL, dataPath: string): Promise<Response> {
   const urlPath = urlPathForData(dataPath);
   const cache = await caches.open(SESSION_CACHE);
   const stored = urlPath ? await cache.match(urlPath) : undefined;
-  if (!stored) return new Response('Not found', { status: 404 });
+  if (!stored) {
+    await tellStudio(
+      'resource',
+      `${request.method} ${url.pathname}: the preview's data has no ${dataPath}`,
+      url,
+    );
+    return new Response('Not found', { status: 404 });
+  }
   if (request.method === 'HEAD')
     return new Response(null, { status: stored.status, headers: stored.headers });
   return rehome(stored);
@@ -87,9 +95,14 @@ function rehome(response: Response): Response {
 
 async function unanswered(request: Request, url: URL): Promise<Response> {
   const message = `${request.method} ${url.pathname} reached the Preview SW: the context that sent it has no API layer`;
+  await tellStudio('request', message, url);
+  return Response.json({ error: message }, { status: 501 });
+}
+
+/** What the worker could not serve goes to the preview's diagnostics. */
+async function tellStudio(kind: 'request' | 'resource', message: string, url: URL): Promise<void> {
   const studio = (await self.clients.matchAll({ type: 'window' })).find(
     (client) => client.frameType === 'top-level',
   );
-  studio?.postMessage({ type: 'unanswered-request', message, url: url.pathname });
-  return Response.json({ error: message }, { status: 501 });
+  studio?.postMessage({ type: 'diagnostic', kind, message, url: url.pathname });
 }

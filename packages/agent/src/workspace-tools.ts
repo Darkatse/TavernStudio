@@ -1,7 +1,7 @@
 import { editFileTool } from './edit-file';
 import { grepTool } from './grep';
 import { listFilesTool } from './list-files';
-import { readFileTool } from './read-file';
+import { readFileTool, type MediaOptions } from './read-file';
 import type { Tool } from './tool';
 import type { AgentWorkspace } from './workspace';
 import { writeFileTool } from './write-file';
@@ -11,11 +11,11 @@ import { writeFileTool } from './write-file';
  * writes and limits. Search is grep, as coding agents search, and results
  * speak of paths and lines.
  */
-export function workspaceTools(workspace: AgentWorkspace): Tool[] {
+export function workspaceTools(workspace: AgentWorkspace, media?: MediaOptions): Tool[] {
   return [
     listFilesTool(workspace),
     grepTool(workspace),
-    readFileTool(workspace),
+    readFileTool(workspace, media),
     writeFileTool(workspace),
     editFileTool(workspace),
   ];

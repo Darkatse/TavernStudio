@@ -1,3 +1,4 @@
+import { urlPathForData } from '@tavern-studio/preview';
 import { formatPointer, type Placement } from '@tavern-studio/workspace';
 import { useSyncExternalStore } from 'react';
 import { previewSession } from '../preview/session';
@@ -23,4 +24,14 @@ export function mountPointsBySource(
     bySource.set(placement.source, points);
   }
   return bySource;
+}
+
+/** Where the preview serves a project file: a Mount places it on a path the vendor serves. */
+export function previewUrlOf(placements: readonly Placement[], source: string): string | undefined {
+  for (const placement of placements) {
+    if (placement.kind !== 'file' || placement.source !== source) continue;
+    const url = urlPathForData(placement.path);
+    if (url) return url;
+  }
+  return undefined;
 }

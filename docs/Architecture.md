@@ -30,6 +30,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 | Project | 作者的源文件，加上 `studio.json` |
 | Mount | `studio.json` 里的一条声明：把项目文件或目录放到一个挂载点上。挂载点是数据路径，可以用 `#` 接 JSON Pointer，指向文件里的某个值，见 [§6](#6-项目) |
 | Snapshot | Fixture 与挂载后的 Project 合成的数据目录，内容寻址，不可变 |
+| 资源 | 页面加载的图片与字体：样式表引用的图片、导入的字体样式表与 `@font-face`。来自项目时经 Mount 放进数据目录，也可以来自网络 |
 | Session | Vendor + Snapshot + 会话写入，以及 Web Host 的持久状态。一个浏览器里同时只有一个 Session |
 | 会话写入 | vendor 在预览中经 ST HTTP API 写入 Session 的数据，例如 ST 保存设置、脚本写变量 |
 | 回声写入 | 在项目拥有的键上与 Snapshot 语义相等的会话写入，例如热应用之后 vendor 的回写。不显示为差异 |
@@ -74,7 +75,7 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 |---|---|
 | `/api/*`、`/csrf-token`、`/version` | 页内 API 接入 → Session Backend |
 | vendor 静态文件 | Preview SW → `/__vendor/<id>/` |
-| 数据子资源 | Preview SW → Cache Storage |
+| 数据子资源 | Preview SW → Cache Storage；未命中时返回 404，并在诊断中记下请求与缺少的数据路径 |
 | 未被页内接入接管的上下文发出的 `/api/*` | Preview SW 返回 501，附诊断信息 |
 
 两种 vendor 结构相同：页内一层处理 API，SW 一层提供子资源，与 TauriTavern 自身"拦截器 + 协议层"的划分一致。API 放在页内处理，是因为 Chromium 和 WebKit 的 SW 不拦截同步 XHR，而页内接入可以同步读取 Session 数据。
@@ -165,7 +166,8 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
   "fixture": "showcase",
   "mounts": [
     { "from": "theme.json", "to": "default-user/settings.json#/power_user" },
-    { "from": "theme.css",  "to": "default-user/settings.json#/power_user/custom_css" }
+    { "from": "theme.css",  "to": "default-user/settings.json#/power_user/custom_css" },
+    { "from": "assets/",    "to": "default-user/user/files/assets/" }
   ]
 }
 ```
@@ -201,6 +203,8 @@ Studio 与预览同源。生态的信任模型本来就把扩展、脚本和卡�
 - **目录。** `from` 可以是目录，整棵子树原样挂到 `to` 下。
   - 扩展通常写两条 Mount：一条挂 `manifest.json`，一条挂 `dist/`。
   - 这样保留了扩展根的布局，manifest 里的路径和相对 import 都依赖这个布局。
+  - `from` 以 `/` 结尾时写明它是目录：目录还不存在或为空时什么也不放，同名的是文件时报错。不带 `/` 的 `from` 在项目里找不到时报错。
+  - 主题模板用这种 Mount 把 `assets/` 挂到 ST 存放用户文件的 `user/files/` 下，预览按 `/user/files/assets/<文件名>` 提供。作者把同样的文件放进自己的 ST 数据目录，URL 不变。文件树在这个文件夹存在之前就显示它。
 - **`fence`。** `"fence": "html"` 表示先把文本包成 Markdown 代码块再挂载。
   - 生态里的前端代码都以代码块的形式出现在消息文本里，例如正则的 `replaceString`、`first_mes`、世界书。
   - 酒馆助手也只把含 HTML 的代码块渲染成前端卡。

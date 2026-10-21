@@ -8,6 +8,10 @@ const SETTINGS = 'default-user/settings.json';
 export interface SourceNamer {
   sheet(sheet: CSSStyleSheet, line: number | undefined): string;
   attribute(element: Element, property: string): string;
+  /** Whether the project places the sheet: a theme field it owns, or a file it mounts. */
+  owns(sheet: CSSStyleSheet): boolean;
+  /** The project file a data URL reads, or where in the preview's data it would be. */
+  file(url: URL): string | undefined;
 }
 
 export interface SourceContext {
@@ -66,6 +70,22 @@ export function sourceNamer({ placements, anatomy, vendorFiles }: SourceContext)
         return `${url.href}${lineText}`;
       }
       return 'a stylesheet built by script';
+    },
+    owns(sheet) {
+      const owner = sheet.ownerNode as Element | null;
+      if (owner?.localName === 'style') {
+        const field = owner.id ? fieldOfElement.get(`#${owner.id}`) : undefined;
+        return (
+          field !== undefined &&
+          inProject(placements, SETTINGS, ['power_user', field]) !== undefined
+        );
+      }
+      const data = sheet.href ? dataPathForUrl(new URL(sheet.href)) : null;
+      return data !== null && inProject(placements, data, undefined) !== undefined;
+    },
+    file(url) {
+      const data = dataPathForUrl(url);
+      return data === null ? undefined : located(data, undefined, undefined);
     },
     attribute(element, property) {
       const keys = fieldsOfVariable.get(property);

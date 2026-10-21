@@ -44,6 +44,17 @@
 | iOS 27（Xcode 27 的 iPhone 17 模拟器） | 闭源产品 | 移动设备框的几何与状态栏：圆角、安全区，以及时间与图标的位置和形状，在截图上实测 |
 | [Anthropic 官网](https://www.anthropic.com)的字标 | 闭源产品 | 品牌字标的展开：字母从标志处散开，散开过半才淡入 |
 
+## 图片与字体
+
+| 实现 | 许可 | 参考什么 |
+|---|---|---|
+| [Adobe Blank 2](https://github.com/adobe-fonts/adobe-blank-2) | OFL-1.1 | 资源清单的字形探针：所有码位都是零宽字形。Studio 打包了它的 WOFF，许可文本在 `packages/preview/src/inspect/` |
+| [ZeoSeven Fonts](https://fonts.zeoseven.com) | 字体各有许可，写在样式表开头的注释里 | 社区主题最常用的中文网络字体。`fontsapi.zeoseven.com/<id>/<样式>/result.css` 按字符切片、允许跨源读取；没有对外的目录接口，字体页的"嵌入到 Web 项目"给出 `@import` 与字族名 |
+| [Fontsource](https://github.com/fontsource/fontsource) | MIT；字体各有许可，API 给出 SPDX | 字体检索：有跨源可读的目录 API |
+| [cn-font-split](https://github.com/KonghaYao/cn-font-split)（中文网字计划） | Apache-2.0 | 中文字体切片，生成 `unicode-range` 分片与 CSS；有 WASM 版，约 1.57 MB gzip |
+| [HarfBuzz](https://github.com/harfbuzz/harfbuzz) 的 hb-subset | Old MIT | 字体子集化，WASM 约 262 KB gzip |
+| 社区主题 | 各自的许可 | 本机 `TauriTavern/.cache/theme/` 下的 ST/TT 主题：图床图片、字体导入与字体栈的真实写法，资源清单在它们上面验证过 |
+
 ## 已对比的方案
 
 - Gemini 版 Studio 计划（本机 `D:\Code\Github\TauriTavern\.cache\PlanDocs\Gemini-TavernStudio`）：仿生沙盒等取舍见 [Decisions](Decisions.md)。

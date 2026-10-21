@@ -18,17 +18,27 @@ export async function registerWorker(): Promise<ServiceWorker> {
 
 let listening = false;
 
-/** The Preview SW answers 501 to API requests from a context without an API layer. */
-export function reportUnansweredRequests(report: (entry: DiagnosticEntry) => void): void {
+/**
+ * The Preview SW reports API requests from a context without an API layer,
+ * which it answers 501, and data files the Session does not have.
+ */
+export function reportWorkerDiagnostics(report: (entry: DiagnosticEntry) => void): void {
   if (listening) return;
   listening = true;
   navigator.serviceWorker.addEventListener(
     'message',
-    (event: MessageEvent<{ type?: string; message?: string; url?: string }>) => {
-      if (event.data.type !== 'unanswered-request') return;
+    (
+      event: MessageEvent<{
+        type?: string;
+        kind?: 'request' | 'resource';
+        message?: string;
+        url?: string;
+      }>,
+    ) => {
+      if (event.data.type !== 'diagnostic' || !event.data.kind) return;
       report({
         level: 'error',
-        kind: 'request',
+        kind: event.data.kind,
         message: event.data.message ?? '',
         ...(event.data.url ? { url: event.data.url } : {}),
         frame: 'worker',

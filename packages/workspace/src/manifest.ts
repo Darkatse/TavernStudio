@@ -10,6 +10,11 @@ export interface ProjectManifest {
 export interface Mount {
   /** A project file or directory. */
   from: string;
+  /**
+   * Written with a trailing `/`: `from` names a folder, which may not exist
+   * yet. Templates and archives hold files, so they cannot carry an empty one.
+   */
+  folder?: true;
   to: MountPoint;
   /** Wraps text in a Markdown code block of this language before it is mounted. */
   fence?: string;
@@ -46,13 +51,16 @@ export function parseManifest(text: string): ProjectManifest {
 function parseMount(value: JsonValue, index: number): Mount {
   const where = `${MANIFEST}: mount ${index + 1}`;
   if (!isJsonObject(value)) throw new MountError(`${where} must be an object`);
-  const { from, to, fence } = value;
+  const { from: written, to, fence } = value;
+  const folder = typeof written === 'string' && written.endsWith('/');
+  const from = folder ? written.slice(0, -1) : written;
   if (typeof from !== 'string' || !isRelativePath(from)) {
     throw new MountError(`${where}: "from" must be a relative path inside the project`);
   }
   if (typeof to !== 'string') throw new MountError(`${where}: "to" must be a data path`);
   const hash = to.indexOf('#');
-  const path = hash === -1 ? to : to.slice(0, hash);
+  const target = hash === -1 ? to : to.slice(0, hash);
+  const path = folder && target.endsWith('/') ? target.slice(0, -1) : target;
   if (!isRelativePath(path)) {
     throw new MountError(`${where}: "${path}" must be a data path relative to the data root`);
   }
@@ -70,8 +78,12 @@ function parseMount(value: JsonValue, index: number): Mount {
   if (fence !== undefined && pointer === undefined) {
     throw new MountError(`${where}: "fence" applies to text mounted at a JSON Pointer`);
   }
+  if (folder && pointer !== undefined) {
+    throw new MountError(`${where}: a folder mounts onto a data folder, not a JSON Pointer`);
+  }
   return {
     from,
+    ...(folder ? { folder: true as const } : {}),
     to: pointer === undefined ? { path } : { path, pointer },
     ...(fence === undefined ? {} : { fence }),
   };

@@ -1,7 +1,8 @@
+import type { ImageContent } from '@earendil-works/pi-ai';
 import { ensureOnlyArguments, optionalCount, requiredTrimmedString } from './arguments';
 import { rememberFileRead } from './read-state';
 import { charCount, countLines, isPartial, numberLines, selectLines } from './text';
-import { modelToolName, type Tool } from './tool';
+import { modelToolName, ToolError, type Tool, type ToolResult } from './tool';
 import {
   GREP,
   parseWorkspacePath,
@@ -9,7 +10,34 @@ import {
   readText,
   visibleLocation,
   type AgentWorkspace,
+  type Location,
 } from './workspace';
+
+/**
+ * What an image or font file shows, read by the host: the tools themselves
+ * use no browser API.
+ */
+export interface MediaReader {
+  /** Undefined when the bytes are neither an image nor a font the host can open. */
+  read(
+    path: string,
+    bytes: Uint8Array,
+    options: { image: boolean },
+  ): Promise<MediaView | undefined>;
+}
+
+export interface MediaView {
+  /** For the model: what the file is, its size, and where the preview has it. */
+  text: string;
+  /** What it shows, for a model that can see. */
+  image?: ImageContent;
+}
+
+export interface MediaOptions {
+  reader: MediaReader;
+  /** Whether the model takes images. */
+  images: boolean;
+}
 
 const MAX_READ_BYTES = 256 * 1024;
 const MAX_READ_LINES = 1200;
@@ -17,10 +45,13 @@ const MAX_READ_CHARS = 80_000;
 /** Of a line longer than one read returns, as in a minified file. */
 const LONG_LINE_SHOWN = 2_000;
 
-export function readFileTool(workspace: AgentWorkspace): Tool {
+export function readFileTool(workspace: AgentWorkspace, media?: MediaOptions): Tool {
+  const shown = media
+    ? ` An image or a font file comes back as what it is: its format, size and preview URL, and, ${media.images ? 'as an image, the picture itself or a specimen of the font' : 'though this model cannot see images, which characters the font covers'}.`
+    : '';
   return {
     id: READ_FILE,
-    description: `Read a text file in the workspace with line numbers, each line as N | text: the whole file, or the lines from start_line. A long file comes back in parts, and the result says where the next part starts. Search a minified file with ${modelToolName(GREP)} rather than reading it.`,
+    description: `Read a text file in the workspace with line numbers, each line as N | text: the whole file, or the lines from start_line. A long file comes back in parts, and the result says where the next part starts. Search a minified file with ${modelToolName(GREP)} rather than reading it.${shown}`,
     inputSchema: {
       type: 'object',
       additionalProperties: false,
@@ -50,7 +81,15 @@ export function readFileTool(workspace: AgentWorkspace): Tool {
       const startLine = optionalCount(input, 'start_line') ?? 1;
       const lineCount = optionalCount(input, 'line_count');
 
-      const file = await readText(location);
+      let file;
+      try {
+        file = await readText(location);
+      } catch (error) {
+        if (!media || !(error instanceof ToolError) || error.code !== 'workspace.file_not_text') {
+          throw error;
+        }
+        return readMedia(location, media, error);
+      }
       const wholeFile = startLine === 1 && lineCount === undefined;
       const fits =
         file.bytes <= MAX_READ_BYTES &&
@@ -79,4 +118,20 @@ export function readFileTool(workspace: AgentWorkspace): Tool {
       return { text };
     },
   };
+}
+
+async function readMedia(
+  location: Location,
+  media: MediaOptions,
+  notText: ToolError,
+): Promise<ToolResult> {
+  const bytes = await location.root.read(location.relative);
+  const view = await media.reader.read(location.path, bytes, { image: media.images });
+  if (!view) {
+    throw new ToolError(
+      notText.code,
+      `\`${location.path}\` is not UTF-8 text, nor an image or a font Studio can open.`,
+    );
+  }
+  return { text: view.text, ...(view.image ? { images: [view.image] } : {}) };
 }

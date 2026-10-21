@@ -2,13 +2,13 @@ import {
   elementPath,
   frameInPage,
   readStyles,
-  ruleLines,
   type Candidate,
   type Explanation,
   type MatchedRule,
 } from '@tavern-studio/preview/inspect';
 import type { JsonObject } from '@tavern-studio/agent';
 import type { JsonValue } from '@tavern-studio/workspace';
+import { lineFinder } from './lines';
 import type { SourceNamer } from './sources';
 
 const RULES_SHOWN = 20;
@@ -118,32 +118,4 @@ function variablesIn(value: string): string[] {
 
 function shorten(text: string): string {
   return text.length > DECLARATIONS_SHOWN ? `${text.slice(0, DECLARATIONS_SHOWN)}…` : text;
-}
-
-/** A <link>'s file is fetched by the page, so that it reads what the page read. */
-async function lineFinder(
-  view: Window,
-  rules: readonly MatchedRule[],
-): Promise<(rule: MatchedRule) => number | undefined> {
-  const sheets = new Set(rules.flatMap((rule) => (rule.sheet ? [rule.sheet] : [])));
-  const bySheet = new Map<CSSStyleSheet, Map<CSSRule, number>>();
-  await Promise.all(
-    [...sheets].map(async (sheet) => {
-      const text = await sheetText(view, sheet);
-      if (text !== undefined) bySheet.set(sheet, ruleLines(sheet, text));
-    }),
-  );
-  return (rule) => (rule.sheet && rule.rule ? bySheet.get(rule.sheet)?.get(rule.rule) : undefined);
-}
-
-async function sheetText(view: Window, sheet: CSSStyleSheet): Promise<string | undefined> {
-  const owner = sheet.ownerNode as Element | null;
-  if (owner?.localName === 'style') return owner.textContent ?? '';
-  if (!sheet.href) return undefined;
-  try {
-    const response = await view.fetch(sheet.href);
-    return response.ok ? await response.text() : undefined;
-  } catch {
-    return undefined;
-  }
 }

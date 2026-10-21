@@ -315,6 +315,20 @@ describe('Mounts', () => {
     ]).toEqual([SETTINGS]);
   });
 
+  test('a folder Mount written with a trailing slash places nothing until the folder exists', async () => {
+    const mounts = [{ from: 'assets/', to: 'default-user/user/files/assets/' }];
+    const manifest = (files: Files) => ({
+      'studio.json': JSON.stringify({ fixture: 'showcase', mounts }),
+      ...files,
+    });
+    expect(await placements(manifest({}))).toEqual([]);
+    const placed = await placements(manifest({ 'assets/cat.png': minimalPng() }));
+    expect(placed.map(({ source, path }) => [source, path])).toEqual([
+      ['assets/cat.png', 'default-user/user/files/assets/cat.png'],
+    ]);
+    await expect(placements(manifest({ assets: 'not a folder' }))).rejects.toThrow(MountError);
+  });
+
   test('two Mounts writing the same position are refused', async () => {
     const overlapping = { ...theme, 'theme.json': '{ "theme": "Bamboo", "custom_css": "" }' };
     await expect(placements(overlapping)).rejects.toThrow(MountError);
