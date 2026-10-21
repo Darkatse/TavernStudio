@@ -17,7 +17,7 @@ import {
 } from '@tavern-studio/agent';
 import type { Project } from '../project/project';
 import { agentPreview } from './preview-surface';
-import { agentSettings, effortOf } from './settings';
+import { agentSettings, compactAtOf, effortOf } from './settings';
 import { systemPrompt } from './system-prompt';
 import { agentWorkspace } from './workspace';
 
@@ -70,18 +70,17 @@ async function environment(
   hooks: RunHooks,
 ): Promise<RunEnvironment> {
   const preview = agentPreview(project);
-  const settings = agentSettings();
   return {
     agent: await agentModel(model),
     systemPrompt: await systemPrompt(project),
-    secrets: Object.values(settings.keys).filter((key) => key !== ''),
+    secrets: Object.values(agentSettings().keys).filter((key) => key !== ''),
     tools: [
       ...workspaceTools(agentWorkspace(project.record.id, projectRoot)),
       ...previewTools(preview.control, { images: model.endpoint.images }),
       ...appTools(preview.surface),
       ...inspectTools(preview.inspect),
     ],
-    compactAt: settings.compactAt / 100,
+    compactAt: compactAtOf(model.endpoint) / 100,
     ...hooks,
   };
 }

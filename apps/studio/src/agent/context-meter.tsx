@@ -7,7 +7,7 @@ import { Menu, MenuContent, MenuItem, MenuSeparator, MenuTrigger } from '../ui/m
 import { Tooltip } from '../ui/tooltip';
 import { contextMeterMessages } from './context-meter-messages';
 import type { Conversation, ConversationState } from './conversation';
-import { selectedEndpoint, useAgentSettings } from './settings';
+import { compactAtOf, selectedEndpoint, useAgentSettings } from './settings';
 import { useConversationState } from './use-conversation';
 
 const COMPACT: Intl.NumberFormatOptions = { notation: 'compact', maximumFractionDigits: 1 };
@@ -27,10 +27,10 @@ export function ContextMeter({
 }) {
   const m = useMessages(contextMeterMessages);
   const state = useConversationState(conversation);
-  const settings = useAgentSettings();
-  const window = selectedEndpoint(settings).endpoint?.contextWindow;
+  const { endpoint } = selectedEndpoint(useAgentSettings());
   const tokens = contextTokens(state);
-  if (tokens === undefined || !window) return null;
+  if (tokens === undefined || !endpoint?.contextWindow) return null;
+  const window = endpoint.contextWindow;
   const share = Math.min(tokens / window, 1);
   const percent = formatNumber(share, { style: 'percent', maximumFractionDigits: 0 });
   const used = formatNumber(tokens, COMPACT);
@@ -68,7 +68,7 @@ export function ContextMeter({
       </span>
       <MenuContent>
         <p className="max-w-64 px-2 py-1.5 text-caption text-pretty text-muted">
-          {m.detail(used, of, settings.compactAt)}
+          {m.detail(used, of, compactAtOf(endpoint))}
         </p>
         <MenuSeparator />
         <MenuItem

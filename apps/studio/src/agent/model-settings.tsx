@@ -18,7 +18,13 @@ import { Field, Input } from '../ui/input';
 import { Select } from '../ui/select';
 import { agentMessages } from './messages';
 import { modelSettingsMessages, type ModelSettingsText } from './model-settings-messages';
-import { COMPACT_AT, updateAgentSettings, useAgentSettings } from './settings';
+import {
+  COMPACT_AT,
+  compactAtOf,
+  isCompactAt,
+  updateAgentSettings,
+  useAgentSettings,
+} from './settings';
 
 const CUSTOM = 'custom';
 
@@ -102,47 +108,7 @@ export function ModelSettings() {
           </p>
         </div>
       </div>
-      <CompactionSetting />
     </>
-  );
-}
-
-/** A value outside the range stays in the field, with its problem, and is not stored. */
-function CompactionSetting() {
-  const m = useMessages(modelSettingsMessages);
-  const settings = useAgentSettings();
-  const [typed, setTyped] = useState(String(settings.compactAt));
-  const value = Number(typed);
-  const valid = Number.isInteger(value) && value >= COMPACT_AT.min && value <= COMPACT_AT.max;
-  return (
-    <Field
-      label={m.compactAt}
-      hint={m.compactAtHint}
-      error={valid ? undefined : m.compactAtRange(COMPACT_AT.min, COMPACT_AT.max)}
-    >
-      {(id) => (
-        <span className="flex items-center gap-2">
-          <Input
-            id={id}
-            type="number"
-            inputMode="numeric"
-            min={COMPACT_AT.min}
-            max={COMPACT_AT.max}
-            step={1}
-            value={typed}
-            className="w-20"
-            onChange={(event) => {
-              setTyped(event.target.value);
-              const next = event.target.valueAsNumber;
-              if (Number.isInteger(next) && next >= COMPACT_AT.min && next <= COMPACT_AT.max) {
-                void updateAgentSettings({ compactAt: next });
-              }
-            }}
-          />
-          <span className="text-muted">%</span>
-        </span>
-      )}
-    </Field>
   );
 }
 
@@ -236,7 +202,8 @@ function EndpointForm({
     reachable &&
     value.model.trim() !== '' &&
     isLimit(value.contextWindow) &&
-    isLimit(value.maxTokens);
+    isLimit(value.maxTokens) &&
+    isCompactAt(compactAtOf(value));
   const models = listing.state === 'done' ? listing.models : [];
 
   const edit = (change: Partial<Endpoint>) => {
@@ -432,7 +399,7 @@ function EndpointForm({
       </Field>
       <div className="flex flex-col gap-1.5">
         {/* Bottom-aligned, so the fields line up when one label wraps. */}
-        <div className="grid grid-cols-2 items-end gap-3">
+        <div className="grid grid-cols-[1fr_1fr_auto] items-end gap-3">
           <Field label={m.contextWindow}>
             {(id) => (
               <Input
@@ -459,8 +426,31 @@ function EndpointForm({
               />
             )}
           </Field>
+          <Field label={m.compactAt}>
+            {(id) => (
+              <span className="flex items-center gap-1.5">
+                <Input
+                  id={id}
+                  type="number"
+                  inputMode="numeric"
+                  min={COMPACT_AT.min}
+                  max={COMPACT_AT.max}
+                  step={1}
+                  value={compactAtOf(value) || ''}
+                  className="w-16"
+                  onChange={(event) => edit({ compactAt: event.target.valueAsNumber || 0 })}
+                />
+                <span className="text-muted">%</span>
+              </span>
+            )}
+          </Field>
         </div>
         {limitsUnknown && <p className="text-caption text-pretty text-muted">{m.limitsUnknown}</p>}
+        {!isCompactAt(compactAtOf(value)) && (
+          <p role="alert" className="text-caption text-danger">
+            {m.compactAtRange(COMPACT_AT.min, COMPACT_AT.max)}
+          </p>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-5 gap-y-2">
         <Toggle

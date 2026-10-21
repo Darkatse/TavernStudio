@@ -19,6 +19,8 @@ export interface Endpoint {
   reasoning: boolean;
   /** How hard the model reasons, once the author has chosen. */
   effort?: ModelThinkingLevel;
+  /** The percentage of the context window at which the context is compacted, once the author has chosen. */
+  compactAt?: number;
   images: boolean;
   /** The tokens the model reads at most: the conversation, the tools and the reply. */
   contextWindow: number;

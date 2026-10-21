@@ -9,10 +9,9 @@ export interface AgentSettings {
   keys: Readonly<Record<string, string>>;
   /** Off by default: same-origin code, extensions included, can read whatever Studio keeps. */
   rememberKeys: boolean;
-  /** The percentage of the context window at which the context is compacted. */
-  compactAt: number;
 }
 
+/** In percent of the context window. */
 export const COMPACT_AT = { initial: 95, min: 50, max: 95 } as const;
 
 const KEY = 'agent';
@@ -21,7 +20,6 @@ let settings: AgentSettings = {
   selected: undefined,
   keys: {},
   rememberKeys: false,
-  compactAt: COMPACT_AT.initial,
 };
 let read = false;
 const listeners = new Set<() => void>();
@@ -69,6 +67,15 @@ export async function updateAgentSettings(change: Partial<AgentSettings>): Promi
 /** An endpoint whose effort the author has not chosen reasons at medium. */
 export function effortOf(endpoint: Endpoint): ModelThinkingLevel {
   return endpoint.effort ?? 'medium';
+}
+
+/** An endpoint whose threshold the author has not set compacts at 95%. */
+export function compactAtOf(endpoint: Endpoint): number {
+  return endpoint.compactAt ?? COMPACT_AT.initial;
+}
+
+export function isCompactAt(percent: number): boolean {
+  return Number.isInteger(percent) && percent >= COMPACT_AT.min && percent <= COMPACT_AT.max;
 }
 
 export function chooseEffort(id: string, effort: ModelThinkingLevel): Promise<void> {
