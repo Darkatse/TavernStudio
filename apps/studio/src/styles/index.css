@@ -53,6 +53,9 @@
   --color-backdrop: oklch(0.2 0.01 70 / 0.24);
   /* Behind an image shown whole: dark in both schemes, as a photo viewer is. */
   --color-scrim: oklch(0.14 0.004 70 / 0.86);
+  /* The glyphs on a device's system bars go by the page under them, not by Studio's scheme. */
+  --color-system-dark: oklch(0 0 0);
+  --color-system-light: oklch(1 0 0);
 
   --font-sans:
     'Inter Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', 'PingFang SC',

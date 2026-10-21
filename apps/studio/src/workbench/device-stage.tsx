@@ -1,7 +1,7 @@
 import { useMessages } from '../i18n/messages';
 import { useElementSize } from '../lib/use-element-size';
 import { useSessionStatus } from '../preview/use-session';
-import type { Device } from '../preview/devices';
+import { screenOf, type Device } from '../preview/devices';
 import { workbenchMessages } from './messages';
 import { PreviewView } from './preview-view';
 
@@ -9,8 +9,9 @@ import { PreviewView } from './preview-view';
 const CAPTION_SPACE = 28;
 
 /**
- * The frame keeps the device's viewport size and is scaled as a whole, so the
- * page inside lays out exactly as it would on the device. A hidden stage
+ * The frame is the device's screen, scaled as a whole, so the page inside
+ * lays out exactly as it would on the device. The caption gives the page's
+ * own size, the screen less its system bars. A hidden stage
  * measures 0 × 0 and only scales the frame to nothing, while the page inside
  * keeps its viewport and keeps running.
  */
@@ -18,10 +19,14 @@ export function DeviceStage({ device, generation }: { device: Device; generation
   const m = useMessages(workbenchMessages);
   const [stageRef, stage] = useElementSize();
   const session = useSessionStatus();
-  const { width, height } = device.viewport;
+  const screen = screenOf(device);
   const scale = stage
-    ? Math.max(0, Math.min(stage.width / width, (stage.height - CAPTION_SPACE) / height, 1))
+    ? Math.max(
+        0,
+        Math.min(stage.width / screen.width, (stage.height - CAPTION_SPACE) / screen.height, 1),
+      )
     : 0;
+  const { width, height } = device.viewport;
 
   return (
     <div
@@ -35,8 +40,8 @@ export function DeviceStage({ device, generation }: { device: Device; generation
         <div
           className="relative overflow-hidden bg-surface shadow-frame"
           style={{
-            width: width * scale,
-            height: height * scale,
+            width: screen.width * scale,
+            height: screen.height * scale,
             borderRadius: device.cornerRadius * scale,
           }}
         >

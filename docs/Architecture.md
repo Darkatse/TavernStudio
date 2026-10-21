@@ -24,7 +24,7 @@ vendor 留在浏览器里的状态不在其中，与真实部署一样随浏览�
 |---|---|
 | Vendor | 一个前端发行版本，如 `st-1.19.0`、`tt-2.3.0` |
 | Vendor 镜像 | Vendor 的不可变静态文件，加上构建期注入的 Attach，见 [Vendors §1](Vendors.md#1-vendor-镜像) |
-| Device | 视口尺寸与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
+| Device | 视口尺寸、上下系统栏的高度与平台身份。ST 的身份来自 UA，TT 的来自 `__TAURITAVERN_HOST__` |
 | Fixture（样板） | 一段 ST 数据目录：settings、角色、聊天、主题、世界书、扩展设置。可以附带 Replay |
 | Replay（回放） | Fixture 附带的一组 assistant 回复（样板根目录的 `replay.json`），生成端点每次按顺序流式回放一条。回放到第几条记在 Session 数据根目录的 `replay-position.json` 里，随 Session 持久化与重置 |
 | Project | 作者的源文件，加上 `studio.json` |
